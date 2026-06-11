@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "users_email_idx" ON "identity"."users" USING btree ("email");
