@@ -12,7 +12,6 @@ import { FundingField } from "@/components/auth/onboarding/FundingField";
 import { SportsField } from "@/components/auth/onboarding/SportsField";
 import { useBrandedLinkAvailability } from "@/components/auth/onboarding/useBrandedLinkAvailability";
 import { authConfig } from "@/lib/auth-config";
-import { getOnboardingSession, clearOnboardingSession } from "@/lib/auth-session";
 import {
   brandedLinkFromAcademyName,
   finalizeBrandedLink,
@@ -136,7 +135,6 @@ export function OnboardingProfileForm() {
       updateDraft({ subdomain: finalizedSubdomain });
     }
 
-    const session = getOnboardingSession();
     const payload = {
       academyName: academyName.trim(),
       district: district.trim(),
@@ -144,12 +142,6 @@ export function OnboardingProfileForm() {
       sports,
       fundingType: mapFundingType(funding),
       brandColor: brandColour,
-      adminName: session?.identifier ?? session?.phone ?? "Academy Admin",
-      adminEmail:
-        session?.mode === "password" && session.identifier?.includes("@")
-          ? session.identifier
-          : undefined,
-      adminPhone: session?.mode === "otp" ? session.phone : undefined,
     };
 
     const validationError = validateOnboardingPayload(payload);
@@ -179,7 +171,6 @@ export function OnboardingProfileForm() {
 
     try {
       const result = await api.academy.create(payload);
-      clearOnboardingSession();
       clearOnboardingDraft();
       router.push(`/academy/${result.id}/dashboard`);
     } catch (err) {
@@ -192,9 +183,13 @@ export function OnboardingProfileForm() {
     }
   }
 
-  function handleBack() {
+  async function handleBack() {
     clearOnboardingDraft();
-    clearOnboardingSession();
+    try {
+      await api.auth.logout();
+    } catch {
+      // Continue to login even if logout fails.
+    }
   }
 
   const showAcademyError = touched.academyName && !academyName.trim();

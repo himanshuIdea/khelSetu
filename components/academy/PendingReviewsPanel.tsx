@@ -1,4 +1,5 @@
 import type { PendingReview } from "@/lib/repositories/types";
+import { EmptyState } from "@/components/academy/shared";
 import { VideoIcon } from "./icons";
 
 type PendingReviewsPanelProps = {
@@ -19,34 +20,46 @@ export function PendingReviewsPanel({ reviews, totalPending }: PendingReviewsPan
         {totalPending ?? reviews.length} player submissions awaiting coach feedback
       </div>
 
-      <div className="flex flex-col gap-[11px]">
-        {reviews.map((review) => (
-          <div
-            key={`${review.drill}-${review.player}`}
-            className="flex gap-[11px] items-center p-[11px] border border-line rounded-xl"
-          >
-            <div
-              className="w-[46px] h-[34px] rounded-[7px] flex items-center justify-center shrink-0"
-              style={{ background: review.thumbnailGradient }}
-            >
-              <VideoIcon className="w-3.5 h-3.5 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-[12.5px] text-text">{review.drill}</div>
-              <div className="text-[11.5px] text-muted">
-                {review.player} · {review.timeAgo}
+      {reviews.length === 0 ? (
+        <EmptyState
+          compact
+          className="border-none shadow-none bg-surface/60"
+          icon={<VideoIcon className="w-5 h-5" />}
+          title="No pending reviews"
+          description="When players submit drill videos, they'll show up here for coach feedback."
+        />
+      ) : (
+        <>
+          <div className="flex flex-col gap-[11px]">
+            {reviews.map((review) => (
+              <div
+                key={`${review.drill}-${review.player}`}
+                className="flex gap-[11px] items-center p-[11px] border border-line rounded-xl"
+              >
+                <div
+                  className="w-[46px] h-[34px] rounded-[7px] flex items-center justify-center shrink-0"
+                  style={{ background: review.thumbnailGradient }}
+                >
+                  <VideoIcon className="w-3.5 h-3.5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-[12.5px] text-text">{review.drill}</div>
+                  <div className="text-[11.5px] text-muted">
+                    {review.player} · {review.timeAgo}
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <button
-        type="button"
-        className="w-full mt-4 inline-flex items-center justify-center bg-ink text-white font-semibold text-[13px] py-[11px] px-4 rounded-[10px]"
-      >
-        Open review queue
-      </button>
+          <button
+            type="button"
+            className="w-full mt-4 inline-flex items-center justify-center bg-ink text-white font-semibold text-[13px] py-[11px] px-4 rounded-[10px]"
+          >
+            Open review queue
+          </button>
+        </>
+      )}
     </div>
   );
 }

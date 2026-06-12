@@ -3,6 +3,18 @@ import { loadEnv } from "../lib/load-env";
 
 loadEnv();
 
+const EXPECTED_SCHEMAS = [
+  "identity",
+  "academy",
+  "people",
+  "operations",
+  "competitions",
+  "inventory",
+  "payroll",
+  "training",
+  "platform",
+];
+
 async function main() {
   const url = process.env.DATABASE_URL;
 
@@ -11,10 +23,29 @@ async function main() {
     process.exit(1);
   }
 
-  const sql = postgres(url, { prepare: false, max: 1 });
+  const sql = postgres(url, { prepare: false, max: 1, connect_timeout: 10 });
 
   try {
+    const start = Date.now();
     await sql`SELECT 1 AS ok`;
+    const latencyMs = Date.now() - start;
+
+    const schemas = await sql<{ schema_name: string }[]>`
+      SELECT schema_name
+      FROM information_schema.schemata
+      WHERE schema_name IN ${sql(EXPECTED_SCHEMAS)}
+      ORDER BY schema_name
+    `;
+
+    const foundSchemas = new Set(schemas.map((row) => row.schema_name));
+    const missingSchemas = EXPECTED_SCHEMAS.filter((name) => !foundSchemas.has(name));
+
+    if (missingSchemas.length > 0) {
+      console.error("Connected, but schemas are missing:", missingSchemas.join(", "));
+      console.error("Run: pnpm db:setup");
+      process.exit(1);
+    }
+
     const tables = await sql`
       SELECT table_name
       FROM information_schema.tables
@@ -36,8 +67,11 @@ async function main() {
       process.exit(1);
     }
 
-    console.log("Database OK — seed academy found.");
-    console.log("  route id:", academy.id);
+    console.log("Database OK");
+    console.log("  latency:", `${latencyMs}ms`);
+    console.log("  schemas:", schemas.length);
+    console.log("  academy tables:", tables.length);
+    console.log("  seed route id:", academy.id);
     console.log("  branded link:", `${academy.slug}.khelsetu.in`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

@@ -1,11 +1,7 @@
 import { getAcademyMeta } from "@/lib/repositories/academy";
-import {
-  createAcademyProfile,
-  isSlugAvailable,
-} from "@/lib/repositories/onboarding";
+import { isSlugAvailable } from "@/lib/repositories/onboarding";
 import { isValidAcademyId } from "@/lib/academy-id";
 import { validateBrandedLink } from "@/lib/branded-link";
-import { validateOnboardingPayload, type OnboardingPayload } from "@/lib/onboarding";
 import { loadEnv } from "../../lib/load-env";
 import { createService } from "../shared/create-service";
 import { servicePorts } from "../shared/config";
@@ -15,6 +11,7 @@ loadEnv();
 createService({
   name: "academy-service",
   port: servicePorts.academy,
+  dbHealth: true,
   routes: (app) => {
     app.get("/academies/:academyId/meta", async (c) => {
       const academyId = c.req.param("academyId");
@@ -44,20 +41,10 @@ createService({
     });
 
     app.post("/academies/onboarding", async (c) => {
-      const body = (await c.req.json()) as OnboardingPayload;
-      const validationError = validateOnboardingPayload(body);
-      if (validationError) {
-        return c.json({ error: validationError }, 400);
-      }
-
-      try {
-        const result = await createAcademyProfile(body);
-        return c.json(result, 201);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Could not create academy";
-        const status = message.includes("already taken") ? 409 : 500;
-        return c.json({ error: message }, status);
-      }
+      return c.json(
+        { error: "Academy onboarding requires authentication via the web app." },
+        401
+      );
     });
   },
 });

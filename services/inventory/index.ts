@@ -12,6 +12,7 @@ loadEnv();
 createService({
   name: "inventory-service",
   port: servicePorts.inventory,
+  dbHealth: true,
   routes: (app) => {
     app.get("/academies/:academyId/inventory/stats", async (c) => {
       const stats = await getInventoryStats(c.req.param("academyId"));

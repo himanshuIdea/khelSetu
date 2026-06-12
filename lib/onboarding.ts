@@ -11,9 +11,6 @@ export type OnboardingPayload = {
   sports: string[];
   fundingType: "govt_aided" | "private";
   brandColor: string;
-  adminName?: string;
-  adminEmail?: string;
-  adminPhone?: string;
 };
 
 export type OnboardingResult = {

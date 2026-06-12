@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
+import { checkDatabaseHealth } from "@/lib/db/health";
 import { loadEnv } from "../../lib/load-env";
 import { servicePorts, serviceUrls } from "../shared/config";
 import { formatServiceError } from "../shared/errors";
@@ -18,6 +19,19 @@ app.get("/health", (c) =>
     version: "v1",
   })
 );
+
+app.get("/health/ready", async (c) => {
+  const database = await checkDatabaseHealth();
+  const ready = database.status === "ok";
+  return c.json(
+    {
+      status: ready ? "ok" : "degraded",
+      service: "api-gateway",
+      database,
+    },
+    ready ? 200 : 503
+  );
+});
 
 const v1 = new Hono();
 
@@ -112,6 +126,13 @@ v1.all("/academies/:academyId/teams/members", (c) =>
     `/academies/${c.req.param("academyId")}/teams/members`
   )
 );
+v1.all("/academies/:academyId/teams/lineup-suggestion", (c) =>
+  proxyRequest(
+    c,
+    serviceUrls.competitions,
+    `/academies/${c.req.param("academyId")}/teams/lineup-suggestion`
+  )
+);
 v1.all("/academies/:academyId/teams", (c) =>
   proxyRequest(c, serviceUrls.competitions, `/academies/${c.req.param("academyId")}/teams`)
 );
@@ -141,6 +162,13 @@ v1.all("/tournaments/:tournamentId/mat-schedule", (c) =>
     c,
     serviceUrls.competitions,
     `/tournaments/${c.req.param("tournamentId")}/mat-schedule`
+  )
+);
+v1.all("/tournaments/:tournamentId/medals", (c) =>
+  proxyRequest(
+    c,
+    serviceUrls.competitions,
+    `/tournaments/${c.req.param("tournamentId")}/medals`
   )
 );
 

@@ -1,13 +1,14 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthField } from "@/components/auth/AuthField";
 import { AuthModeToggle } from "@/components/auth/AuthModeToggle";
 import { AuthContinueButton } from "@/components/auth/AuthButton";
 import { authConfig, AuthMode } from "@/lib/auth-config";
-import { saveOnboardingSession } from "@/lib/auth-session";
+import { api, ApiError } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,23 +18,44 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit =
     mode === "password"
       ? identifier.trim() !== "" && password.trim() !== ""
       : phone.trim() !== "" && otp.trim() !== "";
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || isSubmitting) return;
 
-    saveOnboardingSession({
-      mode,
-      identifier: mode === "password" ? identifier.trim() : undefined,
-      phone: mode === "otp" ? phone.trim() : undefined,
-    });
+    setError(null);
+    setIsSubmitting(true);
 
-    router.push("/auth/onboarding");
+    try {
+      const result =
+        mode === "password"
+          ? await api.auth.login({
+              mode: "password",
+              email: identifier.trim(),
+              password,
+            })
+          : await api.auth.login({
+              mode: "otp",
+              phone: phone.trim(),
+              otp: otp.trim(),
+            });
+
+      router.push(result.redirectTo);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -48,6 +70,12 @@ export default function LoginPage() {
           {login.title}
         </h3>
         <p className="text-[13.5px] text-muted mt-1.5 mb-7">{login.subtitle}</p>
+
+        {error && (
+          <p className="text-[13px] font-medium text-red mb-4" role="alert">
+            {error}
+          </p>
+        )}
 
         <AuthModeToggle
           mode={mode}
@@ -101,12 +129,21 @@ export default function LoginPage() {
           </>
         )}
 
-        <div className="mt-auto flex justify-end pt-8">
-          <AuthContinueButton
-            type="submit"
-            label={login.continueLabel}
-            disabled={!canSubmit}
-          />
+        <div className="mt-auto flex flex-col gap-6 pt-8">
+          <div className="flex justify-end">
+            <AuthContinueButton
+              type="submit"
+              label={isSubmitting ? "Signing in…" : login.continueLabel}
+              disabled={!canSubmit || isSubmitting}
+              loading={isSubmitting}
+            />
+          </div>
+          <p className="text-[13px] text-muted text-center sm:text-left">
+            {login.signUpPrompt}{" "}
+            <Link href="/auth/sign-up" className="font-semibold text-brand hover:underline">
+              {login.signUpLabel}
+            </Link>
+          </p>
         </div>
       </form>
     </AuthShell>

@@ -28,6 +28,37 @@ export function formatFeeStatus(status: string, period: string): {
   return { label: `Due · ${month}`, variant: "red" };
 }
 
+export function resolvePlayerFeeDisplay(
+  invoice:
+    | {
+        status: string;
+        period: string;
+        amountPaise: number;
+      }
+    | undefined,
+  monthlyFeePaise: number | null | undefined
+): { label: string; variant: "green" | "red" | "amber" | "grey" } {
+  if (invoice) {
+    if (invoice.status === "due") {
+      return { label: `Due · ${formatPaiseFull(invoice.amountPaise)}`, variant: "red" };
+    }
+    if (invoice.status === "partial") {
+      return { label: `Due · ${formatPaiseFull(invoice.amountPaise)}`, variant: "amber" };
+    }
+    return formatFeeStatus(invoice.status, invoice.period);
+  }
+
+  if (monthlyFeePaise != null && monthlyFeePaise > 0) {
+    return formatFeeStatus("paid", currentFeePeriod());
+  }
+
+  return { label: "Not set", variant: "grey" };
+}
+
+export function currentFeePeriod(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export function formatAge(dateOfBirth: Date | null): string {
   if (!dateOfBirth) return "—";
   const now = new Date();
@@ -58,6 +89,30 @@ export function getInitials(name: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+/** Display weight with kg unit. Non-numeric categories (e.g. Raider, 400m) are left unchanged. */
+export function formatWeightKg(value: string | number | null | undefined): string {
+  if (value == null || value === "" || value === "—") return "—";
+  const str = String(value).trim();
+  if (/kgs?/i.test(str)) {
+    return str.replace(/^(\d+(?:\.\d+)?)\s*kgs?\s*$/i, "$1 kg");
+  }
+  if (/^\d+(?:\.\d+)?$/.test(str)) {
+    return `${str} kg`;
+  }
+  return str;
+}
+
+/** Formats the weight segment in "Sport · weight" display lines. */
+export function formatSportWeightLine(line: string): string {
+  if (!line || line === "—") return line;
+  const sep = " · ";
+  const idx = line.lastIndexOf(sep);
+  if (idx === -1) return line;
+  const sport = line.slice(0, idx);
+  const weight = line.slice(idx + sep.length);
+  return `${sport}${sep}${formatWeightKg(weight)}`;
 }
 
 export function nisLevelLabel(level: string): { badge: "nis-level-1" | "nis-level-2" | "in-review"; label: string } {

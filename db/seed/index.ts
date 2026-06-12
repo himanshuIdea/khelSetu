@@ -1,4 +1,5 @@
 import { loadEnv } from "@/lib/load-env";
+import { seedIdentityUsers } from "@/db/seed/identity";
 import { and, eq } from "drizzle-orm";
 import {
   academies,
@@ -6,22 +7,30 @@ import {
   academySports,
   activityEvents,
   attendanceRecords,
+  batchCoaches,
+  batchEnrollments,
   batches,
   coaches,
   drillSubmissions,
   feeInvoices,
   feePayments,
+  feeTargets,
   gearMovements,
   inventoryItems,
+  lineupSuggestions,
   payrollRuns,
   payslips,
+  playerCoachAssignments,
   players,
+  reportExports,
   sports,
   staff,
+  teamFixtures,
   teamMemberResults,
   teamMembers,
   teams,
   tournamentMatches,
+  tournamentMedals,
   tournaments,
   trainingSessions,
   users,
@@ -54,6 +63,8 @@ async function upsertSports() {
 
 async function main() {
   console.log("Seeding Khel Setu academy data...");
+
+  const { academyAdmin: academyAdminSeed } = await seedIdentityUsers();
 
   const sportIds = await upsertSports();
 
@@ -89,18 +100,21 @@ async function main() {
       .onConflictDoNothing({ target: [academySports.academyId, academySports.sportId] });
   }
 
+  if (!academyAdminSeed) {
+    throw new Error(
+      "Academy demo data requires SEED_ACADEMY_ADMIN_EMAIL and SEED_ACADEMY_ADMIN_PASSWORD in .env."
+    );
+  }
+
   const [admin] = await db
-    .insert(users)
-    .values({
-      fullName: "Rajesh Kadyan",
-      avatarInitials: "RK",
-      email: "rajesh@dronacharya.in",
-    })
-    .onConflictDoUpdate({
-      target: users.email,
-      set: { fullName: "Rajesh Kadyan", avatarInitials: "RK", updatedAt: new Date() },
-    })
-    .returning();
+    .select()
+    .from(users)
+    .where(eq(users.email, academyAdminSeed.email))
+    .limit(1);
+
+  if (!admin) {
+    throw new Error(`Academy admin user not found for ${academyAdminSeed.email}.`);
+  }
 
   const adminId = admin.id;
 
@@ -109,33 +123,37 @@ async function main() {
     .values({ userId: adminId, academyId, role: "admin" })
     .onConflictDoNothing();
 
-  const batchDefs = [
-    { sport: "Wrestling", name: "Sub-junior" },
-    { sport: "Boxing", name: "Junior" },
-    { sport: "Athletics", name: "Senior" },
-    { sport: "Kabaddi", name: "Junior" },
-  ];
+  const academySportNames = ["Wrestling", "Boxing", "Athletics", "Kabaddi"] as const;
+  const batchNames = ["Sub-junior", "Junior", "Senior"] as const;
 
   const batchIds: Record<string, string> = {};
-  for (const batch of batchDefs) {
-    const [existing] = await db
-      .select()
-      .from(batches)
-      .where(and(eq(batches.academyId, academyId), eq(batches.name, batch.name)))
-      .limit(1);
+  for (const sport of academySportNames) {
+    for (const name of batchNames) {
+      const [existing] = await db
+        .select()
+        .from(batches)
+        .where(
+          and(
+            eq(batches.academyId, academyId),
+            eq(batches.sportId, sportIds[sport]),
+            eq(batches.name, name)
+          )
+        )
+        .limit(1);
 
-    if (existing) {
-      batchIds[`${batch.sport}-${batch.name}`] = existing.id;
-    } else {
-      const [row] = await db
-        .insert(batches)
-        .values({
-          academyId,
-          sportId: sportIds[batch.sport],
-          name: batch.name,
-        })
-        .returning();
-      batchIds[`${batch.sport}-${batch.name}`] = row.id;
+      if (existing) {
+        batchIds[`${sport}-${name}`] = existing.id;
+      } else {
+        const [row] = await db
+          .insert(batches)
+          .values({
+            academyId,
+            sportId: sportIds[sport],
+            name,
+          })
+          .returning();
+        batchIds[`${sport}-${name}`] = row.id;
+      }
     }
   }
 
@@ -174,6 +192,13 @@ async function main() {
     }
   }
 
+  const sportCoachMap: Record<string, string> = {
+    Wrestling: "Naveen Kadyan",
+    Boxing: "Sunita Rani",
+    Athletics: "Vikram Malik",
+    Kabaddi: "Jagdeep Singh",
+  };
+
   const playerDefs: Array<{
     externalId: string;
     name: string;
@@ -185,20 +210,23 @@ async function main() {
     dob: Date;
     fee: "paid" | "due" | "partial";
     feePaise?: number;
+    rating: string;
+    monthlyFeePaise: number;
   }> = [
-    { externalId: "HRWR-1042", name: "Rohit Sangwan", sport: "Wrestling", batch: "Sub-junior", weight: "65kg", color: "#FF6B2C", status: "active", dob: new Date("2010-03-15"), fee: "paid" },
-    { externalId: "HRBX-0218", name: "Priya Dahiya", sport: "Boxing", batch: "Junior", weight: "54kg", color: "#7C5CFC", status: "active", dob: new Date("2011-07-22"), fee: "paid" },
-    { externalId: "HRWR-1067", name: "Aman Phogat", sport: "Wrestling", batch: "Sub-junior", weight: "48kg", color: "#2F6BFF", status: "active", dob: new Date("2012-01-10"), fee: "due", feePaise: 150000 },
-    { externalId: "HRAT-0091", name: "Sahil Malik", sport: "Athletics", batch: "Senior", weight: "400m", color: "#12B886", status: "active", dob: new Date("2009-05-18"), fee: "paid" },
-    { externalId: "HRKB-0153", name: "Neha Kadyan", sport: "Kabaddi", batch: "Junior", weight: "Raider", color: "#F5A623", status: "on_hold", dob: new Date("2010-11-30"), fee: "paid" },
-    { externalId: "HRWR-1088", name: "Vikas Sheoran", sport: "Wrestling", batch: "Sub-junior", weight: "57kg", color: "#E11D48", status: "active", dob: new Date("2011-04-05"), fee: "paid" },
-    { externalId: "HRBX-0240", name: "Manju Rani", sport: "Boxing", batch: "Junior", weight: "60kg", color: "#0E9B72", status: "active", dob: new Date("2010-09-12"), fee: "partial", feePaise: 120000 },
-    { externalId: "HRWR-1099", name: "Deepak Kundu", sport: "Wrestling", batch: "Sub-junior", weight: "52 kg", color: "#12B886", status: "active", dob: new Date("2011-02-20"), fee: "paid" },
+    { externalId: "HRWR-1042", name: "Rohit Sangwan", sport: "Wrestling", batch: "Sub-junior", weight: "65kg", color: "#FF6B2C", status: "active", dob: new Date("2010-03-15"), fee: "paid", rating: "7.8", monthlyFeePaise: 150000 },
+    { externalId: "HRBX-0218", name: "Priya Dahiya", sport: "Boxing", batch: "Junior", weight: "54kg", color: "#7C5CFC", status: "active", dob: new Date("2011-07-22"), fee: "paid", rating: "7.4", monthlyFeePaise: 150000 },
+    { externalId: "HRWR-1067", name: "Aman Phogat", sport: "Wrestling", batch: "Sub-junior", weight: "48kg", color: "#2F6BFF", status: "active", dob: new Date("2012-01-10"), fee: "due", feePaise: 150000, rating: "7.1", monthlyFeePaise: 150000 },
+    { externalId: "HRAT-0091", name: "Sahil Malik", sport: "Athletics", batch: "Senior", weight: "400m", color: "#12B886", status: "active", dob: new Date("2009-05-18"), fee: "paid", rating: "7.6", monthlyFeePaise: 180000 },
+    { externalId: "HRKB-0153", name: "Neha Kadyan", sport: "Kabaddi", batch: "Junior", weight: "Raider", color: "#F5A623", status: "on_hold", dob: new Date("2010-11-30"), fee: "paid", rating: "6.9", monthlyFeePaise: 120000 },
+    { externalId: "HRWR-1088", name: "Vikas Sheoran", sport: "Wrestling", batch: "Sub-junior", weight: "57kg", color: "#E11D48", status: "active", dob: new Date("2011-04-05"), fee: "paid", rating: "7.3", monthlyFeePaise: 150000 },
+    { externalId: "HRBX-0240", name: "Manju Rani", sport: "Boxing", batch: "Junior", weight: "60kg", color: "#0E9B72", status: "active", dob: new Date("2010-09-12"), fee: "partial", feePaise: 120000, rating: "7.0", monthlyFeePaise: 150000 },
+    { externalId: "HRWR-1099", name: "Deepak Kundu", sport: "Wrestling", batch: "Sub-junior", weight: "52 kg", color: "#12B886", status: "active", dob: new Date("2011-02-20"), fee: "paid", rating: "7.2", monthlyFeePaise: 150000 },
   ];
 
   const playerIds: Record<string, string> = {};
   for (const p of playerDefs) {
     const batchId = batchIds[`${p.sport}-${p.batch}`];
+    const coachId = coachIds[sportCoachMap[p.sport]];
     const [row] = await db
       .insert(players)
       .values({
@@ -207,10 +235,13 @@ async function main() {
         fullName: p.name,
         sportId: sportIds[p.sport],
         batchId,
+        primaryCoachId: coachId,
         dateOfBirth: p.dob,
         weightCategory: p.weight,
         status: p.status,
         avatarColor: p.color,
+        rating: p.rating,
+        monthlyFeePaise: p.monthlyFeePaise,
         joinedAt: new Date("2024-04-14"),
       })
       .onConflictDoUpdate({
@@ -218,11 +249,35 @@ async function main() {
         set: {
           fullName: p.name,
           status: p.status,
+          primaryCoachId: coachId,
+          rating: p.rating,
+          monthlyFeePaise: p.monthlyFeePaise,
           updatedAt: new Date(),
         },
       })
       .returning();
     playerIds[p.externalId] = row.id;
+
+    if (batchId) {
+      await db
+        .insert(batchEnrollments)
+        .values({ batchId, playerId: row.id })
+        .onConflictDoNothing({ target: [batchEnrollments.batchId, batchEnrollments.playerId] });
+    }
+
+    if (coachId) {
+      await db
+        .insert(playerCoachAssignments)
+        .values({
+          playerId: row.id,
+          coachId,
+          batchId,
+          isPrimary: true,
+        })
+        .onConflictDoNothing({
+          target: [playerCoachAssignments.playerId, playerCoachAssignments.coachId],
+        });
+    }
 
     const [invoice] = await db
       .insert(feeInvoices)
@@ -230,11 +285,20 @@ async function main() {
         playerId: row.id,
         academyId,
         period: "2026-06",
-        amountPaise: p.feePaise ?? 150000,
+        amountPaise: p.feePaise ?? p.monthlyFeePaise,
         status: p.fee,
         dueDate: new Date("2026-06-15"),
+        paidThroughPeriod: p.fee === "paid" ? "2026-06" : null,
       })
-      .onConflictDoNothing()
+      .onConflictDoUpdate({
+        target: [feeInvoices.playerId, feeInvoices.period],
+        set: {
+          status: p.fee,
+          amountPaise: p.feePaise ?? p.monthlyFeePaise,
+          paidThroughPeriod: p.fee === "paid" ? "2026-06" : null,
+          updatedAt: new Date(),
+        },
+      })
       .returning();
 
     if (p.fee === "paid" && invoice) {
@@ -254,6 +318,21 @@ async function main() {
     { batch: "Kabaddi-Junior", coach: "Jagdeep Singh", sport: "Kabaddi", at: new Date("2026-06-06T17:00:00+05:30"), venue: "Court 1", status: "upcoming" as const, present: 0, total: 36 },
   ];
 
+  for (const sport of academySportNames) {
+    const coachId = coachIds[sportCoachMap[sport]];
+    if (!coachId) continue;
+
+    for (const name of batchNames) {
+      const batchId = batchIds[`${sport}-${name}`];
+      if (!batchId) continue;
+
+      await db
+        .insert(batchCoaches)
+        .values({ batchId, coachId, isPrimary: true })
+        .onConflictDoNothing({ target: [batchCoaches.batchId, batchCoaches.coachId] });
+    }
+  }
+
   for (const s of sessionDefs) {
     const [batchKey, batchName] = s.batch.split("-");
     const batchId = batchIds[`${batchKey}-${batchName}`];
@@ -266,6 +345,7 @@ async function main() {
         sportId: sportIds[s.sport],
         scheduledAt: s.at,
         venue: s.venue,
+        expectedHeadcount: s.total,
         status: s.status,
       })
       .returning();
@@ -358,6 +438,28 @@ async function main() {
       .onConflictDoNothing();
   }
 
+  await db
+    .insert(teamFixtures)
+    .values({
+      teamId,
+      tournamentId: undefined,
+      opponentName: "Inter-Academy Meet",
+      venue: "Sonipat",
+      scheduledAt: new Date("2026-03-12T10:00:00+05:30"),
+      status: "scheduled",
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(lineupSuggestions)
+    .values({
+      teamId,
+      title: "Inter-Academy Meet",
+      suggestedPlayerIds: teamRoster.map((member) => playerIds[member.externalId]),
+      rationale: "Based on recent form & ratings, KhelSetu suggests",
+    })
+    .onConflictDoNothing();
+
   const [tournament] = await db
     .insert(tournaments)
     .values({
@@ -400,6 +502,8 @@ async function main() {
       tournamentId,
       round: m.round,
       bracketPosition: m.pos,
+      playerAId: m.a === "R. Sangwan" ? playerIds["HRWR-1042"] : null,
+      playerBId: null,
       playerAName: m.a,
       playerBName: m.b,
       scoreA: "sa" in m ? m.sa : null,
@@ -409,6 +513,20 @@ async function main() {
       scheduledAt: "at" in m ? m.at : null,
     }).onConflictDoNothing();
   }
+
+  await db
+    .insert(tournamentMedals)
+    .values({
+      tournamentId,
+      academyId,
+      gold: 3,
+      silver: 2,
+      bronze: 4,
+    })
+    .onConflictDoUpdate({
+      target: tournamentMedals.tournamentId,
+      set: { gold: 3, silver: 2, bronze: 4, updatedAt: new Date() },
+    });
 
   const inventoryDefs = [
     { name: "Wrestling singlets", category: "Wrestling", inStock: 64, issued: 96, condition: "good" as const, threshold: 10, iconBg: "var(--brand-soft)", iconColor: "var(--brand-d)" },
@@ -444,6 +562,7 @@ async function main() {
         quantity: 2,
         type: "issue",
         notes: "2× singlets issued to R. Sangwan",
+        expectedReturnAt: new Date(Date.now() - 2 * 24 * 3600000),
         createdAt: new Date(Date.now() - 25 * 60000),
       }).onConflictDoNothing();
     }
@@ -479,21 +598,40 @@ async function main() {
     payrollRunId = existing!.id;
   }
 
+  const staffIds: Record<string, string> = {};
   for (const s of staffDefs) {
-    const [staffRow] = await db
-      .insert(staff)
-      .values({
-        academyId,
-        fullName: s.name,
-        roleTitle: s.role,
-        employmentType: s.type,
-        monthlySalaryPaise: s.salary,
-        avatarColor: s.color,
-      })
-      .onConflictDoNothing()
-      .returning();
+    const [existingStaff] = await db
+      .select()
+      .from(staff)
+      .where(and(eq(staff.academyId, academyId), eq(staff.fullName, s.name)))
+      .limit(1);
 
-    const staffId = staffRow?.id;
+    const staffRow =
+      existingStaff ??
+      (
+        await db
+          .insert(staff)
+          .values({
+            academyId,
+            fullName: s.name,
+            roleTitle: s.role,
+            employmentType: s.type,
+            monthlySalaryPaise: s.salary,
+            avatarColor: s.color,
+          })
+          .returning()
+      )[0];
+
+    staffIds[s.name] = staffRow.id;
+
+    if (coachIds[s.name]) {
+      await db
+        .update(coaches)
+        .set({ staffId: staffRow.id, updatedAt: new Date() })
+        .where(eq(coaches.id, coachIds[s.name]));
+    }
+
+    const staffId = staffRow.id;
     if (staffId && payrollRunId) {
       await db.insert(payslips).values({
         payrollRunId,
@@ -539,6 +677,40 @@ async function main() {
       metadata: { type: a.type, prefix: a.prefix ?? false },
       createdAt: new Date(Date.now() - a.minsAgo * 60000),
     }).onConflictDoNothing();
+  }
+
+  await db
+    .insert(feeTargets)
+    .values({
+      academyId,
+      period: "2026-06",
+      targetPaise: 12000000,
+    })
+    .onConflictDoUpdate({
+      target: [feeTargets.academyId, feeTargets.period],
+      set: { targetPaise: 12000000, updatedAt: new Date() },
+    });
+
+  const reportTypes = [
+    "Player attendance summary",
+    "Fee collection report",
+    "Coach drill review log",
+    "Inventory audit",
+    "Payroll disbursement",
+    "Tournament results",
+  ];
+
+  for (const reportType of reportTypes) {
+    await db
+      .insert(reportExports)
+      .values({
+        academyId,
+        reportType,
+        periodLabel: "June 2026",
+        status: "ready",
+        generatedAt: new Date(),
+      })
+      .onConflictDoNothing();
   }
 
   console.log("Seed complete for academy:", academy.slug, "→", academy.id);

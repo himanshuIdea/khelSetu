@@ -8,6 +8,7 @@ loadEnv();
 createService({
   name: "payroll-service",
   port: servicePorts.payroll,
+  dbHealth: true,
   routes: (app) => {
     app.get("/academies/:academyId/payroll/stats", async (c) => {
       const stats = await getPayrollStats(c.req.param("academyId"));

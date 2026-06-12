@@ -1,3 +1,4 @@
+import { AdminAvatarMenu } from "./AdminAvatarMenu";
 import { BellIcon, MenuIcon, SearchIcon } from "./icons";
 import type { AcademyMeta } from "@/lib/repositories/types";
 
@@ -16,7 +17,7 @@ export function AcademyTopBar({
 }: AcademyTopBarProps) {
   return (
     <header className="shrink-0 bg-card border-b border-line">
-      <div className="flex items-center gap-3 md:gap-[18px] px-4 md:px-[26px] min-h-[66px] py-3">
+      <div className="flex items-center gap-3 md:gap-[18px] px-4 md:px-[26px] min-h-[66px] py-3 justify-between">
         {onMenuToggle && (
           <button
             type="button"
@@ -46,14 +47,8 @@ export function AcademyTopBar({
 
         <div className="flex-1 lg:flex-none" />
 
-        <button
-          type="button"
-          className="lg:hidden w-[38px] h-[38px] rounded-[10px] bg-surface border border-line flex items-center justify-center text-muted shrink-0"
-          aria-label="Search"
-        >
-          <SearchIcon />
-        </button>
-
+        
+        <div className="flex gap-3 lg:flex-none" >
         <button
           type="button"
           className="relative w-[38px] h-[38px] rounded-[10px] bg-surface border border-line flex items-center justify-center text-muted shrink-0"
@@ -63,9 +58,9 @@ export function AcademyTopBar({
           <span className="absolute top-2 right-[9px] w-[7px] h-[7px] rounded-full bg-brand border-2 border-card" />
         </button>
 
-        <div className="w-[38px] h-[38px] rounded-[10px] bg-linear-to-br from-ink2 to-ink3 flex items-center justify-center font-bold text-[13px] text-white shrink-0">
-          {academyMeta.adminInitials}
+        <AdminAvatarMenu initials={academyMeta.adminInitials} />
         </div>
+
       </div>
 
       <div className="lg:hidden px-4 pb-3 md:px-[26px]">

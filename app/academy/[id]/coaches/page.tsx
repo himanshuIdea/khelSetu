@@ -1,15 +1,14 @@
 import { CoachCard } from "@/components/academy/CoachCard";
+import { CoachesPageHeader } from "@/components/academy/CoachesPageHeader";
+import { CapIcon } from "@/components/academy/icons";
 import { PendingReviewsPanel } from "@/components/academy/PendingReviewsPanel";
+import { EmptyState, PageBody, SidePanel, SplitLayout } from "@/components/academy/shared";
 import {
-  PageBody,
-  PageHeader,
-  SidePanel,
-  SplitLayout,
-} from "@/components/academy/shared";
-import { api } from "@/lib/api";
-import { resolveAcademy } from "@/lib/repositories/resolve-academy";
-
-export const dynamic = "force-dynamic";
+  getCoachCount,
+  getCoachFormOptions,
+  getCoaches,
+  getPendingReviews,
+} from "@/lib/repositories/coaches";
 
 type CoachesPageProps = {
   params: Promise<{ id: string }>;
@@ -17,30 +16,38 @@ type CoachesPageProps = {
 
 export default async function CoachesPage({ params }: CoachesPageProps) {
   const { id } = await params;
-  const academy = await resolveAcademy(id);
 
-  const [coaches, pendingReviews, coachCountResult] = await Promise.all([
-    api.coaches.list(academy.id),
-    api.coaches.pendingReviews(academy.id),
-    api.coaches.count(academy.id),
+  const [coaches, pendingReviews, coachCount, formOptions] = await Promise.all([
+    getCoaches(id),
+    getPendingReviews(id),
+    getCoachCount(id),
+    getCoachFormOptions(id),
   ]);
-  const coachCount = coachCountResult.count;
+  const sportCount = formOptions.sports.length;
 
   return (
     <PageBody>
       <SplitLayout>
         <div className="flex-1 min-w-0">
-          <PageHeader
-            title="Coaches"
-            subtitle={`${coachCount} coaches across 5 sports · assign batches, post drills, review submissions.`}
-            actionLabel="Add coach"
+          <CoachesPageHeader
+            academyId={id}
+            subtitle={`${coachCount} coaches across ${sportCount} sports · assign batches, post drills, review submissions.`}
+            formOptions={formOptions}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {coaches.map((coach) => (
-              <CoachCard key={coach.initials} coach={coach} />
-            ))}
-          </div>
+          {coaches.length === 0 ? (
+            <EmptyState
+              icon={<CapIcon className="w-5 h-5" />}
+              title="No coaches yet"
+              description="Add coaches to assign batches, post drills and review player video submissions."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {coaches.map((coach) => (
+                <CoachCard key={coach.id} coach={coach} />
+              ))}
+            </div>
+          )}
         </div>
 
         <SidePanel>

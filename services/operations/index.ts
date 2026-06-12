@@ -14,6 +14,7 @@ loadEnv();
 createService({
   name: "operations-service",
   port: servicePorts.operations,
+  dbHealth: true,
   routes: (app) => {
     app.get("/academies/:academyId/dashboard/stats", async (c) => {
       const stats = await getDashboardStats(c.req.param("academyId"));

@@ -5,6 +5,7 @@ import {
   CalendarIcon,
   CapIcon,
   CashIcon,
+  ChartIcon,
   CloseIcon,
   FlagIcon,
   GridIcon,
@@ -21,7 +22,8 @@ export type AcademyNavItem =
   | "tournaments"
   | "attendance"
   | "gear"
-  | "fees";
+  | "fees"
+  | "reports";
 
 type NavEntry = {
   id: AcademyNavItem;
@@ -93,6 +95,7 @@ export function AcademySidebar({
     { id: "attendance", label: "Attendance", href: `${base}/attendance`, icon: <CalendarIcon /> },
     { id: "gear", label: "Gear & Inventory", href: `${base}/gear`, icon: <BoxIcon /> },
     { id: "fees", label: "Fees & Payroll", href: `${base}/fees`, icon: <CashIcon /> },
+    { id: "reports", label: "Reports", href: `${base}/reports`, icon: <ChartIcon className="w-[18px] h-[18px]" /> },
   ];
 
   return (

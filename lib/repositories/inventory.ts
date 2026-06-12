@@ -13,7 +13,13 @@ export async function getInventoryStats(academyId: string) {
       dueReturn: sql<number>`(
         select count(*) from inventory.gear_movements gm
         inner join inventory.inventory_items ii on ii.id = gm.item_id
-        where ii.academy_id = ${academyId} and gm.type = 'issue'
+        where ii.academy_id = ${academyId}
+          and gm.type = 'issue'
+          and gm.related_issue_id is null
+          and (
+            (gm.expected_return_at is not null and gm.expected_return_at < now())
+            or (gm.expected_return_at is null and gm.created_at < now() - interval '14 days')
+          )
       )`,
     })
     .from(inventoryItems)
@@ -40,7 +46,8 @@ export async function getInventoryItems(academyId: string): Promise<InventoryIte
       category: row.category,
       inStock: row.inStock,
       issued: row.issuedCount,
-      condition: row.condition === "good" ? "Good" : "Worn",
+      condition:
+        row.condition === "good" ? "Good" : row.condition === "damaged" ? "Damaged" : "Worn",
       conditionVariant: row.condition === "good" ? "green" : "amber",
       status: isLow ? "Low stock" : "In stock",
       statusVariant: isLow ? "red" : "green",

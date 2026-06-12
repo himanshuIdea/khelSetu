@@ -12,6 +12,16 @@ const globalForDb = globalThis as unknown as {
   db: Database | undefined;
 };
 
+function resolvePoolMax(): number {
+  const configured = process.env.DATABASE_POOL_MAX;
+  if (configured) {
+    const parsed = Number(configured);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  // Keep dev connection usage low across Next.js + microservices.
+  return process.env.NODE_ENV === "production" ? 10 : 2;
+}
+
 function createClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -20,7 +30,9 @@ function createClient() {
 
   return postgres(connectionString, {
     prepare: false,
-    max: 10,
+    max: resolvePoolMax(),
+    idle_timeout: 20,
+    connect_timeout: 10,
   });
 }
 

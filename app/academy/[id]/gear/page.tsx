@@ -1,6 +1,7 @@
 import {
   ActivityRow,
   AcademyTable,
+  EmptyState,
   PageBody,
   PageHeader,
   Pill,
@@ -13,10 +14,11 @@ import {
   TableRow,
 } from "@/components/academy/shared";
 import { BellIcon, BoxIcon, CheckIcon, UpIcon } from "@/components/academy/icons";
-import { api } from "@/lib/api";
-import { resolveAcademy } from "@/lib/repositories/resolve-academy";
-
-export const dynamic = "force-dynamic";
+import {
+  getGearMovements,
+  getInventoryItems,
+  getInventoryStats,
+} from "@/lib/repositories/inventory";
 
 type GearPageProps = {
   params: Promise<{ id: string }>;
@@ -24,12 +26,11 @@ type GearPageProps = {
 
 export default async function GearPage({ params }: GearPageProps) {
   const { id } = await params;
-  const academy = await resolveAcademy(id);
 
   const [inventoryStats, inventoryItems, gearMovements] = await Promise.all([
-    api.inventory.stats(academy.id),
-    api.inventory.items(academy.id),
-    api.inventory.movements(academy.id),
+    getInventoryStats(id),
+    getInventoryItems(id),
+    getGearMovements(id),
   ]);
 
   return (
@@ -54,28 +55,36 @@ export default async function GearPage({ params }: GearPageProps) {
             ))}
           </StatGrid>
 
-          <AcademyTable headers={["Item", "Category", "In stock", "Issued", "Condition", "Status"]} minWidth={640}>
-            {inventoryItems.map((item) => (
-              <TableRow key={item.name}>
-                <TableCell>
-                  <div className="flex items-center gap-[11px]">
-                    <div
-                      className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0"
-                      style={{ background: item.iconBg, color: item.iconColor }}
-                    >
-                      <BoxIcon className="w-[17px] h-[17px]" />
+          {inventoryItems.length === 0 ? (
+            <EmptyState
+              icon={<BoxIcon className="w-5 h-5" />}
+              title="No gear in inventory"
+              description="Add kits and equipment to track stock, issue items to players and monitor returns."
+            />
+          ) : (
+            <AcademyTable headers={["Item", "Category", "In stock", "Issued", "Condition", "Status"]} minWidth={640}>
+              {inventoryItems.map((item) => (
+                <TableRow key={item.name}>
+                  <TableCell>
+                    <div className="flex items-center gap-[11px]">
+                      <div
+                        className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0"
+                        style={{ background: item.iconBg, color: item.iconColor }}
+                      >
+                        <BoxIcon className="w-[17px] h-[17px]" />
+                      </div>
+                      <div className="font-semibold text-[13px] text-ink">{item.name}</div>
                     </div>
-                    <div className="font-semibold text-[13px] text-ink">{item.name}</div>
-                  </div>
-                </TableCell>
-                <TableCell>{item.category}</TableCell>
-                <TableCell><b>{item.inStock}</b></TableCell>
-                <TableCell>{item.issued}</TableCell>
-                <TableCell><Pill variant={item.conditionVariant}>{item.condition}</Pill></TableCell>
-                <TableCell><Pill variant={item.statusVariant}>{item.status}</Pill></TableCell>
-              </TableRow>
-            ))}
-          </AcademyTable>
+                  </TableCell>
+                  <TableCell>{item.category}</TableCell>
+                  <TableCell><b>{item.inStock}</b></TableCell>
+                  <TableCell>{item.issued}</TableCell>
+                  <TableCell><Pill variant={item.conditionVariant}>{item.condition}</Pill></TableCell>
+                  <TableCell><Pill variant={item.statusVariant}>{item.status}</Pill></TableCell>
+                </TableRow>
+              ))}
+            </AcademyTable>
+          )}
         </div>
 
         <SidePanel className="flex flex-col gap-3.5">
@@ -91,32 +100,42 @@ export default async function GearPage({ params }: GearPageProps) {
 
           <div className="bg-card border border-line rounded-(--radius) shadow-card p-[18px]">
             <SectionTitle title="Recent movement" />
-            {gearMovements.map((m) => {
-              const icons = { up: UpIcon, check: CheckIcon, bell: BellIcon };
-              const colors = {
-                up: { bg: "var(--brand-soft)", color: "var(--brand-d)" },
-                check: { bg: "var(--green-soft)", color: "#0E9B72" },
-                bell: { bg: "var(--red-soft)", color: "#D63B3B" },
-              };
-              const Icon = icons[m.type];
-              const c = colors[m.type];
-              return (
-                <ActivityRow
-                  key={m.time}
-                  icon={<Icon />}
-                  iconBg={c.bg}
-                  iconColor={c.color}
-                  text={
-                    m.prefix ? (
-                      <>{m.text} <b className="font-semibold text-ink">{m.bold}</b></>
-                    ) : (
-                      <><b className="font-semibold text-ink">{m.bold}</b> {m.text}</>
-                    )
-                  }
-                  time={m.time}
-                />
-              );
-            })}
+            {gearMovements.length === 0 ? (
+              <EmptyState
+                compact
+                className="border-none shadow-none bg-surface/60 mt-2"
+                icon={<BoxIcon className="w-5 h-5" />}
+                title="No recent movement"
+                description="Gear issues, returns and stock alerts will appear here."
+              />
+            ) : (
+              gearMovements.map((m) => {
+                const icons = { up: UpIcon, check: CheckIcon, bell: BellIcon };
+                const colors = {
+                  up: { bg: "var(--brand-soft)", color: "var(--brand-d)" },
+                  check: { bg: "var(--green-soft)", color: "#0E9B72" },
+                  bell: { bg: "var(--red-soft)", color: "#D63B3B" },
+                };
+                const Icon = icons[m.type];
+                const c = colors[m.type];
+                return (
+                  <ActivityRow
+                    key={m.time}
+                    icon={<Icon />}
+                    iconBg={c.bg}
+                    iconColor={c.color}
+                    text={
+                      m.prefix ? (
+                        <>{m.text} <b className="font-semibold text-ink">{m.bold}</b></>
+                      ) : (
+                        <><b className="font-semibold text-ink">{m.bold}</b> {m.text}</>
+                      )
+                    }
+                    time={m.time}
+                  />
+                );
+              })
+            )}
           </div>
         </SidePanel>
       </SplitLayout>

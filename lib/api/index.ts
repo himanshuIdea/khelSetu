@@ -1,4 +1,13 @@
-import { apiGet, apiPost } from "./http";
+import { apiDelete, apiGet, apiPatch, apiPost } from "./http";
+import type { AuthAcademy, AuthProfile, PlatformRole } from "@/lib/auth/types";
+import type { CreateCoachPayload } from "@/lib/coaches";
+import type { CreatePlayerPayload, PlayerEditData, UpdatePlayerPayload } from "@/lib/players";
+import type {
+  AddTeamMembersPayload,
+  CreateTeamPayload,
+  UpdateTeamMemberPayload,
+  UpdateTeamMemberSelectionPayload,
+} from "@/lib/teams";
 import type { OnboardingPayload, OnboardingResult } from "@/lib/onboarding";
 import type {
   AcademyMeta,
@@ -14,9 +23,46 @@ import type {
 } from "@/lib/repositories/types";
 
 export type { AcademyMeta } from "@/lib/repositories/types";
+export type { AuthAcademy, AuthProfile, PlatformRole };
 export { ApiError } from "./http";
 
+type AuthUserResponse = {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  fullName: string;
+  platformRole: PlatformRole | null;
+  phoneVerified: boolean;
+};
+
+type AuthSessionResponse = {
+  user: AuthUserResponse;
+  academies: AuthAcademy[];
+  needsAcademyOnboarding: boolean;
+  redirectTo: string;
+};
+
 export const api = {
+  auth: {
+    register: (body: {
+      mode: "password" | "otp";
+      fullName: string;
+      email?: string;
+      password?: string;
+      phone?: string;
+      otp?: string;
+    }) => apiPost<AuthSessionResponse>("/auth/register", body),
+    login: (body: {
+      mode: "password" | "otp";
+      email?: string;
+      password?: string;
+      phone?: string;
+      otp?: string;
+    }) => apiPost<AuthSessionResponse>("/auth/login", body),
+    me: () => apiGet<AuthSessionResponse>("/auth/me"),
+    logout: () => apiPost<{ ok: boolean }>("/auth/logout", {}),
+  },
+
   academy: {
     getMeta: (academyId: string) => apiGet<AcademyMeta>(`/academies/${academyId}/meta`),
     checkSlug: (slug: string) =>
@@ -33,6 +79,22 @@ export const api = {
       apiGet<{ active: number; onHold: number }>(`/academies/${academyId}/players/counts`),
     detail: (academyId: string, externalId: string) =>
       apiGet<PlayerDetail>(`/academies/${academyId}/players/${externalId}`),
+    create: (academyId: string, payload: CreatePlayerPayload) =>
+      apiPost<{ id: string; externalId: string }>(
+        `/academies/${academyId}/players`,
+        payload
+      ),
+    getForEdit: (academyId: string, externalId: string) =>
+      apiGet<PlayerEditData>(
+        `/academies/${academyId}/players/${externalId}?for=edit`
+      ),
+    update: (academyId: string, externalId: string, payload: UpdatePlayerPayload) =>
+      apiPatch<{ id: string; externalId: string }>(
+        `/academies/${academyId}/players/${externalId}`,
+        payload
+      ),
+    remove: (academyId: string, externalId: string) =>
+      apiDelete(`/academies/${academyId}/players/${externalId}`),
   },
 
   coaches: {
@@ -40,6 +102,8 @@ export const api = {
     count: (academyId: string) => apiGet<{ count: number }>(`/academies/${academyId}/coaches/count`),
     pendingReviews: (academyId: string) =>
       apiGet<PendingReview[]>(`/academies/${academyId}/coaches/pending-reviews`),
+    create: (academyId: string, payload: CreateCoachPayload) =>
+      apiPost<{ id: string }>(`/academies/${academyId}/coaches`, payload),
   },
 
   dashboard: {
@@ -94,7 +158,21 @@ export const api = {
         createdAt: string;
         memberCount: number;
         avatars: { initials: string; color: string }[];
+        nextFixture: {
+          title: string;
+          venue: string;
+          scheduledAt: string;
+        } | null;
       }>(`/academies/${academyId}/teams/featured`),
+    lineupSuggestion: (academyId: string, teamId?: string) =>
+      apiGet<{
+        title: string;
+        athleteCount: number;
+        rationale: string | null;
+        athletes: string[];
+      } | null>(
+        `/academies/${academyId}/teams/lineup-suggestion${teamId ? `?teamId=${teamId}` : ""}`
+      ),
     members: (academyId: string, teamId?: string) =>
       apiGet<TeamMember[]>(
         `/academies/${academyId}/teams/members${teamId ? `?teamId=${teamId}` : ""}`
@@ -102,6 +180,32 @@ export const api = {
     others: (academyId: string, excludeTeamId?: string) =>
       apiGet<OtherTeam[]>(
         `/academies/${academyId}/teams${excludeTeamId ? `?excludeTeamId=${excludeTeamId}` : ""}`
+      ),
+    create: (academyId: string, payload: CreateTeamPayload) =>
+      apiPost<{ id: string; name: string }>(`/academies/${academyId}/teams`, payload),
+    addMembers: (academyId: string, teamId: string, payload: AddTeamMembersPayload) =>
+      apiPost<{ added: number }>(`/academies/${academyId}/teams/${teamId}/members`, payload),
+    removeMember: (academyId: string, teamId: string, playerId: string) =>
+      apiDelete(`/academies/${academyId}/teams/${teamId}/members/${playerId}`),
+    updateMember: (
+      academyId: string,
+      teamId: string,
+      playerId: string,
+      payload: UpdateTeamMemberPayload
+    ) =>
+      apiPatch<{ selectionStatus?: string; role?: string }>(
+        `/academies/${academyId}/teams/${teamId}/members/${playerId}`,
+        payload
+      ),
+    updateMemberSelection: (
+      academyId: string,
+      teamId: string,
+      playerId: string,
+      payload: UpdateTeamMemberSelectionPayload
+    ) =>
+      apiPatch<{ selectionStatus?: string; role?: string }>(
+        `/academies/${academyId}/teams/${teamId}/members/${playerId}`,
+        payload
       ),
   },
 
@@ -130,6 +234,7 @@ export const api = {
           scoreA: number | null;
           scoreB: number | null;
           status: string;
+          matLabel: string | null;
         }[]
       >(`/tournaments/${tournamentId}/bracket`),
     matSchedule: (tournamentId: string) =>
@@ -141,6 +246,10 @@ export const api = {
           variant: "red" | "grey" | "amber";
         }[]
       >(`/tournaments/${tournamentId}/mat-schedule`),
+    medals: (tournamentId: string, academyId: string) =>
+      apiGet<{ gold: number; silver: number; bronze: number }>(
+        `/tournaments/${tournamentId}/medals?academyId=${academyId}`
+      ),
   },
 
   inventory: {

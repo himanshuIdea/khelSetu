@@ -22,6 +22,7 @@ export async function apiGet<T>(path: string): Promise<T> {
   try {
     response = await fetch(`${resolveApiRoot()}/api/v1${path}`, {
       cache: "no-store",
+      credentials: "include",
     });
   } catch {
     throw new ApiError(
@@ -38,15 +39,18 @@ export async function apiGet<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+async function apiJson<T>(path: string, init: RequestInit): Promise<T> {
   let response: Response;
 
   try {
     response = await fetch(`${resolveApiRoot()}/api/v1${path}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
+      ...init,
       cache: "no-store",
+      credentials: "include",
+      headers: {
+        "content-type": "application/json",
+        ...init.headers,
+      },
     });
   } catch {
     throw new ApiError(
@@ -60,5 +64,21 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
     throw new ApiError(parsed.error ?? `API error ${response.status}`, response.status);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json() as Promise<T>;
+}
+
+export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  return apiJson<T>(path, { method: "POST", body: JSON.stringify(body) });
+}
+
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  return apiJson<T>(path, { method: "PATCH", body: JSON.stringify(body) });
+}
+
+export async function apiDelete(path: string): Promise<void> {
+  await apiJson<void>(path, { method: "DELETE" });
 }

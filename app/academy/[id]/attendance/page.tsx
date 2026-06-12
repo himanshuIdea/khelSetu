@@ -1,6 +1,7 @@
 import { CalendarIcon } from "@/components/academy/icons";
 import {
   AcademyTable,
+  EmptyState,
   FilterPills,
   PageBody,
   PageHeader,
@@ -10,10 +11,7 @@ import {
   TableCell,
   TableRow,
 } from "@/components/academy/shared";
-import { api } from "@/lib/api";
-import { resolveAcademy } from "@/lib/repositories/resolve-academy";
-
-export const dynamic = "force-dynamic";
+import { getAttendanceSessions } from "@/lib/repositories/attendance";
 
 type AttendancePageProps = {
   params: Promise<{ id: string }>;
@@ -21,8 +19,7 @@ type AttendancePageProps = {
 
 export default async function AttendancePage({ params }: AttendancePageProps) {
   const { id } = await params;
-  const academy = await resolveAcademy(id);
-  const attendanceSessions = await api.attendance.sessions(academy.id);
+  const attendanceSessions = await getAttendanceSessions(id);
 
   const marked = attendanceSessions.filter((s) => s.status === "Marked");
   const avgRate =
@@ -69,19 +66,27 @@ export default async function AttendancePage({ params }: AttendancePageProps) {
         <Pill variant="grey" className="px-[13px] py-2 shrink-0">All sports</Pill>
       </FilterPills>
 
-      <AcademyTable headers={["Batch", "Sport", "Coach", "Time", "Present", "Rate", "Status"]} minWidth={680}>
-        {attendanceSessions.map((s) => (
-          <TableRow key={`${s.batch}-${s.time}`}>
-            <TableCell><b>{s.batch}</b></TableCell>
-            <TableCell>{s.sport}</TableCell>
-            <TableCell>{s.coach}</TableCell>
-            <TableCell>{s.time}</TableCell>
-            <TableCell>{s.present > 0 ? `${s.present} / ${s.total}` : `— / ${s.total}`}</TableCell>
-            <TableCell><b>{s.rate}</b></TableCell>
-            <TableCell><Pill variant={s.statusVariant}>{s.status}</Pill></TableCell>
-          </TableRow>
-        ))}
-      </AcademyTable>
+      {attendanceSessions.length === 0 ? (
+        <EmptyState
+          icon={<CalendarIcon className="w-5 h-5" />}
+          title="No sessions to mark"
+          description="Once batches and coaches are set up, daily sessions will appear here for attendance marking."
+        />
+      ) : (
+        <AcademyTable headers={["Batch", "Sport", "Coach", "Time", "Present", "Rate", "Status"]} minWidth={680}>
+          {attendanceSessions.map((s) => (
+            <TableRow key={`${s.batch}-${s.time}`}>
+              <TableCell><b>{s.batch}</b></TableCell>
+              <TableCell>{s.sport}</TableCell>
+              <TableCell>{s.coach}</TableCell>
+              <TableCell>{s.time}</TableCell>
+              <TableCell>{s.present > 0 ? `${s.present} / ${s.total}` : `— / ${s.total}`}</TableCell>
+              <TableCell><b>{s.rate}</b></TableCell>
+              <TableCell><Pill variant={s.statusVariant}>{s.status}</Pill></TableCell>
+            </TableRow>
+          ))}
+        </AcademyTable>
+      )}
     </PageBody>
   );
 }

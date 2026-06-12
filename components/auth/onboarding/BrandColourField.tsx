@@ -22,7 +22,7 @@ export function BrandColourField({ label, colors, value, onChange }: BrandColour
               aria-checked={selected}
               aria-label={`Select brand colour ${color}`}
               onClick={() => onChange(color)}
-              className="w-[34px] h-[34px] rounded-[9px] cursor-pointer shrink-0 transition-transform active:scale-90 touch-manipulation"
+              className="w-[34px] h-[34px] rounded-[9px] cursor-pointer shrink-0 transition-transform active:scale-90 touch-manipulation mt-1 ml-0 first:ml-0 last:mr-0"
               style={{
                 background: color,
                 boxShadow: selected ? "0 0 0 2px #fff, 0 0 0 4px var(--ink)" : undefined,

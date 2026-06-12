@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, isUniqueViolation, SlugTakenError } from "@/lib/db";
 import {
   academies,
   academyMemberships,
@@ -8,6 +8,7 @@ import {
   users,
 } from "@/db/schema";
 import { getInitials, type OnboardingPayload, type OnboardingResult } from "@/lib/onboarding";
+import { ensureAcademyBatches } from "@/lib/repositories/batches";
 
 const SPORT_COLORS: Record<string, string> = {
   Wrestling: "#FF6B2C",
@@ -28,65 +29,68 @@ export async function isSlugAvailable(slug: string): Promise<boolean> {
 }
 
 export async function createAcademyProfile(
+  userId: string,
   payload: OnboardingPayload
 ): Promise<OnboardingResult> {
-  const available = await isSlugAvailable(payload.slug);
-  if (!available) {
-    throw new Error("This branded link is already taken. Try another.");
-  }
-
   const fundingLabel = payload.fundingType === "private" ? "Private" : "Govt-aided";
   const locationLabel = `${payload.district.trim()} · ${fundingLabel}`;
   const initials = getInitials(payload.academyName);
 
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      slug: payload.slug,
-      name: payload.academyName.trim(),
-      district: payload.district.trim(),
-      state: "Haryana",
-      fundingType: payload.fundingType,
-      brandColor: payload.brandColor,
-      initials,
-      locationLabel,
-    })
-    .returning({ id: academies.id, slug: academies.slug });
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [academy] = await tx
+        .insert(academies)
+        .values({
+          slug: payload.slug,
+          name: payload.academyName.trim(),
+          district: payload.district.trim(),
+          state: "Haryana",
+          fundingType: payload.fundingType,
+          brandColor: payload.brandColor,
+          initials,
+          locationLabel,
+        })
+        .returning({ id: academies.id, slug: academies.slug });
 
-  for (const sportName of payload.sports) {
-    const color = SPORT_COLORS[sportName] ?? payload.brandColor;
-    const [sport] = await db
-      .insert(sports)
-      .values({ name: sportName, color })
-      .onConflictDoUpdate({ target: sports.name, set: { color } })
-      .returning({ id: sports.id });
+      for (const sportName of payload.sports) {
+        const color = SPORT_COLORS[sportName] ?? payload.brandColor;
+        const [sport] = await tx
+          .insert(sports)
+          .values({ name: sportName, color })
+          .onConflictDoUpdate({ target: sports.name, set: { color } })
+          .returning({ id: sports.id });
 
-    await db
-      .insert(academySports)
-      .values({ academyId: academy.id, sportId: sport.id })
-      .onConflictDoNothing({
-        target: [academySports.academyId, academySports.sportId],
+        await tx
+          .insert(academySports)
+          .values({ academyId: academy.id, sportId: sport.id })
+          .onConflictDoNothing({
+            target: [academySports.academyId, academySports.sportId],
+          });
+      }
+
+      await tx.insert(academyMemberships).values({
+        userId,
+        academyId: academy.id,
+        role: "admin",
       });
-  }
 
-  if (payload.adminName) {
-    const [user] = await db
-      .insert(users)
-      .values({
-        fullName: payload.adminName,
-        avatarInitials: getInitials(payload.adminName),
-        email: payload.adminEmail ?? null,
-        phone: payload.adminPhone ?? null,
-        avatarColor: payload.brandColor,
-      })
-      .returning({ id: users.id });
+      await tx
+        .update(users)
+        .set({
+          avatarColor: payload.brandColor,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
 
-    await db.insert(academyMemberships).values({
-      userId: user.id,
-      academyId: academy.id,
-      role: "admin",
+      return { id: academy.id, slug: academy.slug };
     });
-  }
 
-  return { id: academy.id, slug: academy.slug };
+    await ensureAcademyBatches(result.id);
+    return result;
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new SlugTakenError();
+    }
+    throw error;
+  }
 }

@@ -1,5 +1,6 @@
 import { CalendarIcon, PinIcon, TrophyIcon } from "@/components/academy/icons";
 import {
+  EmptyState,
   PageBody,
   PageHeader,
   Pill,
@@ -7,10 +8,14 @@ import {
   SidePanel,
   SplitLayout,
 } from "@/components/academy/shared";
-import { api } from "@/lib/api";
+import { formatWeightKg } from "@/lib/format";
 import { resolveAcademy } from "@/lib/repositories/resolve-academy";
-
-export const dynamic = "force-dynamic";
+import {
+  getActiveTournament,
+  getBracketMatches,
+  getMatSchedule,
+  getTournamentMedals,
+} from "@/lib/repositories/tournaments";
 
 type TournamentsPageProps = {
   params: Promise<{ id: string }>;
@@ -18,12 +23,16 @@ type TournamentsPageProps = {
 
 export default async function TournamentsPage({ params }: TournamentsPageProps) {
   const { id } = await params;
-  const academy = await resolveAcademy(id);
+  const [academy, tournament] = await Promise.all([resolveAcademy(id), getActiveTournament(id)]);
+  const tournamentId = tournament?.id ?? null;
 
-  const tournament = await api.tournaments.active(academy.id);
-  const { id: tournamentId } = await api.tournaments.activeId(academy.id);
-  const bracketMatches = tournamentId ? await api.tournaments.bracket(tournamentId) : [];
-  const matSchedule = tournamentId ? await api.tournaments.matSchedule(tournamentId) : [];
+  const [bracketMatches, matSchedule, medals] = tournamentId
+    ? await Promise.all([
+        getBracketMatches(tournamentId),
+        getMatSchedule(tournamentId),
+        getTournamentMedals(tournamentId, id),
+      ])
+    : [[], [], { gold: 0, silver: 0, bronze: 0 }];
 
   const qfMatches = bracketMatches
     .filter((m) => m.round === "QF")
@@ -41,6 +50,7 @@ export default async function TournamentsPage({ params }: TournamentsPageProps) 
     }));
 
   const sfMatches = bracketMatches.filter((m) => m.round === "SF");
+  const finalMatch = bracketMatches.find((m) => m.round === "Final");
 
   const dateRange = tournament
     ? `${new Date(tournament.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}–${new Date(tournament.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
@@ -75,12 +85,28 @@ export default async function TournamentsPage({ params }: TournamentsPageProps) 
         </div>
       )}
 
+      {!tournament ? (
+        <EmptyState
+          icon={<TrophyIcon className="w-5 h-5" />}
+          title="No active tournament"
+          description="Create a tournament to manage brackets, mat schedules and medal tallies for your academy."
+        />
+      ) : (
       <SplitLayout>
         <div className="flex-1 min-w-0 bg-card border border-line rounded-(--radius) shadow-card p-5">
           <SectionTitle
-            title={`${tournament?.weightClass ?? "65 kg"} · Knockout bracket`}
+            title={`${formatWeightKg(tournament.weightClass?.trim() || "65")} · Knockout bracket`}
             subtitle="Quarter-finals → Final"
           />
+          {qfMatches.length === 0 && sfMatches.length === 0 && !finalMatch ? (
+            <EmptyState
+              compact
+              className="border-none shadow-none bg-surface/60 mt-4"
+              icon={<TrophyIcon className="w-5 h-5" />}
+              title="Bracket not set up yet"
+              description="Add participants and generate match-ups to see the knockout bracket here."
+            />
+          ) : (
           <div className="overflow-x-auto -mx-1 px-1 mt-[18px]">
             <div className="flex items-stretch gap-0 text-[11.5px] min-w-[480px]">
               <div className="flex flex-col justify-around gap-3.5 flex-1">
@@ -120,18 +146,34 @@ export default async function TournamentsPage({ params }: TournamentsPageProps) 
               </div>
               <div className="flex flex-col justify-center flex-1">
                 <div className="bg-ink border-none rounded-(--radius) overflow-hidden text-white">
-                  <div className="flex justify-between px-[11px] py-[9px] border-b border-white/12">Winner SF1</div>
-                  <div className="flex justify-between px-[11px] py-[9px] text-[#A9B5D1]">Winner SF2</div>
+                  <div className="flex justify-between px-[11px] py-[9px] border-b border-white/12">
+                    {finalMatch?.playerAName ?? "Winner SF1"}
+                  </div>
+                  <div className="flex justify-between px-[11px] py-[9px] text-[#A9B5D1]">
+                    {finalMatch?.playerBName ?? "Winner SF2"}
+                  </div>
                 </div>
-                <div className="text-center mt-2.5 text-muted text-[10.5px]">FINAL · Mat 1 · 4:00 PM</div>
+                <div className="text-center mt-2.5 text-muted text-[10.5px]">
+                  FINAL{finalMatch?.matLabel ? ` · ${finalMatch.matLabel}` : ""}
+                </div>
               </div>
             </div>
           </div>
+          )}
         </div>
 
         <SidePanel>
           <div className="bg-card border border-line rounded-(--radius) shadow-card p-[18px]">
             <SectionTitle title="Mat schedule · today" />
+            {matSchedule.length === 0 ? (
+              <EmptyState
+                compact
+                className="border-none shadow-none bg-surface/60 mt-3"
+                icon={<CalendarIcon className="w-5 h-5" />}
+                title="No bouts scheduled"
+                description="Mat assignments for today's tournament bouts will show up here."
+              />
+            ) : (
             <div className="flex flex-col gap-[11px] mt-3">
               {matSchedule.map((s) => (
                 <div key={s.bout} className="p-[11px] border border-line rounded-[11px]">
@@ -146,20 +188,31 @@ export default async function TournamentsPage({ params }: TournamentsPageProps) 
                 </div>
               ))}
             </div>
+            )}
             <div className="mt-4 pt-3.5 border-t border-line2 flex justify-between">
               <div>
                 <div className="font-bold text-base text-ink">{academy.initials === "DA" ? "Dronacharya" : academy.name}</div>
                 <div className="text-[11.5px] text-muted">Medal tally</div>
               </div>
               <div className="flex gap-2.5 font-bold">
-                <span className="text-amber">3<span className="text-[11.5px] text-muted font-normal block">Gold</span></span>
-                <span className="text-muted2">2<span className="text-[11.5px] text-muted font-normal block">Silver</span></span>
-                <span className="text-[#CD7F32]">4<span className="text-[11.5px] text-muted font-normal block">Bronze</span></span>
+                <span className="text-amber">
+                  {medals.gold}
+                  <span className="text-[11.5px] text-muted font-normal block">Gold</span>
+                </span>
+                <span className="text-muted2">
+                  {medals.silver}
+                  <span className="text-[11.5px] text-muted font-normal block">Silver</span>
+                </span>
+                <span className="text-[#CD7F32]">
+                  {medals.bronze}
+                  <span className="text-[11.5px] text-muted font-normal block">Bronze</span>
+                </span>
               </div>
             </div>
           </div>
         </SidePanel>
       </SplitLayout>
+      )}
     </PageBody>
   );
 }

@@ -9,6 +9,7 @@ export const searchPlaceholders: Partial<Record<AcademyNavItem, string>> = {
   attendance: "Search attendance…",
   gear: "Search gear & kit…",
   fees: "Search staff…",
+  reports: "Search reports…",
 };
 
 export function getActiveNavItem(pathname: string): AcademyNavItem {
@@ -22,6 +23,7 @@ export function getActiveNavItem(pathname: string): AcademyNavItem {
     "attendance",
     "gear",
     "fees",
+    "reports",
   ];
   return valid.includes(segment as AcademyNavItem)
     ? (segment as AcademyNavItem)

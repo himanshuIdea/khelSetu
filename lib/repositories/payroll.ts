@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { payslips, payrollRuns, staff } from "@/db/schema";
+import { coaches, payslips, payrollRuns, staff } from "@/db/schema";
 import { formatPaise, formatPaiseFull, getInitials } from "@/lib/format";
 import type { StaffMember } from "./types";
 
@@ -40,12 +40,12 @@ export async function getPayrollStats(academyId: string) {
     pending = Number(totals?.pending ?? 0);
   }
 
-  const [coachesOnStaff] = await db
+  const [coachRows] = await db
     .select({ count: sql<number>`count(*)` })
-    .from(staff)
-    .where(sql`${staff.academyId} = ${academyId} and ${staff.roleTitle} ilike '%coach%'`);
+    .from(coaches)
+    .where(eq(coaches.academyId, academyId));
 
-  coachCount = Number(coachesOnStaff?.count ?? 0);
+  coachCount = Number(coachRows?.count ?? 0);
 
   return [
     {

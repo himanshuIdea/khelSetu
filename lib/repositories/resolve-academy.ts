@@ -1,19 +1,12 @@
+import { cache } from "react";
 import { notFound } from "next/navigation";
-import { isValidAcademyId } from "@/lib/academy-id";
-import { api, ApiError } from "@/lib/api";
+import { getAcademyMeta } from "./academy";
 import type { AcademyMeta } from "./types";
 
-export async function resolveAcademy(academyId: string): Promise<AcademyMeta> {
-  if (!isValidAcademyId(academyId)) {
+export const resolveAcademy = cache(async (academyId: string): Promise<AcademyMeta> => {
+  const meta = await getAcademyMeta(academyId);
+  if (!meta) {
     notFound();
   }
-
-  try {
-    return await api.academy.getMeta(academyId);
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      notFound();
-    }
-    throw error;
-  }
-}
+  return meta;
+});

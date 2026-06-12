@@ -3,8 +3,10 @@ import { PlusIcon } from "./icons";
 type PageHeaderProps = {
   title: React.ReactNode;
   subtitle: string;
-  actionLabel: string;
+  actionLabel?: string;
   actionIcon?: React.ReactNode;
+  action?: React.ReactNode;
+  onActionClick?: () => void;
 };
 
 export function PageHeader({
@@ -12,6 +14,8 @@ export function PageHeader({
   subtitle,
   actionLabel,
   actionIcon = <PlusIcon />,
+  action,
+  onActionClick,
 }: PageHeaderProps) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-[18px]">
@@ -21,13 +25,16 @@ export function PageHeader({
         </h1>
         <p className="text-[13px] text-muted mt-[3px]">{subtitle}</p>
       </div>
-      <button
-        type="button"
-        className="inline-flex items-center justify-center gap-[7px] bg-brand text-white font-semibold text-[13px] py-[11px] px-4 rounded-[10px] w-full sm:w-auto shrink-0"
-      >
-        {actionIcon}
-        {actionLabel}
-      </button>
+      {action ?? (
+        <button
+          type="button"
+          onClick={onActionClick}
+          className="inline-flex items-center justify-center gap-[7px] bg-brand text-white font-semibold text-[13px] py-[11px] px-4 rounded-[10px] w-full sm:w-auto shrink-0"
+        >
+          {actionIcon}
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }
@@ -41,7 +48,7 @@ export function PageBody({
 }) {
   return (
     <div
-      className={`flex-1 px-4 py-4 sm:px-6 sm:py-5 lg:px-[26px] lg:py-6 overflow-y-auto ${className}`}
+      className={`flex-1 min-w-0 px-4 py-4 sm:px-6 sm:py-5 lg:px-[26px] lg:py-6 overflow-x-hidden overflow-y-auto ${className}`}
     >
       {children}
     </div>
@@ -64,7 +71,7 @@ export function SplitLayout({
   className?: string;
 }) {
   return (
-    <div className={`flex flex-col lg:flex-row gap-4 lg:gap-[18px] ${className}`}>
+    <div className={`flex flex-col lg:flex-row gap-1 lg:gap-[5px] min-w-0 w-full ${className}`}>
       {children}
     </div>
   );
@@ -78,7 +85,7 @@ export function SidePanel({
   className?: string;
 }) {
   return (
-    <div className={`w-full lg:w-[316px] shrink-0 ${className}`}>
+    <div className={`w-full min-w-0 lg:w-[316px] shrink-0 ${className} ml-4 mr-4`}>
       {children}
     </div>
   );
@@ -86,8 +93,10 @@ export function SidePanel({
 
 export function FilterPills({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-x-auto -mx-1 px-1 pb-1 mb-3.5">
-      <div className="flex gap-2 min-w-max">{children}</div>
+    <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain pb-1 mb-3.5 pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex flex-nowrap items-center gap-[9px] w-max max-w-none pr-3">
+        {children}
+      </div>
     </div>
   );
 }
@@ -217,6 +226,43 @@ export function SectionTitle({
   );
 }
 
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+  compact = false,
+  className = "",
+}: {
+  icon?: React.ReactNode;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  compact?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`bg-card border border-line rounded-(--radius) shadow-card text-center ${compact ? "px-4 py-8" : "px-6 py-12"} ${className}`}
+    >
+      {icon && (
+        <div className="w-11 h-11 rounded-[12px] bg-surface text-muted2 flex items-center justify-center mx-auto mb-3">
+          {icon}
+        </div>
+      )}
+      <div className={`font-semibold text-ink ${compact ? "text-[13px]" : "text-[15px]"}`}>{title}</div>
+      {description && (
+        <p
+          className={`text-muted mt-1.5 mx-auto leading-relaxed ${compact ? "text-[11.5px] max-w-[280px]" : "text-[13px] max-w-[360px]"}`}
+        >
+          {description}
+        </p>
+      )}
+      {action && <div className="mt-4 flex justify-center">{action}</div>}
+    </div>
+  );
+}
+
 export function ActivityRow({
   icon,
   iconBg,
@@ -249,32 +295,49 @@ export function ActivityRow({
 export function AcademyTable({
   headers,
   children,
-  minWidth = 600,
+  minWidth,
+  columnWidths,
+  columnClassNames,
+  className = "",
 }: {
   headers: string[];
   children: React.ReactNode;
   minWidth?: number;
+  columnWidths?: string[];
+  columnClassNames?: string[];
+  className?: string;
 }) {
+  const useFixedLayout = columnWidths != null && columnWidths.length === headers.length;
+
   return (
-    <div className="bg-card border border-line rounded-(--radius) shadow-card px-1.5 pt-1.5 pb-1 overflow-x-auto -mx-1">
-      <table
-        className="w-full border-collapse"
-        style={{ minWidth: `${minWidth}px` }}
-      >
-        <thead>
-          <tr>
-            {headers.map((h) => (
-              <th
-                key={h}
-                className="text-left text-[10.5px] tracking-[0.6px] uppercase text-muted2 font-semibold px-3.5 pb-[11px]"
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>{children}</tbody>
-      </table>
+    <div className={`min-w-0 w-full max-w-full bg-card border border-line rounded-(--radius) shadow-card overflow-hidden ${className}`}>
+      <div className="overflow-x-auto overscroll-x-contain max-w-full px-1 sm:px-1.5 pt-1.5 pb-1 [-webkit-overflow-scrolling:touch]">
+        <table
+          className={`w-full border-collapse ${useFixedLayout ? "table-fixed" : "table-auto"}`}
+          style={minWidth ? { minWidth: `${minWidth}px` } : undefined}
+        >
+          {useFixedLayout && (
+            <colgroup>
+              {columnWidths.map((width, index) => (
+                <col key={`${headers[index]}-${width}`} style={{ width }} />
+              ))}
+            </colgroup>
+          )}
+          <thead>
+            <tr>
+              {headers.map((h, index) => (
+                <th
+                  key={`${h}-${index}`}
+                  className={`text-left text-[10.5px] tracking-[0.6px] uppercase text-muted2 font-semibold px-2 sm:px-3.5 pb-[11px] whitespace-nowrap ${columnClassNames?.[index] ?? ""}`}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>{children}</tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -282,13 +345,22 @@ export function AcademyTable({
 export function TableRow({
   children,
   highlighted,
+  onClick,
 }: {
   children: React.ReactNode;
   highlighted?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <tr
-      className={highlighted ? "bg-brand-soft" : undefined}
+      onClick={onClick}
+      className={
+        highlighted
+          ? "bg-brand-soft"
+          : onClick
+            ? "cursor-pointer hover:bg-brand-soft/60"
+            : undefined
+      }
     >
       {children}
     </tr>
@@ -304,9 +376,66 @@ export function TableCell({
 }) {
   return (
     <td
-      className={`px-3.5 py-[13px] border-t border-line2 text-[13px] text-text align-middle ${className}`}
+      className={`px-2 py-3 sm:px-3.5 sm:py-[13px] border-t border-line2 text-[13px] text-text align-middle ${className}`}
     >
       {children}
     </td>
+  );
+}
+
+export function AcademyCardList({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`lg:hidden min-w-0 w-full max-w-full bg-card border border-line rounded-(--radius) shadow-card overflow-hidden divide-y divide-line2 ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function AcademyCardListItem({
+  children,
+  highlighted,
+  onClick,
+  className = "",
+}: {
+  children: React.ReactNode;
+  highlighted?: boolean;
+  onClick?: () => void;
+  className?: string;
+}) {
+  const interactive = onClick != null;
+
+  return (
+    <div
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        interactive
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={`min-w-0 w-full px-3.5 py-3.5 text-left ${
+        highlighted
+          ? "bg-brand-soft"
+          : interactive
+            ? "cursor-pointer hover:bg-brand-soft/60 active:bg-brand-soft/80"
+            : ""
+      } ${className}`}
+    >
+      {children}
+    </div>
   );
 }

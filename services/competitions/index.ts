@@ -3,8 +3,14 @@ import {
   getActiveTournamentId,
   getBracketMatches,
   getMatSchedule,
+  getTournamentMedals,
 } from "@/lib/repositories/tournaments";
-import { getFeaturedTeam, getOtherTeams, getTeamMembers } from "@/lib/repositories/teams";
+import {
+  getFeaturedTeam,
+  getLineupSuggestion,
+  getOtherTeams,
+  getTeamMembers,
+} from "@/lib/repositories/teams";
 import { loadEnv } from "../../lib/load-env";
 import { createService } from "../shared/create-service";
 import { servicePorts } from "../shared/config";
@@ -14,6 +20,7 @@ loadEnv();
 createService({
   name: "competitions-service",
   port: servicePorts.competitions,
+  dbHealth: true,
   routes: (app) => {
     app.get("/academies/:academyId/teams/featured", async (c) => {
       const team = await getFeaturedTeam(c.req.param("academyId"));
@@ -21,7 +28,16 @@ createService({
       return c.json({
         ...team,
         createdAt: team.createdAt.toISOString(),
+        nextFixture: team.nextFixture
+          ? { ...team.nextFixture, scheduledAt: team.nextFixture.scheduledAt.toISOString() }
+          : null,
       });
+    });
+
+    app.get("/academies/:academyId/teams/lineup-suggestion", async (c) => {
+      const teamId = c.req.query("teamId");
+      const suggestion = await getLineupSuggestion(c.req.param("academyId"), teamId);
+      return c.json(suggestion);
     });
 
     app.get("/academies/:academyId/teams/members", async (c) => {
@@ -59,6 +75,13 @@ createService({
     app.get("/tournaments/:tournamentId/mat-schedule", async (c) => {
       const schedule = await getMatSchedule(c.req.param("tournamentId"));
       return c.json(schedule);
+    });
+
+    app.get("/tournaments/:tournamentId/medals", async (c) => {
+      const academyId = c.req.query("academyId");
+      if (!academyId) return c.json({ error: "academyId required" }, 400);
+      const medals = await getTournamentMedals(c.req.param("tournamentId"), academyId);
+      return c.json(medals);
     });
   },
 });

@@ -1,4 +1,4 @@
-import { pgEnum, pgSchema, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, pgEnum, pgSchema, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { primaryId, softDelete, timestamps } from "../_shared";
 
 export const academySchema = pgSchema("academy");
@@ -53,3 +53,29 @@ export const batches = academySchema.table("batches", {
   scheduleNotes: text("schedule_notes"),
   ...timestamps,
 });
+
+/** Roster membership — canonical batch headcount for attendance denominators. */
+export const batchEnrollments = academySchema.table(
+  "batch_enrollments",
+  {
+    id: primaryId(),
+    batchId: uuid("batch_id").notNull(),
+    playerId: uuid("player_id").notNull(),
+    enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("batch_enrollments_batch_player_idx").on(table.batchId, table.playerId)]
+);
+
+/** Coach assignment to a training batch. */
+export const batchCoaches = academySchema.table(
+  "batch_coaches",
+  {
+    id: primaryId(),
+    batchId: uuid("batch_id").notNull(),
+    coachId: uuid("coach_id").notNull(),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("batch_coaches_batch_coach_idx").on(table.batchId, table.coachId)]
+);

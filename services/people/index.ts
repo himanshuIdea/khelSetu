@@ -9,6 +9,7 @@ loadEnv();
 createService({
   name: "people-service",
   port: servicePorts.people,
+  dbHealth: true,
   routes: (app) => {
     app.get("/academies/:academyId/players", async (c) => {
       const players = await getPlayers(c.req.param("academyId"));

@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tournamentMatches, tournaments } from "@/db/schema";
+import { tournamentMatches, tournamentMedals, tournaments } from "@/db/schema";
 
 export async function getActiveTournament(academyId: string) {
   const [tournament] = await db
@@ -12,6 +12,7 @@ export async function getActiveTournament(academyId: string) {
   if (!tournament) return null;
 
   return {
+    id: tournament.id,
     name: tournament.name,
     location: tournament.location,
     startDate: tournament.startDate,
@@ -68,6 +69,22 @@ export async function getMatSchedule(tournamentId: string) {
       variant: variant as "red" | "grey" | "amber",
     };
   });
+}
+
+export async function getTournamentMedals(tournamentId: string, academyId: string) {
+  const [medals] = await db
+    .select()
+    .from(tournamentMedals)
+    .where(
+      and(eq(tournamentMedals.tournamentId, tournamentId), eq(tournamentMedals.academyId, academyId))
+    )
+    .limit(1);
+
+  return {
+    gold: medals?.gold ?? 0,
+    silver: medals?.silver ?? 0,
+    bronze: medals?.bronze ?? 0,
+  };
 }
 
 export async function getActiveTournamentId(academyId: string) {
