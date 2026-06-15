@@ -100,7 +100,7 @@ export async function getCoachCount(academyId: string): Promise<number> {
 
 export async function getCoachFormOptions(academyId: string): Promise<CoachFormOptions> {
   const sportRows = await db
-    .select({ id: sports.id, name: sports.name, color: sports.color })
+    .select({ id: sports.id, name: sports.name })
     .from(academySports)
     .innerJoin(sports, eq(academySports.sportId, sports.id))
     .where(eq(academySports.academyId, academyId));

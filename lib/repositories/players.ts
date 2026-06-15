@@ -222,7 +222,7 @@ export async function getPlayerCounts(academyId: string) {
 export async function getPlayerFormOptions(academyId: string): Promise<PlayerFormOptions> {
   const [sportRows, batchRows, coachRows] = await Promise.all([
     db
-      .select({ id: sports.id, name: sports.name, color: sports.color })
+      .select({ id: sports.id, name: sports.name })
       .from(academySports)
       .innerJoin(sports, eq(academySports.sportId, sports.id))
       .where(eq(academySports.academyId, academyId)),

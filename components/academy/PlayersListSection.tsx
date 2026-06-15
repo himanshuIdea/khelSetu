@@ -47,11 +47,11 @@ type PlayersListSectionProps = {
 const TABLE_HEADERS = ["Player", "Sport · Batch", "Fees", "Attendance", "Status"] as const;
 
 const DESKTOP_TABLE_COLUMN_CLASSES = [
-  "w-[36%]",
-  "w-[28%]",
-  "w-[16%]",
-  "w-[10%]",
-  "w-[10%]",
+  "w-[25%] min-w-0",
+  "w-[15%] min-w-0",
+  "w-[20%] min-w-0",
+  "w-[15%] min-w-0",
+  "w-[20%] min-w-0",
 ] as const;
 
 function ChevronDownIcon({ open }: { open: boolean }) {
@@ -224,18 +224,20 @@ function PlayerMobileCard({
           <div className="text-[11px] text-muted truncate mt-0.5">
             {player.sport} · {player.batch}
           </div>
-          <div className="flex flex-wrap items-center gap-2 mt-2.5">
-            <Pill variant={player.feesVariant}>{player.fees}</Pill>
-            <Pill variant={player.statusVariant}>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 mt-2.5 min-w-0">
+            <Pill variant={player.feesVariant} className="max-w-full shrink min-w-0">
+              <span className="truncate">{player.fees}</span>
+            </Pill>
+            <Pill variant={player.statusVariant} className="max-w-full shrink min-w-0">
               <span
                 className="w-[7px] h-[7px] rounded-full shrink-0"
                 style={{
                   background: player.statusVariant === "green" ? "#12B886" : "#F5A623",
                 }}
               />
-              {player.status}
+              <span className="truncate">{player.status}</span>
             </Pill>
-            <span className="text-[12px] text-text">
+            <span className="text-[12px] text-text basis-full sm:basis-auto min-w-0">
               <span className="text-muted">Attendance </span>
               <b>{player.attendance}</b>
             </span>
@@ -337,7 +339,7 @@ export function PlayersListSection({
           <AcademyTable
             className="hidden lg:block"
             headers={[...TABLE_HEADERS]}
-            columnWidths={["36%", "28%", "16%", "10%", "10%"]}
+            columnWidths={["36%", "28%", "15%", "9%", "12%"]}
             columnClassNames={[...DESKTOP_TABLE_COLUMN_CLASSES]}
           >
             {filteredPlayers.map((player) => (
@@ -361,21 +363,23 @@ export function PlayersListSection({
                   <div className="truncate">{player.sport} · {player.weight}</div>
                   <div className="text-[11px] text-muted truncate">{player.batch}</div>
                 </TableCell>
-                <TableCell className={`whitespace-nowrap ${DESKTOP_TABLE_COLUMN_CLASSES[2]}`}>
-                  <Pill variant={player.feesVariant}>{player.fees}</Pill>
+                <TableCell className={DESKTOP_TABLE_COLUMN_CLASSES[2]}>
+                  <Pill variant={player.feesVariant} className="max-w-full min-w-0">
+                    <span className="truncate">{player.fees}</span>
+                  </Pill>
                 </TableCell>
-                <TableCell className={`whitespace-nowrap ${DESKTOP_TABLE_COLUMN_CLASSES[3]}`}>
-                  <b>{player.attendance}</b>
+                <TableCell className={DESKTOP_TABLE_COLUMN_CLASSES[3]}>
+                  <b className="block truncate">{player.attendance}</b>
                 </TableCell>
-                <TableCell className={`whitespace-nowrap ${DESKTOP_TABLE_COLUMN_CLASSES[4]}`}>
-                  <Pill variant={player.statusVariant}>
+                <TableCell className={DESKTOP_TABLE_COLUMN_CLASSES[4]}>
+                  <Pill variant={player.statusVariant} className="max-w-full min-w-0">
                     <span
                       className="w-[7px] h-[7px] rounded-full shrink-0"
                       style={{
                         background: player.statusVariant === "green" ? "#12B886" : "#F5A623",
                       }}
                     />
-                    {player.status}
+                    <span className="truncate">{player.status}</span>
                   </Pill>
                 </TableCell>
               </TableRow>

@@ -110,6 +110,8 @@ type InlineDatePickerProps = {
   placeholder?: string;
   disabled?: boolean;
   maxDate?: string;
+  layout?: "inline" | "stacked";
+  tone?: "light" | "dark";
 };
 
 export function InlineDatePicker({
@@ -120,6 +122,8 @@ export function InlineDatePicker({
   placeholder = "Select date",
   disabled = false,
   maxDate,
+  layout = "inline",
+  tone = "light",
 }: InlineDatePickerProps) {
   const generatedId = useId();
   const triggerId = id ?? generatedId;
@@ -235,36 +239,43 @@ export function InlineDatePicker({
   }
 
   const displayValue = value ? formatDisplayDate(value) : placeholder;
+  const isStacked = layout === "stacked";
 
-  return (
-    <InlineRow label={label} htmlFor={triggerId}>
-      <div ref={rootRef} className="relative">
-        <button
-          id={triggerId}
-          type="button"
-          disabled={disabled}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={() => !disabled && setOpen((current) => !current)}
-          className={`w-2/3 ml-3 flex items-center  gap-2 rounded-[10px] px-1 py-2 text-left text-[13.5px] transition-colors touch-manipulation ${
-            disabled
-              ? "text-muted2 cursor-not-allowed"
-              : open
-                ? "bg-brand-soft text-ink ring-1 ring-brand/25"
-                : "text-ink hover:bg-surface"
-          } ${!value ? "text-muted2" : ""}`}
-        >
-          <span className="truncate">{displayValue}</span>
-          <CalendarIcon />
-        </button>
+  const triggerClassName = `flex items-center gap-2 text-left text-[13.5px] transition-colors touch-manipulation ${
+    isStacked
+      ? "w-full justify-between min-h-[44px] rounded-[10px] px-3 py-2"
+      : "w-2/3 ml-3 rounded-[10px] px-1 py-2"
+  } ${
+    tone === "dark"
+      ? `bg-white/8 border-none ${
+          disabled
+            ? "text-[#A9B5D1] cursor-not-allowed opacity-50"
+            : open
+              ? "bg-white/12 text-white ring-1 ring-white/20"
+              : value
+                ? "text-[#C7D0E6] hover:bg-white/12 hover:text-white"
+                : "text-[#A9B5D1] hover:bg-white/12 hover:text-white"
+        }`
+      : `${
+          disabled
+            ? "text-muted2 cursor-not-allowed"
+            : open
+              ? "bg-brand-soft text-ink ring-1 ring-brand/25"
+              : "text-ink hover:bg-surface"
+        } ${!value ? "text-muted2" : ""}`
+  }`;
 
-        {open && !disabled && (
+  const panelPositionClassName = isStacked
+    ? "top-full mt-1.5"
+    : "bottom-full mb-1.5";
+
+  const pickerPanel =
+    open && !disabled ? (
           <div
             id={panelId}
             role="dialog"
             aria-label="Choose date"
-            className="absolute z-30 left-0 right-0 sm:left-auto sm:right-0 sm:w-[280px] bottom-full mb-1.5 bg-white border border-line rounded-[11px] shadow-card p-3"
+            className={`absolute z-30 left-0 right-0 sm:left-auto sm:right-0 sm:w-[280px] ${panelPositionClassName} bg-white border border-line rounded-[11px] shadow-card p-3`}
           >
             {pickerView === "calendar" && (
               <>
@@ -436,7 +447,48 @@ export function InlineDatePicker({
               </>
             )}
           </div>
-        )}
+    ) : null;
+
+  const triggerButton = (
+    <button
+      id={triggerId}
+      type="button"
+      disabled={disabled}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-controls={panelId}
+      onClick={() => !disabled && setOpen((current) => !current)}
+      className={triggerClassName}
+    >
+      <span className="truncate">{displayValue}</span>
+      <CalendarIcon />
+    </button>
+  );
+
+  if (isStacked) {
+    return (
+      <div className="min-w-0">
+        <label
+          htmlFor={triggerId}
+          className={`block text-[11px] font-semibold uppercase tracking-[0.5px] mb-1.5 ${
+            tone === "dark" ? "text-[#A9B5D1]" : "text-muted2"
+          }`}
+        >
+          {label}
+        </label>
+        <div ref={rootRef} className="relative">
+          {triggerButton}
+          {pickerPanel}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <InlineRow label={label} htmlFor={triggerId}>
+      <div ref={rootRef} className="relative">
+        {triggerButton}
+        {pickerPanel}
       </div>
     </InlineRow>
   );

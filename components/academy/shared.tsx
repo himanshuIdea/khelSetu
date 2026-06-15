@@ -25,16 +25,17 @@ export function PageHeader({
         </h1>
         <p className="text-[13px] text-muted mt-[3px]">{subtitle}</p>
       </div>
-      {action ?? (
-        <button
-          type="button"
-          onClick={onActionClick}
-          className="inline-flex items-center justify-center gap-[7px] bg-brand text-white font-semibold text-[13px] py-[11px] px-4 rounded-[10px] w-full sm:w-auto shrink-0"
-        >
-          {actionIcon}
-          {actionLabel}
-        </button>
-      )}
+      {action ??
+        (actionLabel ? (
+          <button
+            type="button"
+            onClick={onActionClick}
+            className="inline-flex items-center justify-center gap-[7px] bg-brand text-white font-semibold text-[13px] py-[11px] px-4 rounded-[10px] w-full sm:w-auto shrink-0"
+          >
+            {actionIcon}
+            {actionLabel}
+          </button>
+        ) : null)}
     </div>
   );
 }
@@ -71,7 +72,7 @@ export function SplitLayout({
   className?: string;
 }) {
   return (
-    <div className={`flex flex-col lg:flex-row gap-1 lg:gap-[5px] min-w-0 w-full ${className}`}>
+    <div className={`flex flex-col lg:flex-row gap-3 lg:gap-[5px] min-w-0 w-full ${className}`}>
       {children}
     </div>
   );
@@ -85,7 +86,7 @@ export function SidePanel({
   className?: string;
 }) {
   return (
-    <div className={`w-full min-w-0 lg:w-[316px] shrink-0 ${className} ml-4 mr-4`}>
+    <div className={`w-full min-w-0 lg:w-[316px] shrink-0 ${className}`}>
       {children}
     </div>
   );

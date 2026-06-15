@@ -1,6 +1,6 @@
 # Khel Setu — Project Worklog
 
-**Last updated:** June 12, 2026  
+**Last updated:** June 15, 2026  
 **Repository:** `khel-setu/` (Next.js App Router + PostgreSQL + microservices gateway)
 
 ---
@@ -39,6 +39,7 @@ Work completed across recent agent sessions, in approximate order:
 10. **Agent / workflow docs** — `AGENTS.md`, `.cursor/rules/khelsetu-workflow.mdc`, `.cursor/skills/khelsetu-mockup-ui/SKILL.md` codify mockup fidelity, repo-direct reads, and acceptance checklists.
 11. **Coaches & Teams create** — `AddCoachModal`, `AddTeamModal` POST to Next.js API routes; list pages read from repositories.
 12. **Teams roster role edit** — Role column editable via `InlineSelect` in edit mode; captain assignment confirms via `ChangeCaptainDialog`; PATCH member accepts `role` and demotes prior captain in one transaction.
+13. **Attendance marking (full)** — `AttendanceWorkspace` with sport/batch/date filters; present/absent per player; `saveAttendanceRecords` upsert + batch history; Next.js API routes for mark/history.
 
 ---
 
@@ -202,12 +203,14 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 
 | Area | Create | Read | Update | Delete | UI wired | API wired | Notes |
 |------|--------|------|--------|--------|----------|-----------|-------|
-| **Sessions list** | — | ✅ | — | — | ✅ | 🟡 | `getAttendanceSessions` |
-| **Mark attendance** | ❌ | — | ❌ | — | 🔲 | ❌ | Header button + filter pills inert |
-| **Attendance records** | ❌ | — | ❌ | ❌ | ❌ | ❌ | `attendanceRecords` table; no write repo |
+| **Sessions list** | — | ✅ | — | — | ✅ | 🟡 | `getAttendanceSessions` (gateway read proxy) |
+| **Mark attendance** | ✅ | ✅ | ✅ | — | ✅ | ✅ | `AttendanceWorkspace` — sport/batch/date filters, present/absent per player, save |
+| **Batch history** | — | ✅ | — | — | ✅ | ✅ | `listBatchAttendanceHistory` — per-batch session log |
+| **Attendance records** | ✅ | ✅ | ✅ | — | ✅ | ✅ | `saveAttendanceRecords` upserts `attendance_records` + marks `training_sessions` |
 
-**Repo:** `lib/repositories/attendance.ts` — `getAttendanceSessions` only  
-**Page:** `app/academy/[id]/attendance/page.tsx`
+**Repo:** `lib/repositories/attendance.ts` — `getAttendanceFormOptions`, `getBatchRoster`, `getAttendanceForBatchDate`, `saveAttendanceRecords`, `listBatchAttendanceHistory`, `getAttendanceSessions`  
+**API:** `GET/POST /api/v1/academies/[id]/attendance/mark`, `GET .../attendance/batches/[batchId]/history`  
+**UI:** `AttendanceWorkspace`, `attendance/loading.tsx` — card list `< lg`, tables `lg+`, portaled `InlineSelect` + `InlineDatePicker`
 
 ---
 
@@ -215,13 +218,16 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 
 | Area | Create | Read | Update | Delete | UI wired | API wired | Notes |
 |------|--------|------|--------|--------|----------|-----------|-------|
-| **Inventory stats** | — | ✅ | — | — | ✅ | 🟡 | `getInventoryStats` |
-| **Items list** | — | ✅ | — | — | ✅ | 🟡 | `getInventoryItems` |
-| **Movements feed** | — | ✅ | — | — | ✅ | 🟡 | `getGearMovements` |
-| **Add item** | ❌ | — | — | — | 🔲 | ❌ | Header button inert |
-| **Issue gear** | ❌ | — | — | — | 🔲 | ❌ | Side panel selects + "Issue now" — static UI |
+| **Inventory stats** | — | ✅ | — | — | ✅ | 🟡 | `getInventoryStats` (gateway read) |
+| **Items list** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | `GearWorkspace` table + cards; edit/delete row actions |
+| **Add item** | ✅ | — | — | — | ✅ | ✅ | `AddItemModal` + `POST .../inventory/items` |
+| **Issue gear** | ✅ | ✅ | — | — | ✅ | ✅ | Side panel issue form; `POST .../inventory/issue` |
+| **Return gear** | ✅ | — | — | — | ✅ | ✅ | `ReturnGearModal`; partial returns; `POST .../inventory/return` |
+| **Open issues** | — | ✅ | — | — | ✅ | ✅ | `listOpenGearIssues`; `GET .../inventory/issues` |
+| **Movements feed** | — | ✅ | — | — | ✅ | 🟡 | `getGearMovements` (gateway read) |
 
-**Repo:** `lib/repositories/inventory.ts` — read only
+**Repo:** `lib/repositories/inventory.ts` — full CRUD + issue/return + open issues  
+**Client:** `GearWorkspace.tsx`, `AddItemModal`, `EditItemModal`, `ReturnGearModal`, `DeleteItemDialog`
 
 ---
 
@@ -304,8 +310,14 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | POST | `/academies/[id]/teams/[teamId]/members` | Add team members | `teams.addTeamMembers` |
 | PATCH | `/academies/[id]/teams/[teamId]/members/[playerId]` | Update member selection and/or role | `teams.updateTeamMemberSelection`, `teams.updateTeamMemberRole` |
 | DELETE | `/academies/[id]/teams/[teamId]/members/[playerId]` | Remove team member | `teams.removeTeamMember` |
+| POST | `/academies/[id]/inventory/items` | Create inventory item | `inventory.createInventoryItem` |
+| PATCH | `/academies/[id]/inventory/items/[itemId]` | Update inventory item | `inventory.updateInventoryItem` |
+| DELETE | `/academies/[id]/inventory/items/[itemId]` | Delete inventory item | `inventory.deleteInventoryItem` |
+| GET | `/academies/[id]/inventory/issues` | List open gear issues | `inventory.listOpenGearIssues` |
+| POST | `/academies/[id]/inventory/issue` | Issue gear to player | `inventory.issueGear` |
+| POST | `/academies/[id]/inventory/return` | Return gear (partial/full) | `inventory.returnGear` |
 
-**Not in Next.js API (gateway/microservice read proxies only):** dashboard, attendance, inventory, payroll, tournaments, player list GET, coach list GET, team reads.
+**Not in Next.js API (gateway/microservice read proxies only):** dashboard, attendance mark (reads via gateway for some), inventory stats/items/movements reads, payroll, tournaments, player list GET, coach list GET, team reads.
 
 ---
 
@@ -322,8 +334,8 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | `teams.ts` | featured, members, others, lineup, form options, create, add/remove members, update selection/role | C + R + U + D (members) |
 | `batches.ts` | ensure, dedupe, list, get (ensure) | C (internal) + R |
 | `dashboard.ts` | stats, fee trend, players by sport, sessions, activity | R |
-| `attendance.ts` | `getAttendanceSessions` | R |
-| `inventory.ts` | stats, items, movements | R |
+| `attendance` | `getAttendanceFormOptions`, `getBatchRoster`, `getAttendanceForBatchDate`, `saveAttendanceRecords`, `listBatchAttendanceHistory`, `getAttendanceSessions` | C + R + U |
+| `inventory.ts` | stats, items, movements, CRUD, issue, return, open issues | C + R + U + D |
 | `payroll.ts` | stats, staff | R |
 | `tournaments.ts` | active, bracket, mat schedule, medals | R |
 
@@ -338,8 +350,8 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | `coaches` | `getCoaches`, `getPendingReviews`, … | ✅ list + reviews | Parent only | ✅ Add coach |
 | `teams` | `getFeaturedTeam`, `getTeamMembers`, … | ✅ team + members + others | Parent only | ✅ Add team + add members |
 | `tournaments` | `getActiveTournament`, bracket, … | ✅ tournament + bracket + mats | Parent only | 🔲 Create |
-| `attendance` | `getAttendanceSessions` | ✅ sessions | Parent only | 🔲 Mark |
-| `gear` | inventory repos | ✅ items + movements | Parent only | 🔲 Add / Issue |
+| `attendance` | `getAttendanceFormOptions`, `getAttendanceSessions` + client mark/history | ✅ per section | ✅ | ✅ Mark/edit + history |
+| `gear` | inventory repos + `GearWorkspace` | ✅ items + movements + open issues | ✅ | ✅ Add / edit / delete / issue / return |
 | `fees` | payroll repos | ✅ staff table | Parent only | 🔲 Run payroll |
 | `reports` | `resolveAcademy` + static | ❌ (static stats) | Parent only | 🔲 Generate |
 
@@ -396,11 +408,10 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | **Academy `loading.tsx` coverage** | Low | Only `[id]/loading.tsx` and `[id]/players/loading.tsx` — other child routes inherit parent skeleton |
 | **State portal** | Expected | Entire `/state` tree uses mock data — no backend |
 | **Reports (academy)** | Expected | Static template cards |
-| **Inert action buttons** | Low | Quick add, Mark attendance, Run payroll, Create tournament, Generate report, Issue gear, Review lineup, Open review queue |
+| **Inert action buttons** | Low | Quick add, Run payroll, Create tournament, Generate report, Review lineup, Open review queue |
 | **Team metadata edit** | Low | No PATCH team name/coach/weight class |
 | **Coach edit/delete** | Medium | No APIs |
 | **Middleware scope** | Low | `/auth/login` and `/auth/sign-up` not in matcher — public by design; academy membership not verified per-route in middleware (relies on API 403) |
-
 ---
 
 ## 10. Next recommended work
@@ -409,14 +420,13 @@ Priority order based on incomplete CRUD and user-facing stubs:
 
 1. **Fix migration journal sync** — Reconcile `drizzle.__drizzle_migrations` with `db/migrations/meta/_journal.json`; generate missing snapshots so `pnpm db:migrate` is reliable on fresh clones.
 2. **Record fee payment** — Repository + `POST .../players/[id]/payments` + wire side panel button; updates `feeInvoices` / `feePayments` and refreshes list.
-3. **Mark attendance** — `createAttendanceRecords` repo + modal from attendance page; updates `attendanceRecords` for a session.
-4. **Coach update + drill review** — PATCH coach; POST review decision on `drillSubmissions`; wire `PendingReviewsPanel`.
-5. **Team metadata edit** — PATCH team name, coach, weight class.
-6. **Extend `loading.tsx`** — Per-route skeletons for coaches, teams, dashboard (per `AGENTS.md` checklist).
-7. **Gateway alignment** — Add mutation handlers to people/competitions services **or** stop proxying writes and document Next.js as sole mutation layer.
-8. **Payroll actions** — Run payroll + approve payslip flows against `payrollRuns` / `payslips` schema.
-9. **Inventory writes** — Add item + issue/return gear against existing schema.
-10. **State portal backend** — Replace `state-mock-data` with read repos when state-level schema is defined.
+3. **Coach update + drill review** — PATCH coach; POST review decision on `drillSubmissions`; wire `PendingReviewsPanel`.
+4. **Team metadata edit** — PATCH team name, coach, weight class.
+5. **Extend `loading.tsx`** — Per-route skeletons for coaches, teams, dashboard (per `AGENTS.md` checklist).
+6. **Gateway alignment** — Add mutation handlers to people/competitions services **or** stop proxying writes and document Next.js as sole mutation layer.
+7. **Payroll actions** — Run payroll + approve payslip flows against `payrollRuns` / `payslips` schema.
+8. ~~**Inventory writes** — Add item + issue/return gear against existing schema.~~ ✅ Done
+9. **State portal backend** — Replace `state-mock-data` with read repos when state-level schema is defined.
 
 ---
 

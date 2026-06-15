@@ -131,15 +131,19 @@ All dropdown menus portal to `document.body`, use 44px touch targets, support Es
 
 Full rules: `.cursor/rules/khelsetu-responsive.mdc`
 
+**Design reference:** **1300px** is the mockup fidelity baseline for dense content — not a hard cap on the app shell. `AcademyShellClient` is full viewport width; sidebar + main grow naturally on large displays. Mobile-first; graceful scaling at tablet and other widths is a major goal.
+
 | Breakpoint | Expectation |
 |------------|-------------|
-| 320–767px | No page-level horizontal overflow; card/stack layouts for dense lists |
+| 320–375px | Hard minimum — no page-level horizontal overflow |
+| 320–767px | Card/stack layouts for dense lists; mobile drawer sidebar |
 | 768–1023px | Same mobile patterns unless mockup specifies tablet layout |
 | 1024px+ | Mockup fidelity — table columns, side-by-side split layout |
+| **Large / ultrawide** | Full-width shell; main column grows (`flex-1 min-w-0`), side panels stay fixed width; optional `max-w-*` on inner content only |
 
 Checklist (add to every academy screen task):
 
-- [ ] Test at 320px, 375px, 768px, 1280px
+- [ ] Test at 320px, 375px, 768px, 1280px, 1920px; verify split layouts on ultrawide
 - [ ] `min-w-0` on every flex child in `SplitLayout` chains
 - [ ] `PageBody` padding respected — no negative margins breaking alignment
 - [ ] Tables: `AcademyCardList` below `lg` **or** scroll contained inside card only

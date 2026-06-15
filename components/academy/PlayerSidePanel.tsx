@@ -7,8 +7,7 @@ import {
 } from "@/components/academy/shared";
 import type { PlayerDetail } from "@/lib/repositories/types";
 
-const PLAYER_SIDE_PANEL_SURFACE_CLASS =
-  "w-full min-w-0 mt-3 lg:mt-0";
+const PLAYER_SIDE_PANEL_SURFACE_CLASS = "w-full min-w-0";
 
 type PlayerSidePanelEmptyProps = {
   hasPlayers: boolean;

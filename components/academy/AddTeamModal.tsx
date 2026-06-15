@@ -42,7 +42,6 @@ export function AddTeamModal({
       formOptions.sports.map((sport) => ({
         value: sport.id,
         label: sport.name,
-        color: sport.color,
       })),
     [formOptions.sports]
   );

@@ -61,7 +61,7 @@ function NavLink({
     <Link
       href={entry.href}
       onClick={onNavigate}
-      className={`flex items-center gap-[11px] px-3 py-2.5 rounded-[11px] text-[13.5px] font-medium mb-[3px] transition-colors ${
+      className={`flex w-full items-center gap-[11px] px-3 py-2.5 rounded-[11px] text-[13.5px] font-medium mb-[3px] transition-colors ${
         active
           ? "bg-ink3 text-white"
           : "text-[#aeb8d0] hover:text-white"
@@ -95,12 +95,11 @@ export function AcademySidebar({
     { id: "attendance", label: "Attendance", href: `${base}/attendance`, icon: <CalendarIcon /> },
     { id: "gear", label: "Gear & Inventory", href: `${base}/gear`, icon: <BoxIcon /> },
     { id: "fees", label: "Fees & Payroll", href: `${base}/fees`, icon: <CashIcon /> },
-    { id: "reports", label: "Reports", href: `${base}/reports`, icon: <ChartIcon className="w-[18px] h-[18px]" /> },
   ];
 
   return (
     <aside
-      className={`w-[236px] shrink-0 bg-ink text-white flex flex-col px-4 py-[22px] ${className}`}
+      className={`w-[236px] shrink-0 bg-ink text-white flex flex-col pl-4 pr-2 py-[22px] ${className}`}
     >
       <div className="flex items-center justify-between px-1.5 pb-[22px]">
         <div className="flex items-center gap-2.5">

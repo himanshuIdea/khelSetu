@@ -19,7 +19,7 @@ export type PlayerEditData = UpdatePlayerPayload & {
 };
 
 export type PlayerFormOptions = {
-  sports: { id: string; name: string; color: string }[];
+  sports: { id: string; name: string }[];
   batches: { id: string; name: string; sportId: string }[];
   coaches: { id: string; name: string; sportId: string }[];
 };

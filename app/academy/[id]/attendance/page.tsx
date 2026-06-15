@@ -1,17 +1,10 @@
 import { CalendarIcon } from "@/components/academy/icons";
+import { AttendanceWorkspace } from "@/components/academy/AttendanceWorkspace";
+import { PageBody, PageHeader, StatCard, StatGrid } from "@/components/academy/shared";
 import {
-  AcademyTable,
-  EmptyState,
-  FilterPills,
-  PageBody,
-  PageHeader,
-  Pill,
-  StatCard,
-  StatGrid,
-  TableCell,
-  TableRow,
-} from "@/components/academy/shared";
-import { getAttendanceSessions } from "@/lib/repositories/attendance";
+  getAttendanceFormOptions,
+  getAttendanceSessions,
+} from "@/lib/repositories/attendance";
 
 type AttendancePageProps = {
   params: Promise<{ id: string }>;
@@ -19,74 +12,82 @@ type AttendancePageProps = {
 
 export default async function AttendancePage({ params }: AttendancePageProps) {
   const { id } = await params;
-  const attendanceSessions = await getAttendanceSessions(id);
 
-  const marked = attendanceSessions.filter((s) => s.status === "Marked");
+  const [formOptions, attendanceSessions] = await Promise.all([
+    getAttendanceFormOptions(id),
+    getAttendanceSessions(id),
+  ]);
+
+  const marked = attendanceSessions.filter((session) => session.status === "Marked");
   const avgRate =
     marked.length > 0
       ? Math.round(
-          marked.reduce((sum, s) => sum + (s.present / Math.max(s.total, 1)) * 100, 0) / marked.length
+          marked.reduce(
+            (sum, session) => sum + (session.present / Math.max(session.total, 1)) * 100,
+            0
+          ) / marked.length
         )
       : 0;
-  const todayCount = attendanceSessions.filter((s) => s.time !== "Yesterday" && !s.time.includes("Mar")).length;
-  const lowCount = attendanceSessions.filter((s) => s.status === "Low").length;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayCount = attendanceSessions.filter((session) => session.date === todayIso).length;
+  const lowCount = attendanceSessions.filter((session) => session.status === "Low").length;
+
+  const monthLabel = new Date().toLocaleDateString("en-IN", { month: "long" });
 
   const attendanceStats = [
-    { value: `${avgRate}%`, label: "Avg. attendance · June", iconBg: "var(--blue-soft)", iconColor: "#2756D8" },
-    { value: String(marked.length), label: "Sessions marked", iconBg: "var(--green-soft)", iconColor: "#0E9B72" },
-    { value: String(todayCount), label: "Sessions today", iconBg: "var(--brand-soft)", iconColor: "var(--brand-d)" },
-    { value: String(lowCount), label: "Low-attendance batches", iconBg: "var(--amber-soft)", iconColor: "#C77F12", valueColor: "var(--amber)" },
+    {
+      value: `${avgRate}%`,
+      label: `Avg. attendance · ${monthLabel}`,
+      iconBg: "var(--blue-soft)",
+      iconColor: "#2756D8",
+    },
+    {
+      value: String(marked.length),
+      label: "Sessions marked",
+      iconBg: "var(--green-soft)",
+      iconColor: "#0E9B72",
+    },
+    {
+      value: String(todayCount),
+      label: "Sessions today",
+      iconBg: "var(--brand-soft)",
+      iconColor: "var(--brand-d)",
+    },
+    {
+      value: String(lowCount),
+      label: "Low-attendance batches",
+      iconBg: "var(--amber-soft)",
+      iconColor: "#C77F12",
+      valueColor: "var(--amber)",
+    },
   ];
 
   return (
     <PageBody>
-      <PageHeader
-        title="Attendance"
-        subtitle="Mark daily sessions, track batch-wise presence and spot absentees early."
-        actionLabel="Mark attendance"
-      />
-
-      <StatGrid>
-        {attendanceStats.map((s) => (
-          <StatCard
-            key={s.label}
-            value={s.value}
-            label={s.label}
-            icon={<CalendarIcon className="w-5 h-5" />}
-            iconBg={s.iconBg}
-            iconColor={s.iconColor}
-            valueColor={s.valueColor}
-          />
-        ))}
-      </StatGrid>
-
-      <FilterPills>
-        <Pill variant="brand" className="px-[13px] py-2 shrink-0">Today</Pill>
-        <Pill variant="grey" className="px-[13px] py-2 shrink-0">This week</Pill>
-        <Pill variant="grey" className="px-[13px] py-2 shrink-0">All sports</Pill>
-      </FilterPills>
-
-      {attendanceSessions.length === 0 ? (
-        <EmptyState
-          icon={<CalendarIcon className="w-5 h-5" />}
-          title="No sessions to mark"
-          description="Once batches and coaches are set up, daily sessions will appear here for attendance marking."
+      <AttendanceWorkspace
+        academyId={id}
+        formOptions={formOptions}
+        sessions={attendanceSessions}
+      >
+        <PageHeader
+          title="Attendance"
+          subtitle="Mark daily sessions, track batch-wise presence and spot absentees early."
         />
-      ) : (
-        <AcademyTable headers={["Batch", "Sport", "Coach", "Time", "Present", "Rate", "Status"]} minWidth={680}>
-          {attendanceSessions.map((s) => (
-            <TableRow key={`${s.batch}-${s.time}`}>
-              <TableCell><b>{s.batch}</b></TableCell>
-              <TableCell>{s.sport}</TableCell>
-              <TableCell>{s.coach}</TableCell>
-              <TableCell>{s.time}</TableCell>
-              <TableCell>{s.present > 0 ? `${s.present} / ${s.total}` : `— / ${s.total}`}</TableCell>
-              <TableCell><b>{s.rate}</b></TableCell>
-              <TableCell><Pill variant={s.statusVariant}>{s.status}</Pill></TableCell>
-            </TableRow>
+
+        <StatGrid>
+          {attendanceStats.map((stat) => (
+            <StatCard
+              key={stat.label}
+              value={stat.value}
+              label={stat.label}
+              icon={<CalendarIcon className="w-5 h-5" />}
+              iconBg={stat.iconBg}
+              iconColor={stat.iconColor}
+              valueColor={stat.valueColor}
+            />
           ))}
-        </AcademyTable>
-      )}
+        </StatGrid>
+      </AttendanceWorkspace>
     </PageBody>
   );
 }

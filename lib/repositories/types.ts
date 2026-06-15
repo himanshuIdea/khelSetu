@@ -107,6 +107,10 @@ export type OtherTeam = {
 };
 
 export type AttendanceSession = {
+  id: string;
+  batchId: string;
+  sportId: string;
+  date: string;
   batch: string;
   sport: string;
   coach: string;
@@ -119,16 +123,28 @@ export type AttendanceSession = {
 };
 
 export type InventoryItem = {
+  id: string;
   name: string;
   category: string;
   inStock: number;
   issued: number;
+  lowStockThreshold: number;
   condition: string;
+  conditionValue: "good" | "worn" | "damaged";
   conditionVariant: "green" | "amber";
   status: string;
   statusVariant: "green" | "red";
   iconBg: string;
   iconColor: string;
+};
+
+export type GearMovementFeedItem = {
+  id: string;
+  bold: string;
+  text: string;
+  time: string;
+  type: "up" | "check" | "bell";
+  prefix?: boolean;
 };
 
 export type StaffMember = {

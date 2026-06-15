@@ -7,7 +7,6 @@ import { CheckIcon } from "@/components/academy/icons";
 export type SelectOption = {
   value: string;
   label: string;
-  color?: string;
 };
 
 type MenuPosition = {
@@ -47,6 +46,7 @@ type InlineSelectProps = {
   "aria-label"?: string;
   id?: string;
   variant?: "input" | "pill";
+  tone?: "light" | "dark";
   required?: boolean;
 };
 
@@ -60,6 +60,7 @@ export function InlineSelect({
   "aria-label": ariaLabel,
   id,
   variant = "input",
+  tone = "light",
   required = false,
 }: InlineSelectProps) {
   const generatedId = useId();
@@ -167,10 +168,16 @@ export function InlineSelect({
     }
   }
 
-  const triggerClassName =
-    variant === "pill"
-      ? `inline-flex items-center justify-between gap-1.5 min-h-[44px] text-[11px] font-semibold px-2.5 py-1.5 rounded-full border border-line bg-card text-ink disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${
-          open ? "ring-1 ring-brand/25" : ""
+  const inputTriggerClassName =
+    tone === "dark"
+      ? `w-full flex items-center justify-between gap-2 min-h-[44px] rounded-[10px] px-3 py-2 text-left text-[13.5px] transition-colors touch-manipulation bg-white/8 border-none ${
+          disabled
+            ? "text-[#A9B5D1] cursor-not-allowed opacity-50"
+            : open
+              ? "bg-white/12 text-white ring-1 ring-white/20"
+              : selected
+                ? "text-[#C7D0E6] hover:bg-white/12 hover:text-white"
+                : "text-[#A9B5D1] hover:bg-white/12 hover:text-white"
         }`
       : `w-full flex items-center justify-between gap-2 min-h-[44px] rounded-[10px] px-3 py-2 text-left text-[13.5px] transition-colors touch-manipulation ${
           disabled
@@ -179,6 +186,13 @@ export function InlineSelect({
               ? "bg-brand-soft text-ink ring-1 ring-brand/25"
               : "text-ink hover:bg-surface"
         } ${!selected ? "text-muted2" : ""}`;
+
+  const triggerClassName =
+    variant === "pill"
+      ? `inline-flex items-center justify-between gap-1.5 min-h-[44px] text-[11px] font-semibold px-2.5 py-1.5 rounded-full border border-line bg-card text-ink disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${
+          open ? "ring-1 ring-brand/25" : ""
+        }`
+      : inputTriggerClassName;
 
   const menu = open && !disabled ? (
     <ul
@@ -212,13 +226,6 @@ export function InlineSelect({
                 onMouseEnter={() => setHighlightIndex(index)}
                 onClick={() => selectOption(option.value)}
               >
-                {option.color ? (
-                  <span
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ background: option.color }}
-                    aria-hidden
-                  />
-                ) : null}
                 <span className="flex-1 min-w-0 truncate">{option.label}</span>
                 {isSelected ? <CheckIcon className="w-3 h-3 shrink-0" /> : null}
               </button>
@@ -244,17 +251,11 @@ export function InlineSelect({
         onKeyDown={handleKeyDown}
         className={`${triggerClassName} ${className}`}
       >
-        <span className="flex items-center gap-2 min-w-0 truncate">
-          {selected?.color ? (
-            <span
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ background: selected.color }}
-              aria-hidden
-            />
-          ) : null}
-          <span className="truncate">{displayLabel}</span>
-        </span>
-        <ChevronDownIcon open={open} className={variant === "pill" ? "w-3 h-3" : ""} />
+        <span className="min-w-0 truncate">{displayLabel}</span>
+        <ChevronDownIcon
+          open={open}
+          className={`${variant === "pill" ? "w-3 h-3" : ""} ${tone === "dark" ? "text-[#A9B5D1]" : ""}`}
+        />
       </button>
 
       {required ? (

@@ -6,7 +6,7 @@ export type CreateTeamPayload = {
 };
 
 export type TeamFormOptions = {
-  sports: { id: string; name: string; color: string }[];
+  sports: { id: string; name: string }[];
   coaches: { id: string; name: string; sportId: string }[];
 };
 

@@ -1,6 +1,13 @@
 import { apiDelete, apiGet, apiPatch, apiPost } from "./http";
 import type { AuthAcademy, AuthProfile, PlatformRole } from "@/lib/auth/types";
 import type { CreateCoachPayload } from "@/lib/coaches";
+import type {
+  CreateInventoryItemPayload,
+  IssueGearPayload,
+  OpenGearIssue,
+  ReturnGearPayload,
+  UpdateInventoryItemPayload,
+} from "@/lib/inventory";
 import type { CreatePlayerPayload, PlayerEditData, UpdatePlayerPayload } from "@/lib/players";
 import type {
   AddTeamMembersPayload,
@@ -14,6 +21,7 @@ import type {
   AttendanceSession,
   Coach,
   InventoryItem,
+  GearMovementFeedItem,
   OtherTeam,
   PendingReview,
   Player,
@@ -147,6 +155,24 @@ export const api = {
   attendance: {
     sessions: (academyId: string) =>
       apiGet<AttendanceSession[]>(`/academies/${academyId}/attendance/sessions`),
+    getMarkSession: (academyId: string, batchId: string, date: string) =>
+      apiGet<import("@/lib/attendance").AttendanceMarkSession>(
+        `/academies/${academyId}/attendance/mark?batchId=${encodeURIComponent(batchId)}&date=${encodeURIComponent(date)}`
+      ),
+    saveMarkSession: (
+      academyId: string,
+      payload: import("@/lib/attendance").SaveAttendancePayload
+    ) => apiPost<{
+      sessionId: string;
+      present: number;
+      absent: number;
+      total: number;
+      rate: string;
+    }>(`/academies/${academyId}/attendance/mark`, payload),
+    batchHistory: (academyId: string, batchId: string) =>
+      apiGet<import("@/lib/attendance").BatchAttendanceHistoryEntry[]>(
+        `/academies/${academyId}/attendance/batches/${encodeURIComponent(batchId)}/history`
+      ),
   },
 
   teams: {
@@ -259,15 +285,19 @@ export const api = {
       ),
     items: (academyId: string) => apiGet<InventoryItem[]>(`/academies/${academyId}/inventory/items`),
     movements: (academyId: string) =>
-      apiGet<
-        {
-          bold: string;
-          text: string;
-          time: string;
-          type: "up" | "check" | "bell";
-          prefix?: boolean;
-        }[]
-      >(`/academies/${academyId}/inventory/movements`),
+      apiGet<GearMovementFeedItem[]>(`/academies/${academyId}/inventory/movements`),
+    openIssues: (academyId: string) =>
+      apiGet<OpenGearIssue[]>(`/academies/${academyId}/inventory/issues`),
+    createItem: (academyId: string, body: CreateInventoryItemPayload) =>
+      apiPost<InventoryItem>(`/academies/${academyId}/inventory/items`, body),
+    updateItem: (academyId: string, itemId: string, body: UpdateInventoryItemPayload) =>
+      apiPatch<InventoryItem>(`/academies/${academyId}/inventory/items/${itemId}`, body),
+    deleteItem: (academyId: string, itemId: string) =>
+      apiDelete(`/academies/${academyId}/inventory/items/${itemId}`),
+    issue: (academyId: string, body: IssueGearPayload) =>
+      apiPost<OpenGearIssue>(`/academies/${academyId}/inventory/issue`, body),
+    returnGear: (academyId: string, body: ReturnGearPayload) =>
+      apiPost<{ outstandingQuantity: number }>(`/academies/${academyId}/inventory/return`, body),
   },
 
   payroll: {

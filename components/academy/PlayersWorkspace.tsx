@@ -34,7 +34,7 @@ export function PlayersWorkspace({
 
   return (
     <SplitLayout className="min-w-0 w-full">
-      <div className="flex-1 min-w-0 w-full lg:pr-[26px]">
+      <div className="flex-1 min-w-0 w-full">
         {children}
         <PlayersListSection
           players={listPlayers}

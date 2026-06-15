@@ -4,7 +4,7 @@ import { PlayerSidePanelSkeleton } from "@/components/academy/PlayerSidePanel";
 export default function PlayersPageLoading() {
   return (
     <PageBody className="lg:pr-0">
-      <SplitLayout>
+      <SplitLayout className="min-w-0 w-full">
         <div className="flex-1 min-w-0 w-full animate-pulse" aria-busy aria-label="Loading players">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
             <div className="space-y-2">

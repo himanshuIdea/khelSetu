@@ -238,7 +238,7 @@ export async function getOtherTeams(academyId: string, excludeTeamId?: string): 
 export async function getTeamFormOptions(academyId: string): Promise<TeamFormOptions> {
   const [sportRows, coachRows] = await Promise.all([
     db
-      .select({ id: sports.id, name: sports.name, color: sports.color })
+      .select({ id: sports.id, name: sports.name })
       .from(academySports)
       .innerJoin(sports, eq(academySports.sportId, sports.id))
       .where(eq(academySports.academyId, academyId)),

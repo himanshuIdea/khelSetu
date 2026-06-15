@@ -6,7 +6,7 @@ export type CreateCoachPayload = {
 };
 
 export type CoachFormOptions = {
-  sports: { id: string; name: string; color: string }[];
+  sports: { id: string; name: string }[];
 };
 
 export function validateCreateCoachPayload(payload: CreateCoachPayload): string | null {
