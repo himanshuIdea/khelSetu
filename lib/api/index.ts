@@ -1,6 +1,12 @@
-import { apiDelete, apiGet, apiPatch, apiPost } from "./http";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "./http";
 import type { AuthAcademy, AuthProfile, PlatformRole } from "@/lib/auth/types";
-import type { CreateCoachPayload } from "@/lib/coaches";
+import type {
+  AssignCoachPayload,
+  CoachAssignmentGroup,
+  UnassignPayload,
+  UnassignPreview,
+  UpdateCoachAssignmentPayload,
+} from "@/lib/coaches";
 import type {
   CreateInventoryItemPayload,
   IssueGearPayload,
@@ -17,6 +23,12 @@ import type {
 } from "@/lib/teams";
 import type { OnboardingPayload, OnboardingResult } from "@/lib/onboarding";
 import type {
+  ScheduleSettingsPayload,
+  SlotPayload,
+  TimetableData,
+  TimetableSlot,
+} from "@/lib/timetable";
+import type {
   AcademyMeta,
   AttendanceSession,
   Coach,
@@ -26,6 +38,7 @@ import type {
   PendingReview,
   Player,
   PlayerDetail,
+  PlayerFeeBillingRow,
   StaffMember,
   TeamMember,
 } from "@/lib/repositories/types";
@@ -110,8 +123,52 @@ export const api = {
     count: (academyId: string) => apiGet<{ count: number }>(`/academies/${academyId}/coaches/count`),
     pendingReviews: (academyId: string) =>
       apiGet<PendingReview[]>(`/academies/${academyId}/coaches/pending-reviews`),
-    create: (academyId: string, payload: CreateCoachPayload) =>
-      apiPost<{ id: string }>(`/academies/${academyId}/coaches`, payload),
+    assign: (academyId: string, payload: AssignCoachPayload) =>
+      apiPost<{ coachId: string; batchCount: number }>(
+        `/academies/${academyId}/coaches/assign`,
+        payload
+      ),
+    listAssignments: (academyId: string, coachId: string) =>
+      apiGet<{ assignments: CoachAssignmentGroup[] }>(
+        `/academies/${academyId}/coaches/${coachId}/assignments`
+      ),
+    previewUnassign: (academyId: string, coachId: string, payload: UnassignPayload) => {
+      const params = new URLSearchParams({ scope: payload.scope });
+      if (payload.sportId) params.set("sportId", payload.sportId);
+      if (payload.batchId) params.set("batchId", payload.batchId);
+      return apiGet<UnassignPreview>(
+        `/academies/${academyId}/coaches/${coachId}/unassign-preview?${params.toString()}`
+      );
+    },
+    updateAssignment: (
+      academyId: string,
+      coachId: string,
+      payload: UpdateCoachAssignmentPayload
+    ) =>
+      apiPatch<{
+        coachId: string;
+        sportId: string;
+        batchCount: number;
+        removedBatchCount: number;
+        addedBatchCount: number;
+      }>(`/academies/${academyId}/coaches/${coachId}/assignments`, payload),
+    unassign: (academyId: string, coachId: string, payload: UnassignPayload) =>
+      apiDelete(`/academies/${academyId}/coaches/${coachId}/assignments`, payload),
+  },
+
+  timetable: {
+    get: (academyId: string) => apiGet<TimetableData>(`/academies/${academyId}/timetable`),
+    saveSettings: (academyId: string, payload: ScheduleSettingsPayload) =>
+      apiPut<TimetableData>(`/academies/${academyId}/timetable/settings`, payload),
+    createSlot: (academyId: string, payload: SlotPayload) =>
+      apiPost<{ slot: TimetableSlot }>(`/academies/${academyId}/timetable/slots`, payload),
+    updateSlot: (academyId: string, slotId: string, payload: SlotPayload) =>
+      apiPatch<{ slot: TimetableSlot }>(
+        `/academies/${academyId}/timetable/slots/${slotId}`,
+        payload
+      ),
+    deleteSlot: (academyId: string, slotId: string) =>
+      apiDelete(`/academies/${academyId}/timetable/slots/${slotId}`),
   },
 
   dashboard: {
@@ -172,6 +229,21 @@ export const api = {
     batchHistory: (academyId: string, batchId: string) =>
       apiGet<import("@/lib/attendance").BatchAttendanceHistoryEntry[]>(
         `/academies/${academyId}/attendance/batches/${encodeURIComponent(batchId)}/history`
+      ),
+  },
+
+  staffAttendance: {
+    getRoster: (academyId: string, date: string) =>
+      apiGet<import("@/lib/staff-attendance").StaffAttendanceSession>(
+        `/academies/${academyId}/attendance/staff?date=${encodeURIComponent(date)}`
+      ),
+    save: (
+      academyId: string,
+      payload: import("@/lib/staff-attendance").SaveStaffAttendancePayload
+    ) =>
+      apiPost<{ present: number; absent: number; leave: number; total: number }>(
+        `/academies/${academyId}/attendance/staff`,
+        payload
       ),
   },
 
@@ -301,16 +373,62 @@ export const api = {
   },
 
   payroll: {
-    stats: (academyId: string) =>
-      apiGet<
-        {
-          value: string;
-          label: string;
-          iconBg: string;
-          iconColor: string;
-          icon: "users" | "cash" | "cap" | "clock";
-        }[]
-      >(`/academies/${academyId}/payroll/stats`),
     staff: (academyId: string) => apiGet<StaffMember[]>(`/academies/${academyId}/payroll/staff`),
+    getStaff: (academyId: string, staffId: string) =>
+      apiGet<{
+        id: string;
+        fullName: string;
+        roleTitle: string;
+        employmentType: "full_time" | "part_time";
+        monthlySalaryPaise: number;
+        isCoach: boolean;
+      }>(`/academies/${academyId}/payroll/staff/${staffId}`),
+    createStaff: (academyId: string, body: import("@/lib/payroll").CreateStaffPayload) =>
+      apiPost<{ id: string }>(`/academies/${academyId}/payroll/staff`, body),
+    updateStaff: (
+      academyId: string,
+      staffId: string,
+      body: import("@/lib/payroll").UpdateStaffPayload
+    ) => apiPatch<{ id: string }>(`/academies/${academyId}/payroll/staff/${staffId}`, body),
+    deleteStaff: (academyId: string, staffId: string) =>
+      apiDelete(`/academies/${academyId}/payroll/staff/${staffId}`),
+    run: (academyId: string) =>
+      apiPost<{ payrollRunId: string; staffCount: number; created: number; updated: number }>(
+        `/academies/${academyId}/payroll/run`,
+        {}
+      ),
+    approvePayslip: (
+      academyId: string,
+      payslipId: string,
+      body: import("@/lib/payroll").ApprovePayslipPayload
+    ) => apiPatch<{ id: string }>(`/academies/${academyId}/payroll/payslips/${payslipId}`, body),
+    bulkApprove: (academyId: string, body: import("@/lib/payroll").BulkApprovePayslipsPayload) =>
+      apiPost<{ approved: number; ids: string[] }>(
+        `/academies/${academyId}/payroll/payslips/bulk-approve`,
+        body
+      ),
+  },
+
+  fees: {
+    billing: (
+      academyId: string,
+      params?: { sportId?: string; batchId?: string; status?: string }
+    ) => {
+      const search = new URLSearchParams();
+      if (params?.sportId) search.set("sportId", params.sportId);
+      if (params?.batchId) search.set("batchId", params.batchId);
+      if (params?.status) search.set("status", params.status);
+      const query = search.toString();
+      return apiGet<PlayerFeeBillingRow[]>(
+        `/academies/${academyId}/fees/billing${query ? `?${query}` : ""}`
+      );
+    },
+    recordPayment: (academyId: string, body: import("@/lib/fees").RecordFeePaymentPayload) =>
+      apiPost<{ invoiceId: string }>(`/academies/${academyId}/fees/payments`, body),
+    generateInvoices: (academyId: string) =>
+      apiPost<{ period: string; created: number; skipped: number }>(
+        `/academies/${academyId}/fees/invoices/generate`,
+        {}
+      ),
   },
 };

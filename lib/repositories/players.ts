@@ -7,6 +7,7 @@ import {
   batches,
   coaches,
   feeInvoices,
+  feePayments,
   playerCoachAssignments,
   players,
   sports,
@@ -33,6 +34,7 @@ import {
   type UpdatePlayerPayload,
 } from "@/lib/players";
 import { listAcademyBatches } from "@/lib/repositories/batches";
+import { recordActivityEvent } from "@/lib/repositories/activity";
 import type { Player, PlayerDetail } from "./types";
 
 function formatPlayerAttendanceRate(present: unknown, total: unknown): string {
@@ -180,7 +182,8 @@ export async function getPlayerDetail(
     attendance,
     boutsWon: String(Number(wins?.count ?? 0) || 0),
     joined: row.player.joinedAt ? formatDate(row.player.joinedAt) : "—",
-    coach: row.coachName ?? "—",
+    coach: row.player.primaryCoachId ? row.coachName : null,
+    coachUnassigned: !row.player.primaryCoachId,
     monthlyFee:
       row.player.monthlyFeePaise != null
         ? formatPaiseFull(row.player.monthlyFeePaise)
@@ -356,7 +359,7 @@ export async function createPlayer(academyId: string, payload: CreatePlayerPaylo
   const dateOfBirth = payload.dateOfBirth ? new Date(payload.dateOfBirth) : null;
 
   try {
-    return await db.transaction(async (tx) => {
+    const created = await db.transaction(async (tx) => {
       const [player] = await tx
         .insert(players)
         .values({
@@ -401,7 +404,7 @@ export async function createPlayer(academyId: string, payload: CreatePlayerPaylo
 
       if (payload.monthlyFeePaise != null && payload.monthlyFeePaise > 0) {
         const period = currentFeePeriod();
-        await tx
+        const [invoice] = await tx
           .insert(feeInvoices)
           .values({
             playerId: player.id,
@@ -411,13 +414,47 @@ export async function createPlayer(academyId: string, payload: CreatePlayerPaylo
             status: "paid",
             paidThroughPeriod: period,
           })
-          .onConflictDoNothing({
+          .onConflictDoUpdate({
             target: [feeInvoices.playerId, feeInvoices.period],
-          });
+            set: {
+              status: "paid",
+              amountPaise: payload.monthlyFeePaise,
+              paidThroughPeriod: period,
+              updatedAt: new Date(),
+            },
+          })
+          .returning({ id: feeInvoices.id });
+
+        if (invoice) {
+          const [existingPayment] = await tx
+            .select({ id: feePayments.id })
+            .from(feePayments)
+            .where(eq(feePayments.invoiceId, invoice.id))
+            .limit(1);
+
+          if (!existingPayment) {
+            await tx.insert(feePayments).values({
+              invoiceId: invoice.id,
+              amountPaise: payload.monthlyFeePaise,
+              paidAt: joinedAt,
+              method: "enrollment",
+            });
+          }
+        }
       }
 
       return player;
     });
+
+    await recordActivityEvent({
+      academyId,
+      eventType: "player_enrolled",
+      actorName: payload.fullName.trim(),
+      description: `enrolled in ${sport.name}`,
+      metadata: { type: "users" },
+    });
+
+    return created;
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw new Error("A player with this ID already exists. Please try again.");

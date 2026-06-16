@@ -1,11 +1,12 @@
-import { CoachCard } from "@/components/academy/CoachCard";
+import { CoachesGrid } from "@/components/academy/CoachesGrid";
 import { CoachesPageHeader } from "@/components/academy/CoachesPageHeader";
 import { CapIcon } from "@/components/academy/icons";
 import { PendingReviewsPanel } from "@/components/academy/PendingReviewsPanel";
 import { EmptyState, PageBody, SidePanel, SplitLayout } from "@/components/academy/shared";
+import { syncOrphanCoachesToStaff } from "@/lib/repositories/coach-staff-sync";
 import {
+  getAssignCoachFormOptions,
   getCoachCount,
-  getCoachFormOptions,
   getCoaches,
   getPendingReviews,
 } from "@/lib/repositories/coaches";
@@ -17,11 +18,13 @@ type CoachesPageProps = {
 export default async function CoachesPage({ params }: CoachesPageProps) {
   const { id } = await params;
 
+  await syncOrphanCoachesToStaff(id);
+
   const [coaches, pendingReviews, coachCount, formOptions] = await Promise.all([
     getCoaches(id),
     getPendingReviews(id),
     getCoachCount(id),
-    getCoachFormOptions(id),
+    getAssignCoachFormOptions(id),
   ]);
   const sportCount = formOptions.sports.length;
 
@@ -39,14 +42,10 @@ export default async function CoachesPage({ params }: CoachesPageProps) {
             <EmptyState
               icon={<CapIcon className="w-5 h-5" />}
               title="No coaches yet"
-              description="Add coaches to assign batches, post drills and review player video submissions."
+              description="Add coaches from Fees → Manage staff, then assign them to batches here."
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {coaches.map((coach) => (
-                <CoachCard key={coach.id} coach={coach} />
-              ))}
-            </div>
+            <CoachesGrid academyId={id} coaches={coaches} formOptions={formOptions} />
           )}
         </div>
 

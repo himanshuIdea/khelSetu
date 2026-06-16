@@ -24,7 +24,10 @@ import {
   type AttendanceMarkStatus,
   type BatchAttendanceHistoryEntry,
 } from "@/lib/attendance";
+import { StaffAttendanceSection } from "@/components/academy/StaffAttendanceSection";
 import type { AttendanceSession } from "@/lib/repositories/types";
+
+type AttendanceTab = "athletes" | "staff";
 
 type AttendanceWorkspaceProps = {
   academyId: string;
@@ -98,6 +101,7 @@ export function AttendanceWorkspace({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<AttendanceTab>("athletes");
 
   const sportOptions = useMemo(
     () => formOptions.sports.map((sport) => ({ value: sport.id, label: sport.name })),
@@ -247,6 +251,37 @@ export function AttendanceWorkspace({
     <div className="min-w-0 w-full">
       {children}
 
+      <div className="flex gap-1 p-1 mb-4 rounded-[11px] border border-line bg-surface/60 w-full sm:w-fit min-w-0">
+        <button
+          type="button"
+          onClick={() => setActiveTab("athletes")}
+          className={`flex-1 sm:flex-none min-h-[40px] px-4 rounded-[9px] text-[13px] font-semibold transition-colors ${
+            activeTab === "athletes"
+              ? "bg-card text-ink shadow-card border border-line"
+              : "text-muted hover:text-ink"
+          }`}
+        >
+          Athletes
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("staff")}
+          className={`flex-1 sm:flex-none min-h-[40px] px-4 rounded-[9px] text-[13px] font-semibold transition-colors ${
+            activeTab === "staff"
+              ? "bg-card text-ink shadow-card border border-line"
+              : "text-muted hover:text-ink"
+          }`}
+        >
+          Staff
+        </button>
+      </div>
+
+      {activeTab === "staff" ? (
+        <StaffAttendanceSection academyId={academyId} />
+      ) : null}
+
+      {activeTab === "athletes" ? (
+      <>
       <div className="bg-card border border-line rounded-(--radius) shadow-card p-4 sm:p-5 mb-4 min-w-0">
         <div className="flex items-start gap-3 min-w-0">
           <div
@@ -604,6 +639,8 @@ export function AttendanceWorkspace({
           </>
         )}
       </div>
+      </>
+      ) : null}
     </div>
   );
 }

@@ -78,6 +78,13 @@
       "when": 1781244403808,
       "tag": "0010_players_height_category",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781244403908,
+      "tag": "0011_weekly_timetable",
+      "breakpoints": true
     }
   ]
 }

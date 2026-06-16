@@ -3,6 +3,7 @@ import { ShieldIcon, StarIcon } from "./icons";
 
 type CoachCardProps = {
   coach: Coach;
+  onClick?: () => void;
 };
 
 function BadgePill({ coach }: { coach: Coach }) {
@@ -22,9 +23,30 @@ function BadgePill({ coach }: { coach: Coach }) {
   );
 }
 
-export function CoachCard({ coach }: CoachCardProps) {
+export function CoachCard({ coach, onClick }: CoachCardProps) {
+  const interactive = Boolean(onClick);
+
   return (
-    <div className="bg-card border border-line rounded-(--radius) p-[18px] shadow-card">
+    <div
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        interactive
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
+      className={`bg-card border border-line rounded-(--radius) p-[18px] shadow-card text-left w-full transition-colors ${
+        interactive
+          ? "cursor-pointer hover:border-brand/40 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+          : ""
+      }`}
+    >
       <div className="flex gap-[13px] items-center mb-3.5">
         <div
           className="w-12 h-12 rounded-[13px] flex items-center justify-center font-bold text-base text-white shrink-0"

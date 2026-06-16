@@ -14,6 +14,91 @@ import {
   tournaments,
 } from "@/db/schema";
 import { formatPaise, formatPeriod } from "@/lib/format";
+import { expandSlotsForDate } from "@/lib/repositories/timetable";
+import { localDateString, scheduledAtFromDateAndMinutes } from "@/lib/timetable";
+
+const enrollmentFeeExclusionSql = sql`not exists (
+  select 1 from ${feePayments} fp
+  inner join ${feeInvoices} fi on fi.id = fp.invoice_id
+  where fi.player_id = ${players.id}
+  and date_trunc('month', fp.paid_at) = date_trunc('month', ${players.joinedAt})
+)`;
+
+async function getPaymentTotalsByMonth(academyId: string, lookbackStart: Date) {
+  const rows = await db
+    .select({
+      period: sql<string>`to_char(date_trunc('month', ${feePayments.paidAt}), 'YYYY-MM')`,
+      total: sql<number>`coalesce(sum(${feePayments.amountPaise}), 0)`,
+    })
+    .from(feePayments)
+    .innerJoin(feeInvoices, eq(feePayments.invoiceId, feeInvoices.id))
+    .where(and(eq(feeInvoices.academyId, academyId), gte(feePayments.paidAt, lookbackStart)))
+    .groupBy(sql`date_trunc('month', ${feePayments.paidAt})`)
+    .orderBy(sql`date_trunc('month', ${feePayments.paidAt})`);
+
+  return new Map(rows.map((row) => [row.period, Number(row.total)]));
+}
+
+/** Enrollment fee counted in join month when no payment row exists yet (legacy rows). */
+async function getEnrollmentFeesByMonth(academyId: string, lookbackStart: Date) {
+  const rows = await db
+    .select({
+      period: sql<string>`to_char(date_trunc('month', ${players.joinedAt}), 'YYYY-MM')`,
+      total: sql<number>`coalesce(sum(${players.monthlyFeePaise}), 0)`,
+    })
+    .from(players)
+    .where(
+      and(
+        eq(players.academyId, academyId),
+        sql`${players.monthlyFeePaise} > 0`,
+        gte(players.joinedAt, lookbackStart),
+        enrollmentFeeExclusionSql
+      )
+    )
+    .groupBy(sql`date_trunc('month', ${players.joinedAt})`);
+
+  return new Map(rows.map((row) => [row.period, Number(row.total)]));
+}
+
+function mergeFeeTotalsByPeriod(
+  paymentTotals: Map<string, number>,
+  enrollmentTotals: Map<string, number>
+) {
+  const merged = new Map(paymentTotals);
+  for (const [period, amount] of enrollmentTotals) {
+    merged.set(period, (merged.get(period) ?? 0) + amount);
+  }
+  return merged;
+}
+
+async function getFeesCollectedInRange(academyId: string, start: Date, end: Date) {
+  const [paymentRow] = await db
+    .select({ total: sql<number>`coalesce(sum(${feePayments.amountPaise}), 0)` })
+    .from(feePayments)
+    .innerJoin(feeInvoices, eq(feePayments.invoiceId, feeInvoices.id))
+    .where(
+      and(
+        eq(feeInvoices.academyId, academyId),
+        gte(feePayments.paidAt, start),
+        lte(feePayments.paidAt, end)
+      )
+    );
+
+  const [enrollmentRow] = await db
+    .select({ total: sql<number>`coalesce(sum(${players.monthlyFeePaise}), 0)` })
+    .from(players)
+    .where(
+      and(
+        eq(players.academyId, academyId),
+        sql`${players.monthlyFeePaise} > 0`,
+        gte(players.joinedAt, start),
+        lte(players.joinedAt, end),
+        enrollmentFeeExclusionSql
+      )
+    );
+
+  return Number(paymentRow?.total ?? 0) + Number(enrollmentRow?.total ?? 0);
+}
 
 export type FeeTrendPoint = {
   label: string;
@@ -28,16 +113,30 @@ export type FeeTrendChart = {
   yLabels: string[];
 };
 
-export async function getDashboardData(academyId: string) {
+const ALLOWED_TREND_MONTHS = [3, 6, 12] as const;
+export type TrendMonths = (typeof ALLOWED_TREND_MONTHS)[number];
+
+export function parseTrendMonths(raw: string | string[] | undefined): TrendMonths {
+  const value = Number(Array.isArray(raw) ? raw[0] : raw);
+  if (value === 3 || value === 12) return value;
+  return 6;
+}
+
+type DashboardDataOptions = {
+  trendMonths?: TrendMonths;
+};
+
+export async function getDashboardData(academyId: string, options: DashboardDataOptions = {}) {
+  const trendMonths = options.trendMonths ?? 6;
   const [stats, playersBySport, todaySessions, recentActivity, feeTrend] = await Promise.all([
     getDashboardStats(academyId),
     getPlayersBySport(academyId),
     getTodaySessions(academyId),
     getRecentActivity(academyId),
-    getFeeCollectionTrend(academyId),
+    getFeeCollectionTrend(academyId, trendMonths),
   ]);
 
-  return { stats, playersBySport, todaySessions, recentActivity, feeTrend };
+  return { stats, playersBySport, todaySessions, recentActivity, feeTrend, trendMonths };
 }
 
 export async function getDashboardStats(academyId: string) {
@@ -69,18 +168,7 @@ export async function getDashboardStats(academyId: string) {
 
   const [feesCollected, attendanceThisMonth, attendancePrevMonth, upcomingSessions, liveTournaments, nextSession, nextTournament] =
     await Promise.all([
-      db
-        .select({ total: sql<number>`coalesce(sum(${feePayments.amountPaise}), 0)` })
-        .from(feePayments)
-        .innerJoin(feeInvoices, eq(feePayments.invoiceId, feeInvoices.id))
-        .where(
-          and(
-            eq(feeInvoices.academyId, academyId),
-            gte(feePayments.paidAt, monthStart),
-            lte(feePayments.paidAt, monthEnd)
-          )
-        )
-        .then(([row]) => Number(row?.total ?? 0)),
+      getFeesCollectedInRange(academyId, monthStart, monthEnd),
       getMonthlyAttendanceRate(academyId, monthStart, monthEnd),
       getMonthlyAttendanceRate(academyId, prevMonthStart, prevMonthEnd),
       db
@@ -183,25 +271,21 @@ export async function getDashboardStats(academyId: string) {
   ];
 }
 
-export async function getFeeCollectionTrend(academyId: string): Promise<FeeTrendPoint[]> {
+export async function getFeeCollectionTrend(
+  academyId: string,
+  months: TrendMonths = 6
+): Promise<FeeTrendPoint[]> {
   const now = new Date();
-  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const lookbackStart = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
 
-  const rows = await db
-    .select({
-      period: sql<string>`to_char(date_trunc('month', ${feePayments.paidAt}), 'YYYY-MM')`,
-      total: sql<number>`coalesce(sum(${feePayments.amountPaise}), 0)`,
-    })
-    .from(feePayments)
-    .innerJoin(feeInvoices, eq(feePayments.invoiceId, feeInvoices.id))
-    .where(and(eq(feeInvoices.academyId, academyId), gte(feePayments.paidAt, sixMonthsAgo)))
-    .groupBy(sql`date_trunc('month', ${feePayments.paidAt})`)
-    .orderBy(sql`date_trunc('month', ${feePayments.paidAt})`);
-
-  const totalsByPeriod = new Map(rows.map((row) => [row.period, Number(row.total)]));
+  const [paymentTotals, enrollmentTotals] = await Promise.all([
+    getPaymentTotalsByMonth(academyId, lookbackStart),
+    getEnrollmentFeesByMonth(academyId, lookbackStart),
+  ]);
+  const totalsByPeriod = mergeFeeTotalsByPeriod(paymentTotals, enrollmentTotals);
 
   const points: FeeTrendPoint[] = [];
-  for (let i = 5; i >= 0; i--) {
+  for (let i = months - 1; i >= 0; i--) {
     const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const period = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
     const amountPaise = totalsByPeriod.get(period) ?? 0;
@@ -267,19 +351,16 @@ export async function getTodaySessions(academyId: string) {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-  const rows = await db
+  const expanded = await expandSlotsForDate(academyId, now);
+  if (expanded.length === 0) return [];
+
+  const materializedRows = await db
     .select({
       session: trainingSessions,
-      batchName: batches.name,
-      sportName: sports.name,
-      coachName: coaches.fullName,
       present: sql<number>`count(*) filter (where ${attendanceRecords.status} = 'present')`,
       total: sql<number>`count(*)`,
     })
     .from(trainingSessions)
-    .leftJoin(batches, eq(trainingSessions.batchId, batches.id))
-    .innerJoin(sports, eq(trainingSessions.sportId, sports.id))
-    .innerJoin(coaches, eq(trainingSessions.coachId, coaches.id))
     .leftJoin(attendanceRecords, eq(attendanceRecords.sessionId, trainingSessions.id))
     .where(
       and(
@@ -288,31 +369,45 @@ export async function getTodaySessions(academyId: string) {
         lte(trainingSessions.scheduledAt, todayEnd)
       )
     )
-    .groupBy(trainingSessions.id, batches.name, sports.name, coaches.fullName)
-    .orderBy(trainingSessions.scheduledAt);
+    .groupBy(trainingSessions.id);
 
-  return rows.map((row) => {
-    const time = row.session.scheduledAt.toLocaleTimeString("en-IN", {
+  const sessionByBatchId = new Map(
+    materializedRows
+      .filter((row) => row.session.batchId)
+      .map((row) => [row.session.batchId!, row])
+  );
+
+  return expanded.map((row) => {
+    const materialized = sessionByBatchId.get(row.batchId);
+    const scheduledAt = materialized?.session.scheduledAt ?? row.scheduledAt;
+    const endsAt = scheduledAtFromDateAndMinutes(localDateString(now), row.endMinutes);
+    const time = scheduledAt.toLocaleTimeString("en-IN", {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
     });
-    const isUpcoming = row.session.status === "upcoming";
-    const present = Number(row.present);
-    const total = Number(row.total);
-    const venue = row.session.venue?.trim();
+    const status = materialized?.session.status ?? "upcoming";
+    const isUpcoming = status === "upcoming";
+    const present = Number(materialized?.present ?? 0);
+    const total = Number(materialized?.total ?? 0);
+    const venue = (materialized?.session.venue ?? row.venue)?.trim();
+    const sessionStatus = formatSessionStatus(scheduledAt, endsAt);
 
     return {
-      id: row.session.id,
+      id: `${row.slotId}:${row.batchId}`,
       time,
       title: [row.sportName, row.batchName].filter(Boolean).join(" · "),
       coach: venue ? `Coach ${row.coachName} · ${venue}` : `Coach ${row.coachName}`,
       pill: isUpcoming
-        ? formatStartsIn(row.session.scheduledAt)
+        ? sessionStatus
         : total > 0
           ? `${present}/${total} present`
           : "—",
-      pillVariant: isUpcoming ? ("amber" as const) : ("green" as const),
+      pillVariant: isUpcoming
+        ? sessionStatus === "Ended"
+          ? ("grey" as const)
+          : ("amber" as const)
+        : ("green" as const),
     };
   });
 }
@@ -358,8 +453,10 @@ async function getMonthlyAttendanceRate(academyId: string, start: Date, end: Dat
   return Math.round((Number(row.present) / Number(row.total)) * 100);
 }
 
-function formatStartsIn(scheduledAt: Date): string {
-  const diffMs = scheduledAt.getTime() - Date.now();
+function formatSessionStatus(startsAt: Date, endsAt: Date): string {
+  const now = Date.now();
+  if (now >= endsAt.getTime()) return "Ended";
+  const diffMs = startsAt.getTime() - now;
   if (diffMs <= 0) return "Starting now";
   const mins = Math.round(diffMs / 60000);
   if (mins < 60) return `Starts in ${mins} min`;

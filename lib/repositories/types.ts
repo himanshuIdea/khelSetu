@@ -59,7 +59,8 @@ export type PlayerDetail = {
   attendance: string;
   boutsWon: string;
   joined: string;
-  coach: string;
+  coach: string | null;
+  coachUnassigned: boolean;
   monthlyFee: string;
   batch: string;
   status: string;
@@ -148,14 +149,38 @@ export type GearMovementFeedItem = {
 };
 
 export type StaffMember = {
+  id: string;
+  staffId: string;
+  payslipId: string | null;
+  isCoach: boolean;
   initials: string;
   name: string;
   role: string;
   type: string;
+  employmentType: "full_time" | "part_time";
   daysPresent: string;
   salary: string;
+  monthlySalaryPaise: number;
   status: string;
-  statusVariant: "green" | "amber";
+  statusVariant: "green" | "amber" | "grey";
   action: string;
   avatarColor: string;
+  canApprove: boolean;
+};
+
+export type PlayerFeeBillingRow = {
+  id: string;
+  playerId: string;
+  playerName: string;
+  initials: string;
+  avatarColor: string;
+  sportBatch: string;
+  period: string;
+  amountPaise: number;
+  amountLabel: string;
+  status: "paid" | "due" | "partial" | "overdue";
+  statusLabel: string;
+  statusVariant: "green" | "amber" | "red" | "grey";
+  sportId: string;
+  batchId: string | null;
 };

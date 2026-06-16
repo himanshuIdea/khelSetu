@@ -79,6 +79,13 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return apiJson<T>(path, { method: "PATCH", body: JSON.stringify(body) });
 }
 
-export async function apiDelete(path: string): Promise<void> {
-  await apiJson<void>(path, { method: "DELETE" });
+export async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  return apiJson<T>(path, { method: "PUT", body: JSON.stringify(body) });
+}
+
+export async function apiDelete(path: string, body?: unknown): Promise<void> {
+  await apiJson<void>(path, {
+    method: "DELETE",
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
 }

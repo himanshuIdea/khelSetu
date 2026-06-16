@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { PlusIcon } from "@/components/academy/icons";
-import { AddCoachModal } from "@/components/academy/AddCoachModal";
+import { AssignCoachModal } from "@/components/academy/AssignCoachModal";
 import { PageHeader } from "@/components/academy/shared";
-import type { CoachFormOptions } from "@/lib/coaches";
+import type { AssignCoachFormOptions } from "@/lib/coaches";
 
 type CoachesPageHeaderProps = {
   academyId: string;
   subtitle: string;
-  formOptions: CoachFormOptions;
+  formOptions: AssignCoachFormOptions;
 };
 
 export function CoachesPageHeader({
@@ -30,13 +29,12 @@ export function CoachesPageHeader({
             onClick={() => setIsModalOpen(true)}
             className="inline-flex items-center justify-center gap-[7px] bg-brand text-white font-semibold text-[13px] py-[11px] px-4 rounded-[10px] w-full sm:w-auto shrink-0"
           >
-            <PlusIcon />
-            Add coach
+            Manage assignment
           </button>
         }
       />
 
-      <AddCoachModal
+      <AssignCoachModal
         academyId={academyId}
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}

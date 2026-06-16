@@ -129,9 +129,13 @@ export function PlayerSidePanelContent({
             <span className="text-muted">Joined</span>
             <b>{player.joined}</b>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between items-center">
             <span className="text-muted">Coach</span>
-            <b>{player.coach}</b>
+            {player.coachUnassigned ? (
+              <Pill variant="grey">Unassigned</Pill>
+            ) : (
+              <b>{player.coach}</b>
+            )}
           </div>
           <div className="flex justify-between">
             <span className="text-muted">Monthly fee</span>

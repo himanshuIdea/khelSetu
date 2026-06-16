@@ -1,5 +1,5 @@
-import { integer, pgEnum, pgSchema, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import { academies, batches } from "../academy";
+import { boolean, integer, pgEnum, pgSchema, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { academies, batches, sports } from "../academy";
 import { coaches, players, staff } from "../people";
 import { primaryId, timestamps } from "../_shared";
 
@@ -108,6 +108,70 @@ export const feePlanTemplates = operationsSchema.table("fee_plan_templates", {
   billingCycleMonths: integer("billing_cycle_months").notNull().default(1),
   ...timestamps,
 });
+
+/** Academy operating hours for weekly timetable. */
+export const academyScheduleSettings = operationsSchema.table(
+  "academy_schedule_settings",
+  {
+    id: primaryId(),
+    academyId: uuid("academy_id")
+      .notNull()
+      .references(() => academies.id),
+    openMinutes: integer("open_minutes").notNull(),
+    closeMinutes: integer("close_minutes").notNull(),
+    isConfigured: boolean("is_configured").notNull().default(false),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("academy_schedule_settings_academy_idx").on(table.academyId)]
+);
+
+/** Recurring weekly session slot — one row per time block per day. */
+export const weeklyScheduleSlots = operationsSchema.table(
+  "weekly_schedule_slots",
+  {
+    id: primaryId(),
+    academyId: uuid("academy_id")
+      .notNull()
+      .references(() => academies.id),
+    dayOfWeek: integer("day_of_week").notNull(),
+    startMinutes: integer("start_minutes").notNull(),
+    endMinutes: integer("end_minutes").notNull(),
+    sportId: uuid("sport_id")
+      .notNull()
+      .references(() => sports.id),
+    coachId: uuid("coach_id")
+      .notNull()
+      .references(() => coaches.id),
+    venue: text("venue"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("weekly_schedule_slots_academy_day_start_idx").on(
+      table.academyId,
+      table.dayOfWeek,
+      table.startMinutes,
+      table.endMinutes,
+      table.sportId,
+      table.coachId
+    ),
+  ]
+);
+
+/** Batches assigned to a weekly slot (parallel sessions per batch). */
+export const weeklyScheduleSlotBatches = operationsSchema.table(
+  "weekly_schedule_slot_batches",
+  {
+    id: primaryId(),
+    slotId: uuid("slot_id")
+      .notNull()
+      .references(() => weeklyScheduleSlots.id, { onDelete: "cascade" }),
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => batches.id),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("weekly_schedule_slot_batches_slot_batch_idx").on(table.slotId, table.batchId)]
+);
 
 /** Daily staff attendance — source of truth for payroll days_present. */
 export const staffAttendance = operationsSchema.table(

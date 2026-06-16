@@ -12,7 +12,7 @@
 | **Domains tracked** | 15 |
 | **Full CRUD (repo + API + UI)** | 1 (Players) |
 | **Partial CRUD** | 6 (Auth, Academy onboarding, Coaches, Teams, Batches, Player fees) |
-| **Read-only (data wired)** | 6 (Dashboard, Attendance, Gear, Tournaments, Payroll, Drill reviews) |
+| **Read-only (data wired)** | 5 (Dashboard, Tournaments, Drill reviews) |
 | **UI / mock only** | 2 (Academy Reports, State portal) |
 | **Next.js API routes** | 11 |
 | **Repository modules** | 14 |
@@ -37,7 +37,7 @@ Work completed across recent agent sessions, in approximate order:
 8. **Academy empty states** — Shared `EmptyState` in `components/academy/shared.tsx`; context-specific copy on every academy screen and sub-section.
 9. **Performance patterns** — `resolveAcademy` via `React.cache()`; `Promise.all` on RSC pages; `loading.tsx` for `app/academy/[id]/` and `players/`; `listAcademyBatches` on read paths (not `ensureAcademyBatches`).
 10. **Agent / workflow docs** — `AGENTS.md`, `.cursor/rules/khelsetu-workflow.mdc`, `.cursor/skills/khelsetu-mockup-ui/SKILL.md` codify mockup fidelity, repo-direct reads, and acceptance checklists.
-11. **Coaches & Teams create** — `AddCoachModal`, `AddTeamModal` POST to Next.js API routes; list pages read from repositories.
+11. **Coaches & Teams create** — Coach onboarding via Manage Staff + `AssignCoachModal`; `AddTeamModal` POST to Next.js API routes.
 12. **Teams roster role edit** — Role column editable via `InlineSelect` in edit mode; captain assignment confirms via `ChangeCaptainDialog`; PATCH member accepts `role` and demotes prior captain in one transaction.
 13. **Attendance marking (full)** — `AttendanceWorkspace` with sport/batch/date filters; present/absent per player; `saveAttendanceRecords` upsert + batch history; Next.js API routes for mark/history.
 
@@ -56,7 +56,7 @@ Work completed across recent agent sessions, in approximate order:
 | **Batches** | Auto-created on academy onboarding via `ensureAcademyBatches` | Sub-junior / Junior / Senior per sport; read UI uses `listAcademyBatches` only |
 | **Dropdowns / menus** | `createPortal(..., document.body)` | Prevents overflow clipping (`FilterPillMenu`, `AdminAvatarMenu`) |
 | **Auth session** | JWT in httpOnly cookie, not `sessionStorage` | Middleware verifies on `/state`, `/academy`, `/auth/onboarding` |
-| **Fees route naming** | `/academy/[id]/fees` = Staff & Payroll UI | Player fee collection lives on Players side panel + dashboard trend |
+| **Fees route naming** | `/academy/[id]/fees` = Fees & Payroll workspace | Two tabs: Staff & Payroll + Player fees (full billing) |
 
 ### Request flow (simplified)
 
@@ -127,15 +127,17 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 
 | Area | Create | Read | Update | Delete | UI wired | API wired | Notes |
 |------|--------|------|--------|--------|----------|-----------|-------|
-| **Coach list** | — | ✅ | — | — | ✅ | 🟡 | RSC `getCoaches` |
-| **Add coach** | ✅ | — | — | — | ✅ | ✅ | `AddCoachModal` → `POST .../coaches` |
+| **Coach list** | — | ✅ | — | — | ✅ | 🟡 | RSC `getCoaches`; cards open `CoachAssignmentsModal` |
+| **Onboard coach** | ✅ | — | — | — | ✅ | ✅ | Fees → Manage staff (Coach type); `syncOrphanCoachesToStaff` backfills legacy rows |
+| **Assign sport/batches** | ✅ | — | ✅ | ✅ | ✅ | ✅ | Header `AssignCoachModal` + per-coach modal add/edit |
+| **Unassign / edit assignments** | — | ✅ | ✅ | ✅ | ✅ | ✅ | `CoachAssignmentsModal` with preview confirm + `DELETE/PATCH .../coaches/[coachId]/assignments` |
 | **Edit coach** | — | — | ❌ | — | ❌ | ❌ | No modal or route |
 | **Remove coach** | — | — | — | ❌ | ❌ | ❌ | — |
 | **Pending video reviews** | — | ✅ | ❌ | — | ✅ | 🟡 | `getPendingReviews`; "Open review queue" button inert |
 | **Review submission** | — | — | ❌ | — | ❌ | ❌ | `drillSubmissions` table exists; no approve/reject API |
 
-**Repo:** `lib/repositories/coaches.ts` — `getCoaches`, `getPendingReviews`, `getCoachCount`, `getCoachFormOptions`, `createCoach`  
-**Routes:** `app/api/v1/academies/[academyId]/coaches/route.ts` (POST only)
+**Repo:** `lib/repositories/coaches.ts` — `getCoaches`, `assignCoachToBatches`, `listCoachAssignments`, `previewUnassignPlayers`, `unassignCoach`, `updateCoachSportAssignment`, `getAssignCoachFormOptions`; `lib/repositories/coach-staff-sync.ts` — `syncOrphanCoachesToStaff`  
+**Routes:** `POST .../coaches/assign`; `GET/PATCH/DELETE .../coaches/[coachId]/assignments`; `GET .../coaches/[coachId]/unassign-preview`; `POST .../coaches` returns 410 (onboarding moved to payroll)
 
 ---
 
@@ -177,25 +179,42 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 |------|--------|------|--------|--------|----------|-----------|-------|
 | **Fee on player create** | 🟡 | — | — | — | ✅ | ✅ | Auto `feeInvoices` row when `monthlyFeePaise` set |
 | **Fee on player edit** | — | — | 🟡 | — | ✅ | ✅ | Upserts current-period invoice |
-| **Record payment** | ❌ | — | — | — | 🔲 | ❌ | Side panel button — stub |
+| **Record payment** | ✅ | — | ✅ | — | ✅ | ✅ | `RecordFeePaymentModal` on `/fees` Player fees tab; Players side panel stub remains |
 | **Fee status display** | — | ✅ | — | — | ✅ | — | List + side panel from `feeInvoices` join |
 | **Collection trend** | — | ✅ | — | — | ✅ | — | Dashboard `getFeeCollectionTrend` from `feePayments` |
 
-**Schema:** `operations.fee_invoices`, `operations.fee_payments` — no dedicated repository or API yet
+**Schema:** `operations.fee_invoices`, `operations.fee_payments` — billing repo on `/fees` tab; player side panel partial
 
 ---
 
-### Staff & payroll (`/fees` route)
+### Staff & Payroll (`/fees` route)
 
 | Area | Create | Read | Update | Delete | UI wired | API wired | Notes |
 |------|--------|------|--------|--------|----------|-----------|-------|
-| **Payroll stats** | — | ✅ | — | — | ✅ | 🟡 | `getPayrollStats` |
-| **Staff list** | — | ✅ | — | — | ✅ | 🟡 | `getStaffMembers` + payslip status |
-| **Run payroll** | ❌ | — | — | — | 🔲 | ❌ | Header action button inert |
-| **Payslip approve** | — | — | ❌ | — | 🔲 | ❌ | Table shows status; row action pill inert |
+| **Payroll stats** | — | ✅ | — | — | ✅ | — | `getPayrollStats` (RSC) |
+| **Staff list** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | `FeesWorkspace` / `PayrollStaffSection` |
+| **Staff CRUD** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | `ManageStaffModal`, `DeleteStaffDialog`; coach stub sync |
+| **Run payroll** | ✅ | — | — | — | ✅ | ✅ | `runPayroll` — days from `staff_attendance` |
+| **Payslip approve** | — | — | ✅ | — | ✅ | ✅ | Single, selected, bulk via `ApprovePayslipDialog` |
 
-**Repo:** `lib/repositories/payroll.ts` — read only  
-**Page:** `app/academy/[id]/fees/page.tsx` (labeled Staff & Payroll)
+**Repo:** `lib/repositories/payroll.ts` — staff CRUD, `runPayroll`, `approvePayslip`, `bulkApprovePayslips`  
+**API:** `POST/PATCH/DELETE .../payroll/staff`, `POST .../payroll/run`, `PATCH .../payroll/payslips/[id]`, `POST .../payroll/payslips/bulk-approve`  
+**UI:** `FeesWorkspace`, `PayrollStaffSection`, modals; `fees/loading.tsx`
+
+---
+
+### Player fees (billing)
+
+| Area | Create | Read | Update | Delete | UI wired | API wired | Notes |
+|------|--------|------|--------|--------|----------|-----------|-------|
+| **Fee stats** | — | ✅ | — | — | ✅ | — | `getFeeBillingStats` (RSC) |
+| **Invoice list** | — | ✅ | — | — | ✅ | ✅ | Filters: sport, batch, status |
+| **Generate invoices** | ✅ | — | — | — | ✅ | ✅ | Current month for active players |
+| **Record payment** | ✅ | — | ✅ | — | ✅ | ✅ | `RecordFeePaymentModal`; single + bulk |
+
+**Repo:** `lib/repositories/fees.ts` — `listPlayerFeeBilling`, `recordFeePayment`, `generateInvoicesForPeriod`  
+**API:** `GET .../fees/billing`, `POST .../fees/payments`, `POST .../fees/invoices/generate`  
+**UI:** `PlayerFeesSection` tab in `FeesWorkspace`
 
 ---
 
@@ -205,12 +224,13 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 |------|--------|------|--------|--------|----------|-----------|-------|
 | **Sessions list** | — | ✅ | — | — | ✅ | 🟡 | `getAttendanceSessions` (gateway read proxy) |
 | **Mark attendance** | ✅ | ✅ | ✅ | — | ✅ | ✅ | `AttendanceWorkspace` — sport/batch/date filters, present/absent per player, save |
+| **Staff attendance** | ✅ | ✅ | ✅ | — | ✅ | ✅ | Athletes \| Staff tabs; `StaffAttendanceSection` |
 | **Batch history** | — | ✅ | — | — | ✅ | ✅ | `listBatchAttendanceHistory` — per-batch session log |
 | **Attendance records** | ✅ | ✅ | ✅ | — | ✅ | ✅ | `saveAttendanceRecords` upserts `attendance_records` + marks `training_sessions` |
 
-**Repo:** `lib/repositories/attendance.ts` — `getAttendanceFormOptions`, `getBatchRoster`, `getAttendanceForBatchDate`, `saveAttendanceRecords`, `listBatchAttendanceHistory`, `getAttendanceSessions`  
-**API:** `GET/POST /api/v1/academies/[id]/attendance/mark`, `GET .../attendance/batches/[batchId]/history`  
-**UI:** `AttendanceWorkspace`, `attendance/loading.tsx` — card list `< lg`, tables `lg+`, portaled `InlineSelect` + `InlineDatePicker`
+**Repo:** `lib/repositories/attendance.ts`, `lib/repositories/staff-attendance.ts`  
+**API:** `GET/POST .../attendance/mark`, `GET/POST .../attendance/staff`, `GET .../attendance/batches/[batchId]/history`  
+**UI:** `AttendanceWorkspace`, `StaffAttendanceSection`, `attendance/loading.tsx`
 
 ---
 
@@ -239,7 +259,7 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | **Bracket** | — | ✅ | — | — | ✅ | 🟡 | `getBracketMatches` |
 | **Mat schedule** | — | ✅ | — | — | ✅ | 🟡 | `getMatSchedule` |
 | **Medal tally** | — | ✅ | — | — | ✅ | 🟡 | `getTournamentMedals` |
-| **Create tournament** | ❌ | — | — | — | 🔲 | ❌ | Header button inert |
+| **Create tournament** | 🟡 | — | — | — | ✅ | — | Demo MVP — client state modal, read-only view |
 | **Score / advance match** | — | — | ❌ | — | ❌ | ❌ | Bracket display only |
 
 **Repo:** `lib/repositories/tournaments.ts` — read only
@@ -251,14 +271,17 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | Area | Create | Read | Update | Delete | UI wired | API wired | Notes |
 |------|--------|------|--------|--------|----------|-----------|-------|
 | **Stat cards** | — | ✅ | — | — | ✅ | — | `getDashboardStats` via `getDashboardData` |
-| **Fee trend chart** | — | ✅ | — | — | ✅ | — | SVG from `buildFeeTrendChart` |
-| **Players by sport** | — | ✅ | — | — | ✅ | — | Donut from `getPlayersBySport` |
-| **Today's sessions** | — | ✅ | — | — | ✅ | — | `getTodaySessions` |
-| **Recent activity** | — | ✅ | — | — | ✅ | — | `getRecentActivity` |
-| **Quick add** | ❌ | — | — | — | 🔲 | ❌ | Header action inert |
+| **Fee trend chart** | — | ✅ | — | — | ✅ | — | `FeeTrendChart` — 3/6/12 month filter via `?months=`; hover tooltips |
+| **Players by sport** | — | ✅ | — | — | ✅ | — | `PlayersBySportChart` donut with segment tooltips |
+| **Today's sessions** | — | ✅ | — | — | ✅ | — | `getTodaySessions` expands weekly template; card opens timetable modal |
+| **Weekly timetable** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Academy hours + per-day slots (sport, multi-batch, coach); template-only recurrence |
+| **Recent activity** | — | ✅ | ✅ | — | ✅ | — | Live `activity_events` from player enroll, fee payment, attendance mark |
 
-**Repo:** `lib/repositories/dashboard.ts` — read only  
-**Page:** `app/academy/[id]/dashboard/page.tsx`
+**Repo:** `lib/repositories/dashboard.ts` (read), `lib/repositories/timetable.ts` (CRUD), `lib/repositories/activity.ts` (write events)  
+**API:** `GET/PUT .../timetable`, `POST/PATCH/DELETE .../timetable/slots`  
+**UI:** `DashboardWorkspace`, `SessionTimetableModal`, `SessionSlotForm`, `dashboard/FeeTrendChart`, `dashboard/PlayersBySportChart`  
+**Schema:** `0011_weekly_timetable` — `academy_schedule_settings`, `weekly_schedule_slots`, `weekly_schedule_slot_batches`  
+**Page:** `app/academy/[id]/dashboard/page.tsx` + `loading.tsx`
 
 ---
 
@@ -305,7 +328,8 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | GET | `/academies/[id]/players/[externalId]` | Detail or edit payload | `players.getPlayerDetail` / `getPlayerForEdit` |
 | PATCH | `/academies/[id]/players/[externalId]` | Update player | `players.updatePlayer` |
 | DELETE | `/academies/[id]/players/[externalId]` | Soft-remove player | `players.removePlayer` |
-| POST | `/academies/[id]/coaches` | Create coach | `coaches.createCoach` |
+| POST | `/academies/[id]/coaches/assign` | Assign coach to sport + batches | `coaches.assignCoachToBatches` |
+| POST | `/academies/[id]/coaches` | Deprecated (410) | Onboarding → Manage staff |
 | POST | `/academies/[id]/teams` | Create team | `teams.createTeam` |
 | POST | `/academies/[id]/teams/[teamId]/members` | Add team members | `teams.addTeamMembers` |
 | PATCH | `/academies/[id]/teams/[teamId]/members/[playerId]` | Update member selection and/or role | `teams.updateTeamMemberSelection`, `teams.updateTeamMemberRole` |
@@ -334,6 +358,7 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | `teams.ts` | featured, members, others, lineup, form options, create, add/remove members, update selection/role | C + R + U + D (members) |
 | `batches.ts` | ensure, dedupe, list, get (ensure) | C (internal) + R |
 | `dashboard.ts` | stats, fee trend, players by sport, sessions, activity | R |
+| `activity.ts` | `recordActivityEvent` for dashboard feed | C |
 | `attendance` | `getAttendanceFormOptions`, `getBatchRoster`, `getAttendanceForBatchDate`, `saveAttendanceRecords`, `listBatchAttendanceHistory`, `getAttendanceSessions` | C + R + U |
 | `inventory.ts` | stats, items, movements, CRUD, issue, return, open issues | C + R + U + D |
 | `payroll.ts` | stats, staff | R |
@@ -345,11 +370,11 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 
 | Route | Data source | Empty states | `loading.tsx` | Mutations in UI |
 |-------|-------------|--------------|---------------|-----------------|
-| `dashboard` | `resolveAcademy`, `getDashboardData` | ✅ per widget | Parent only | 🔲 Quick add |
+| `dashboard` | `resolveAcademy`, `getDashboardData` | ✅ per widget | ✅ | — (analytics only) |
 | `players` | `getPlayers`, `getPlayerFormOptions` | ✅ list + panel | ✅ | ✅ Add/Edit/Remove |
-| `coaches` | `getCoaches`, `getPendingReviews`, … | ✅ list + reviews | Parent only | ✅ Add coach |
+| `coaches` | `getCoaches`, `getPendingReviews`, … | ✅ list + reviews | Parent only | ✅ Assign + manage per coach |
 | `teams` | `getFeaturedTeam`, `getTeamMembers`, … | ✅ team + members + others | Parent only | ✅ Add team + add members |
-| `tournaments` | `getActiveTournament`, bracket, … | ✅ tournament + bracket + mats | Parent only | 🔲 Create |
+| `tournaments` | `getActiveTournament`, bracket, … | ✅ tournament + bracket + mats | Parent only | 🟡 Create (demo client state) |
 | `attendance` | `getAttendanceFormOptions`, `getAttendanceSessions` + client mark/history | ✅ per section | ✅ | ✅ Mark/edit + history |
 | `gear` | inventory repos + `GearWorkspace` | ✅ items + movements + open issues | ✅ | ✅ Add / edit / delete / issue / return |
 | `fees` | payroll repos | ✅ staff table | Parent only | 🔲 Run payroll |
@@ -368,7 +393,7 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | `RemovePlayerDialog` | Delete (soft) | ✅ `api.players.remove` |
 | `PlayerProfileModal` | Read | ✅ via cached detail |
 | `PlayerSidePanel` | — | 🔲 Record fee payment stub |
-| `AddCoachModal` | Create | ✅ `api.coaches.create` |
+| `AssignCoachModal` | Assign | ✅ `api.coaches.assign` |
 | `AddTeamModal` | Create | ✅ `api.teams.create` |
 | `AddTeamMembersModal` | Add members | ✅ `api.teams.addMembers` |
 | `ChangeCaptainDialog` | Captain role change | ✅ `api.teams.updateMember` (`role: captain`) |
@@ -399,7 +424,7 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 
 | Item | Severity | Detail |
 |------|----------|--------|
-| **Drizzle migration journal drift** | High | `_journal.json` lists migrations `0000`–`0010`; DB `__drizzle_migrations` may only record first 3 — `pnpm db:migrate` can fail re-applying `0003+`. `0010_players_height_category` applied manually in dev. Missing snapshots for `0004`–`0008`, `0010`. |
+| **Drizzle migration journal drift** | High | `_journal.json` lists migrations `0000`–`0011`; DB `__drizzle_migrations` may only record first 3 — `pnpm db:migrate` can fail re-applying `0003+`. `0010`/`0011` may need manual apply in dev. Missing snapshots for `0004`–`0008`, `0010`, `0011`. |
 | **Record fee payment** | Medium | UI button in `PlayerSidePanel`; no `feePayments` write repo or API |
 | **Gateway vs Next.js mutation split** | Medium | Creates hit Next.js; reads can hit gateway — document for new endpoints; consider adding POST to people-service or dropping gateway for mutations |
 | **`services/README.md` stale** | Low | Says "Next.js never talks to DB directly" — RSC pages now use repositories directly |
@@ -408,7 +433,7 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | **Academy `loading.tsx` coverage** | Low | Only `[id]/loading.tsx` and `[id]/players/loading.tsx` — other child routes inherit parent skeleton |
 | **State portal** | Expected | Entire `/state` tree uses mock data — no backend |
 | **Reports (academy)** | Expected | Static template cards |
-| **Inert action buttons** | Low | Quick add, Run payroll, Create tournament, Generate report, Review lineup, Open review queue |
+| **Inert action buttons** | Low | Quick add, Run payroll, Generate report, Review lineup, Open review queue |
 | **Team metadata edit** | Low | No PATCH team name/coach/weight class |
 | **Coach edit/delete** | Medium | No APIs |
 | **Middleware scope** | Low | `/auth/login` and `/auth/sign-up` not in matcher — public by design; academy membership not verified per-route in middleware (relies on API 403) |
@@ -424,7 +449,7 @@ Priority order based on incomplete CRUD and user-facing stubs:
 4. **Team metadata edit** — PATCH team name, coach, weight class.
 5. **Extend `loading.tsx`** — Per-route skeletons for coaches, teams, dashboard (per `AGENTS.md` checklist).
 6. **Gateway alignment** — Add mutation handlers to people/competitions services **or** stop proxying writes and document Next.js as sole mutation layer.
-7. **Payroll actions** — Run payroll + approve payslip flows against `payrollRuns` / `payslips` schema.
+7. ~~**Payroll actions**~~ — Done: run payroll, approve payslip, staff CRUD, player fees billing.
 8. ~~**Inventory writes** — Add item + issue/return gear against existing schema.~~ ✅ Done
 9. **State portal backend** — Replace `state-mock-data` with read repos when state-level schema is defined.
 

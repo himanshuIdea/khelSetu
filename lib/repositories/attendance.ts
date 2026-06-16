@@ -21,6 +21,8 @@ import {
   trainingSessions,
 } from "@/db/schema";
 import { listAcademyBatches } from "@/lib/repositories/batches";
+import { findTemplateSlotForBatchDate } from "@/lib/repositories/timetable";
+import { recordActivityEvent } from "@/lib/repositories/activity";
 import type { AttendanceSession } from "./types";
 
 export async function getAttendanceFormOptions(academyId: string): Promise<AttendanceFormOptions> {
@@ -194,7 +196,11 @@ export async function saveAttendanceRecords(academyId: string, payload: SaveAtte
     }
   }
 
-  const coachId = await resolveCoachForBatch(academyId, payload.batchId, batch.sportId);
+  const templateSlot = await findTemplateSlotForBatchDate(academyId, payload.batchId, payload.date);
+  const coachId = templateSlot?.coachId ?? (await resolveCoachForBatch(academyId, payload.batchId, batch.sportId));
+  const sportId = templateSlot?.sportId ?? batch.sportId;
+  const scheduledAt = templateSlot?.scheduledAt ?? scheduledAtForDate(payload.date);
+  const venue = templateSlot?.venue ?? null;
   const { start, end } = parseDateOnly(payload.date);
 
   return db.transaction(async (tx) => {
@@ -218,8 +224,9 @@ export async function saveAttendanceRecords(academyId: string, payload: SaveAtte
           academyId,
           batchId: payload.batchId,
           coachId,
-          sportId: batch.sportId,
-          scheduledAt: scheduledAtForDate(payload.date),
+          sportId,
+          scheduledAt,
+          venue,
           expectedHeadcount: roster.length,
           status: "upcoming",
         })
@@ -256,7 +263,7 @@ export async function saveAttendanceRecords(academyId: string, payload: SaveAtte
       .set({
         status: "marked",
         expectedHeadcount: roster.length,
-        sportId: batch.sportId,
+        sportId,
         updatedAt: new Date(),
       })
       .where(eq(trainingSessions.id, session.id));
@@ -271,6 +278,15 @@ export async function saveAttendanceRecords(academyId: string, payload: SaveAtte
       total,
       rate: total > 0 ? `${Math.round((present / total) * 100)}%` : "—",
     };
+  }).then(async (result) => {
+    await recordActivityEvent({
+      academyId,
+      eventType: "attendance_marked",
+      actorName: batch.name,
+      description: `Attendance marked — ${result.present}/${result.total} present`,
+      metadata: { type: "check" },
+    });
+    return result;
   });
 }
 

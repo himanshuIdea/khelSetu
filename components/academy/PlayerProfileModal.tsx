@@ -93,9 +93,13 @@ export function PlayerProfileModal({
             <span className="text-muted shrink-0">Joined</span>
             <b className="text-right">{player.joined}</b>
           </div>
-          <div className="flex justify-between gap-4">
+          <div className="flex justify-between items-center gap-4">
             <span className="text-muted shrink-0">Coach</span>
-            <b className="text-right">{player.coach}</b>
+            {player.coachUnassigned ? (
+              <Pill variant="grey">Unassigned</Pill>
+            ) : (
+              <b className="text-right">{player.coach}</b>
+            )}
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-muted shrink-0">Monthly fee</span>
