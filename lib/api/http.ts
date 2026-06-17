@@ -89,3 +89,28 @@ export async function apiDelete(path: string, body?: unknown): Promise<void> {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 }
+
+export async function apiPostFormData<T>(path: string, formData: FormData): Promise<T> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${resolveApiRoot()}/api/v1${path}`, {
+      method: "POST",
+      body: formData,
+      cache: "no-store",
+      credentials: "include",
+    });
+  } catch {
+    throw new ApiError(
+      "Cannot reach the API. Check your connection and try again.",
+      503
+    );
+  }
+
+  if (!response.ok) {
+    const parsed = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new ApiError(parsed.error ?? `API error ${response.status}`, response.status);
+  }
+
+  return response.json() as Promise<T>;
+}

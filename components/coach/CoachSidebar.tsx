@@ -7,6 +7,7 @@ import {
   FlagIcon,
   GridIcon,
   UsersIcon,
+  VideoIcon,
 } from "@/components/academy/icons";
 import type { AcademyMeta, CoachPortalMeta } from "@/lib/repositories/types";
 import { coachRoutes, type CoachNavItem } from "@/lib/coach-nav";
@@ -30,6 +31,7 @@ const navEntries: NavEntry[] = [
   { id: "home", label: "Home", href: coachRoutes.home, icon: <GridIcon /> },
   { id: "players", label: "Players", href: coachRoutes.players, icon: <UsersIcon /> },
   { id: "attendance", label: "Attendance", href: coachRoutes.attendance, icon: <CalendarIcon /> },
+  { id: "media", label: "Media", href: coachRoutes.media, icon: <VideoIcon /> },
   { id: "teams", label: "Teams", href: coachRoutes.teams, icon: <FlagIcon /> },
 ];
 

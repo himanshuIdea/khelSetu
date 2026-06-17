@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "./http";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPostFormData, apiPut } from "./http";
 import type { AuthAcademy, AuthProfile, PlatformRole } from "@/lib/auth/types";
 import type {
   AssignCoachPayload,
@@ -479,6 +479,52 @@ export const api = {
     players: {
       detail: (academyId: string, externalId: string) =>
         apiGet<PlayerDetail>(`/coach/${academyId}/players/${encodeURIComponent(externalId)}`),
+    },
+    media: {
+      upload: (academyId: string, file: File) => {
+        const formData = new FormData();
+        formData.set("file", file);
+        return apiPostFormData<{ url: string; thumbnailGradient: string }>(
+          `/coach/${academyId}/media/upload`,
+          formData
+        );
+      },
+      createDrillPost: (
+        academyId: string,
+        payload: {
+          sportId: string;
+          batchId?: string | null;
+          drillName: string;
+          description?: string | null;
+          videoUrl: string;
+          thumbnailGradient?: string | null;
+          durationSeconds?: number | null;
+        }
+      ) => apiPost<{ id: string; drillName: string; postedAt: string }>(
+        `/coach/${academyId}/drill-posts`,
+        payload
+      ),
+      listSubmissions: (academyId: string) =>
+        apiGet<{ submissions: import("@/lib/repositories/coach-media").CoachMediaSubmission[] }>(
+          `/coach/${academyId}/media/submissions`
+        ),
+      getSubmission: (academyId: string, submissionId: string) =>
+        apiGet<import("@/lib/repositories/coach-media").CoachSubmissionDetail>(
+          `/coach/${academyId}/media/submissions/${submissionId}`
+        ),
+      submitReview: (
+        academyId: string,
+        submissionId: string,
+        payload: {
+          rating: number;
+          notes?: string | null;
+          criteriaScores?: { technique?: number; speed?: number; form?: number } | null;
+        }
+      ) =>
+        apiPost<{ ok: true }>(
+          `/coach/${academyId}/media/submissions/${submissionId}/review`,
+          payload
+        ),
     },
   },
 

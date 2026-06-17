@@ -11,6 +11,8 @@ import {
   batchEnrollments,
   batches,
   coaches,
+  coachDrillPosts,
+  drillReviews,
   drillSubmissions,
   feeInvoices,
   feePayments,
@@ -645,22 +647,64 @@ async function main() {
   }
 
   const drillDefs = [
-    { drill: "Single-leg takedown", player: "HRWR-1042", coach: "Naveen Kadyan", gradient: "linear-gradient(135deg, #0E1B33, #1E335C)", hoursAgo: 2 },
-    { drill: "Jab–cross combo", player: "HRBX-0218", coach: "Sunita Rani", gradient: "linear-gradient(135deg, #7C5CFC, #A78BFA)", hoursAgo: 3 },
-    { drill: "Block starts", player: "HRAT-0091", coach: "Vikram Malik", gradient: "linear-gradient(135deg, #2F6BFF, #5B8DEF)", hoursAgo: 5 },
+    { drill: "Single-leg takedown", player: "HRWR-1042", coach: "Naveen Kadyan", gradient: "linear-gradient(135deg, #0E1B33, #1E335C)", hoursAgo: 2, status: "pending" as const },
+    { drill: "Jab–cross combo", player: "HRBX-0218", coach: "Sunita Rani", gradient: "linear-gradient(135deg, #7C5CFC, #A78BFA)", hoursAgo: 3, status: "pending" as const },
+    { drill: "Block starts", player: "HRAT-0091", coach: "Vikram Malik", gradient: "linear-gradient(135deg, #2F6BFF, #5B8DEF)", hoursAgo: 5, status: "pending" as const },
+    { drill: "Sprawl defense", player: "HRWR-1042", coach: "Naveen Kadyan", gradient: "linear-gradient(135deg, #7a2d12, #FF6B2C)", hoursAgo: 48, status: "reviewed" as const },
+    { drill: "Double-leg entry", player: "HRWR-1042", coach: "Naveen Kadyan", gradient: "linear-gradient(135deg, #0E1B33, #2F6BFF)", hoursAgo: 72, status: "reviewed" as const },
   ];
 
   for (const d of drillDefs) {
-    await db.insert(drillSubmissions).values({
-      academyId,
-      playerId: playerIds[d.player],
-      coachId: coachIds[d.coach],
-      drillName: d.drill,
-      thumbnailGradient: d.gradient,
-      submittedAt: new Date(Date.now() - d.hoursAgo * 3600000),
-      status: "pending",
-    }).onConflictDoNothing();
+    await db
+      .insert(drillSubmissions)
+      .values({
+        academyId,
+        playerId: playerIds[d.player],
+        coachId: coachIds[d.coach],
+        drillName: d.drill,
+        thumbnailGradient: d.gradient,
+        submittedAt: new Date(Date.now() - d.hoursAgo * 3600000),
+        status: d.status,
+      })
+      .onConflictDoNothing();
   }
+
+  const reviewedRows = await db
+    .select({ id: drillSubmissions.id, coachId: drillSubmissions.coachId })
+    .from(drillSubmissions)
+    .where(
+      and(eq(drillSubmissions.academyId, academyId), eq(drillSubmissions.status, "reviewed"))
+    );
+
+  for (const row of reviewedRows) {
+    await db
+      .insert(drillReviews)
+      .values({
+        submissionId: row.id,
+        reviewerCoachId: row.coachId,
+        rating: 8,
+        notes: "Good effort — keep driving through the finish.",
+        criteriaScores: { technique: 8, speed: 7, form: 8 },
+        reviewedAt: new Date(Date.now() - 24 * 3600000),
+      })
+      .onConflictDoNothing();
+  }
+
+  await db
+    .insert(coachDrillPosts)
+    .values({
+      academyId,
+      coachId: coachIds["Naveen Kadyan"],
+      sportId: sportIds.Wrestling,
+      batchId: batchIds["Wrestling-Sub-junior"],
+      drillName: "Single-leg takedown · 3 × 10",
+      description: "Focus on a clean level change and keep your back straight through the finish.",
+      videoUrl: "/uploads/coach-media/sample-reference.mp4",
+      thumbnailGradient: "linear-gradient(135deg, #0E1B33, #1E335C)",
+      durationSeconds: 35,
+      postedAt: new Date(Date.now() - 12 * 3600000),
+    })
+    .onConflictDoNothing();
 
   const activityDefs = [
     { actor: "Priya Dahiya", desc: "paid June fees — ₹1,500", type: "check", minsAgo: 12 },
