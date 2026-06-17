@@ -3,6 +3,7 @@ import { db, isUniqueViolation } from "@/lib/db";
 import {
   academySports,
   attendanceRecords,
+  batchCoaches,
   batchEnrollments,
   batches,
   coaches,
@@ -223,7 +224,7 @@ export async function getPlayerCounts(academyId: string) {
 }
 
 export async function getPlayerFormOptions(academyId: string): Promise<PlayerFormOptions> {
-  const [sportRows, batchRows, coachRows] = await Promise.all([
+  const [sportRows, batchRows, coachRows, batchCoachRows] = await Promise.all([
     db
       .select({ id: sports.id, name: sports.name })
       .from(academySports)
@@ -234,12 +235,29 @@ export async function getPlayerFormOptions(academyId: string): Promise<PlayerFor
       .select({ id: coaches.id, name: coaches.fullName, sportId: coaches.sportId })
       .from(coaches)
       .where(eq(coaches.academyId, academyId)),
+    db
+      .select({
+        batchId: batchCoaches.batchId,
+        coachId: batchCoaches.coachId,
+        coachName: coaches.fullName,
+        isPrimary: batchCoaches.isPrimary,
+      })
+      .from(batchCoaches)
+      .innerJoin(batches, eq(batchCoaches.batchId, batches.id))
+      .innerJoin(coaches, eq(batchCoaches.coachId, coaches.id))
+      .where(eq(batches.academyId, academyId)),
   ]);
 
   return {
     sports: sportRows,
     batches: batchRows,
     coaches: coachRows,
+    batchCoachAssignments: batchCoachRows.map((row) => ({
+      batchId: row.batchId,
+      coachId: row.coachId,
+      coachName: row.coachName,
+      isPrimary: row.isPrimary,
+    })),
   };
 }
 
@@ -279,20 +297,19 @@ async function validatePlayerRelations(
   }
 
   if (payload.primaryCoachId) {
-    const [coach] = await db
-      .select({ id: coaches.id })
-      .from(coaches)
+    const [assignment] = await db
+      .select({ id: batchCoaches.id })
+      .from(batchCoaches)
       .where(
         and(
-          eq(coaches.id, payload.primaryCoachId),
-          eq(coaches.academyId, academyId),
-          eq(coaches.sportId, payload.sportId)
+          eq(batchCoaches.batchId, payload.batchId),
+          eq(batchCoaches.coachId, payload.primaryCoachId)
         )
       )
       .limit(1);
 
-    if (!coach) {
-      throw new Error("Selected coach is invalid for this sport.");
+    if (!assignment) {
+      throw new Error("Selected coach is not assigned to this batch.");
     }
   }
 

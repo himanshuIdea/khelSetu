@@ -9,7 +9,7 @@ export default function CoachesPageLoading() {
           <PageHeaderSkeleton action />
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-[148px] bg-line2 rounded-(--radius) border border-line" />
+              <div key={index} className="h-[148px] bg-line rounded-(--radius) border border-line" />
             ))}
           </div>
         </div>

@@ -36,12 +36,14 @@ export type DemoSfMatch = {
   playerAName: string;
   playerBName: string;
   status?: string;
+  winner?: "a" | "b";
 };
 
 export type DemoFinalMatch = {
   playerAName: string;
   playerBName: string;
   matLabel?: string;
+  winner?: "a" | "b";
 };
 
 export type DemoMatScheduleItem = {
@@ -57,23 +59,44 @@ export type DemoMedalTally = {
   bronze: number;
 };
 
-export const DEMO_QF_MATCHES: DemoQfMatch[] = [
+export type DemoBracketState = {
+  qfMatches: DemoQfMatch[];
+  sfMatches: DemoSfMatch[];
+  finalMatch: DemoFinalMatch;
+};
+
+export const DEFAULT_DEMO_QF_MATCHES: DemoQfMatch[] = [
   { top: "R. Sangwan", topScore: "10", bottom: "K. Sheoran", bottomScore: "4", winner: "top" },
   { top: "S. Hooda", topScore: "6", bottom: "A. Dahiya", bottomScore: "2", winner: "top" },
   { top: "D. Malik", topScore: "8", bottom: "P. Rana", bottomScore: "5", winner: "top" },
   { top: "M. Yadav", topScore: "3", bottom: "V. Kadyan", bottomScore: "7", winner: "bottom" },
 ];
 
-export const DEMO_SF_MATCHES: DemoSfMatch[] = [
+export const DEFAULT_DEMO_SF_MATCHES: DemoSfMatch[] = [
   { id: "sf-1", playerAName: "R. Sangwan", playerBName: "S. Hooda", status: "live" },
   { id: "sf-2", playerAName: "D. Malik", playerBName: "V. Kadyan" },
 ];
 
-export const DEMO_FINAL_MATCH: DemoFinalMatch = {
+export const DEFAULT_DEMO_FINAL_MATCH: DemoFinalMatch = {
   playerAName: "Winner SF1",
   playerBName: "Winner SF2",
   matLabel: "Mat 1 · Final",
 };
+
+/** @deprecated Use DEFAULT_DEMO_QF_MATCHES */
+export const DEMO_QF_MATCHES = DEFAULT_DEMO_QF_MATCHES;
+/** @deprecated Use DEFAULT_DEMO_SF_MATCHES */
+export const DEMO_SF_MATCHES = DEFAULT_DEMO_SF_MATCHES;
+/** @deprecated Use DEFAULT_DEMO_FINAL_MATCH */
+export const DEMO_FINAL_MATCH = DEFAULT_DEMO_FINAL_MATCH;
+
+export function createDefaultDemoBracket(): DemoBracketState {
+  return {
+    qfMatches: DEFAULT_DEMO_QF_MATCHES.map((match) => ({ ...match })),
+    sfMatches: DEFAULT_DEMO_SF_MATCHES.map((match) => ({ ...match })),
+    finalMatch: { ...DEFAULT_DEMO_FINAL_MATCH },
+  };
+}
 
 export const DEMO_MAT_SCHEDULE: DemoMatScheduleItem[] = [
   {

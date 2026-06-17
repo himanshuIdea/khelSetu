@@ -29,7 +29,7 @@ export default async function TournamentsPage({ params }: TournamentsPageProps) 
     academy.initials === "DA" ? "Dronacharya" : academy.name;
 
   return (
-    <PageBody>
+    <PageBody className="flex flex-col min-h-0 max-h-[calc(100dvh-66px)] lg:overflow-hidden">
       <TournamentsWorkspace
         academyName={academyDisplayName}
         seedTournament={tournament}

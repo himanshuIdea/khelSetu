@@ -38,13 +38,13 @@ export function AcademyShellClient({
   }
 
   return (
-    <div className="min-h-screen bg-surface">
-      <div className="flex min-h-screen w-full">
+    <div className="h-dvh overflow-hidden bg-surface">
+      <div className="flex h-full min-h-0 w-full">
         <AcademySidebar
           academyId={academyId}
           academyMeta={academyMeta}
           activeItem={activeItem}
-          className="hidden lg:flex"
+          className="hidden lg:flex h-full"
         />
 
         {menuOpen && (
@@ -66,7 +66,7 @@ export function AcademyShellClient({
           }`}
         />
 
-        <div className="flex flex-1 flex-col min-w-0 w-full">
+        <div className="flex flex-1 flex-col min-w-0 min-h-0 w-full overflow-hidden">
           <AcademyTopBar
             academyMeta={academyMeta}
             searchPlaceholder={searchPlaceholder}

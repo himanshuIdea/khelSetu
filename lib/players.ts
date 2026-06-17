@@ -18,11 +18,35 @@ export type PlayerEditData = UpdatePlayerPayload & {
   externalId: string;
 };
 
+export type BatchCoachAssignment = {
+  batchId: string;
+  coachId: string;
+  coachName: string;
+  isPrimary: boolean;
+};
+
 export type PlayerFormOptions = {
   sports: { id: string; name: string }[];
   batches: { id: string; name: string; sportId: string }[];
   coaches: { id: string; name: string; sportId: string }[];
+  batchCoachAssignments: BatchCoachAssignment[];
 };
+
+export function getCoachesForBatch(
+  formOptions: PlayerFormOptions,
+  batchId: string
+): BatchCoachAssignment[] {
+  if (!batchId) return [];
+  return formOptions.batchCoachAssignments.filter((assignment) => assignment.batchId === batchId);
+}
+
+export function getPrimaryCoachIdForBatch(
+  formOptions: PlayerFormOptions,
+  batchId: string
+): string {
+  const primary = getCoachesForBatch(formOptions, batchId).find((assignment) => assignment.isPrimary);
+  return primary?.coachId ?? "";
+}
 
 export type PlayerSportFilter = "all" | string;
 export type PlayerBatchFilter = "all" | string;

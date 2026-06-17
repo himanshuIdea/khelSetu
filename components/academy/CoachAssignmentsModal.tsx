@@ -200,13 +200,15 @@ export function CoachAssignmentsModal({
               </p>
             )}
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <h3 className="text-[13px] font-semibold text-ink">Assignments by sport</h3>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-[13px] font-semibold text-ink leading-none shrink-0">
+                Assignments by sport
+              </h3>
               <button
                 type="button"
                 onClick={openCreate}
                 disabled={isLoading || isSubmitting}
-                className="inline-flex items-center justify-center bg-brand text-white font-semibold text-[13px] py-[9px] px-3.5 rounded-[10px] disabled:opacity-50"
+                className="inline-flex items-center justify-center shrink-0 bg-brand text-white font-semibold text-[13px] py-[9px] px-3.5 rounded-[10px] disabled:opacity-50"
               >
                 Add assignment
               </button>
@@ -215,11 +217,29 @@ export function CoachAssignmentsModal({
             {isLoading ? (
               <div className="space-y-3 animate-pulse">
                 {Array.from({ length: 2 }).map((_, index) => (
-                  <div key={index} className="h-24 bg-surface rounded-[10px] border border-line" />
+                  <div
+                    key={index}
+                    className="border border-line rounded-[10px] px-4 py-2.5 bg-card"
+                  >
+                    <div className="flex items-center justify-between gap-x-3 gap-y-1.5 min-w-0">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 flex-1">
+                        <div className="h-4 w-24 rounded bg-surface" />
+                        <div className="h-5 w-[72px] rounded-full bg-surface" />
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <div className="h-8 w-12 rounded-[8px] bg-surface" />
+                        <div className="h-8 w-[88px] rounded-[8px] bg-surface" />
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      <div className="h-7 w-16 rounded-full bg-surface" />
+                      <div className="h-7 w-20 rounded-full bg-surface" />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : assignments.length === 0 ? (
-              <p className="text-[13px] text-muted bg-surface border border-line2 rounded-[10px] px-4 py-3.5">
+              <p className="text-[13px] text-muted text-center bg-surface border border-line2 rounded-[10px] px-4 py-6">
                 No batch assignments yet. Add a sport and batches for this coach.
               </p>
             ) : (
@@ -229,54 +249,23 @@ export function CoachAssignmentsModal({
                   return (
                     <div
                       key={group.sportId}
-                      className="border border-line rounded-[10px] px-4 py-3.5 bg-card"
+                      className="border border-line rounded-[10px] px-4 py-2.5 bg-card"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="font-semibold text-[14px] text-ink">{group.sportName}</div>
-                          <div className="mt-1.5">
-                            <Pill variant={group.nisLevel === "in_review" ? "grey" : "blue"}>
-                              {nis.label}
-                            </Pill>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5 mt-2.5">
-                            {group.batches.map((batch) => (
-                              <span
-                                key={batch.id}
-                                className="inline-flex items-center gap-1 text-[11.5px] font-medium px-2 py-1 rounded-full bg-surface border border-line2 text-ink"
-                              >
-                                {batch.name}
-                                {batch.isPrimary && (
-                                  <span className="text-[10px] text-muted">· primary</span>
-                                )}
-                                <button
-                                  type="button"
-                                  aria-label={`Remove ${batch.name}`}
-                                  disabled={isSubmitting}
-                                  onClick={() =>
-                                    void beginUnassign({
-                                      payload: {
-                                        scope: "batch",
-                                        batchId: batch.id,
-                                      },
-                                      title: `Remove from ${batch.name}?`,
-                                      description: `This will remove ${coach.name} from ${batch.name}. Players with this coach as primary in this batch will be unassigned.`,
-                                    })
-                                  }
-                                  className="ml-0.5 text-muted hover:text-red disabled:opacity-40"
-                                >
-                                  ×
-                                </button>
-                              </span>
-                            ))}
-                          </div>
+                      <div className="flex items-center justify-between gap-x-3 gap-y-1.5 min-w-0">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 flex-1">
+                          <span className="font-semibold text-[14px] text-ink leading-none truncate">
+                            {group.sportName}
+                          </span>
+                          <Pill variant={group.nisLevel === "in_review" ? "grey" : "blue"}>
+                            {nis.label}
+                          </Pill>
                         </div>
-                        <div className="flex gap-2 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           <button
                             type="button"
                             onClick={() => openEdit(group)}
                             disabled={isSubmitting}
-                            className="text-[12.5px] font-semibold text-brand hover:text-brand-d disabled:opacity-50"
+                            className="min-h-[32px] text-[12px] font-semibold text-brand py-1.5 px-3 rounded-[8px] border border-line hover:bg-surface disabled:opacity-50"
                           >
                             Edit
                           </button>
@@ -290,19 +279,54 @@ export function CoachAssignmentsModal({
                                 description: `This removes all ${group.sportName} batches for ${coach.name}. All players with this coach as primary will be unassigned.`,
                               })
                             }
-                            className="text-[12.5px] font-semibold text-red hover:opacity-80 disabled:opacity-50"
+                            className="min-h-[32px] text-[12px] font-semibold text-red py-1.5 px-3 rounded-[8px] border border-line hover:bg-red/5 disabled:opacity-50"
                           >
-                            Delete sport
+                            Remove
                           </button>
                         </div>
                       </div>
+                      {group.batches.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {group.batches.map((batch) => (
+                            <span
+                              key={batch.id}
+                              className="inline-flex items-center gap-1.5 text-[11.5px] font-medium pl-2.5 pr-1.5 py-1 rounded-full bg-surface border border-line2 text-ink"
+                            >
+                              <span>{batch.name}</span>
+                              {batch.isPrimary && (
+                                <span className="text-[10px] font-semibold text-brand bg-brand-soft px-1.5 py-px rounded-full leading-none">
+                                  Primary
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                aria-label={`Remove ${batch.name}`}
+                                disabled={isSubmitting}
+                                onClick={() =>
+                                  void beginUnassign({
+                                    payload: {
+                                      scope: "batch",
+                                      batchId: batch.id,
+                                    },
+                                    title: `Remove from ${batch.name}?`,
+                                    description: `This will remove ${coach.name} from ${batch.name}. Players with this coach as primary in this batch will be unassigned.`,
+                                  })
+                                }
+                                className="inline-flex items-center justify-center w-4 h-4 ml-0.5 rounded-full text-[11px] leading-none text-muted hover:text-red hover:bg-red/10 disabled:opacity-40"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
             )}
 
-            <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-6 pt-4 border-t border-line2">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 mt-6 pt-5 border-t border-line2">
               <button
                 type="button"
                 disabled={isSubmitting || assignments.length === 0}

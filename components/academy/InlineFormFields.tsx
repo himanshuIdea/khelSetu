@@ -69,6 +69,7 @@ type InlineDropdownProps = {
   placeholder: string;
   disabled?: boolean;
   required?: boolean;
+  menuZIndexClass?: string;
 };
 
 export function InlineDropdown({
@@ -80,6 +81,7 @@ export function InlineDropdown({
   placeholder,
   disabled = false,
   required = false,
+  menuZIndexClass,
 }: InlineDropdownProps) {
   return (
     <InlineRow label={label} htmlFor={id}>
@@ -91,6 +93,7 @@ export function InlineDropdown({
         placeholder={placeholder}
         disabled={disabled}
         required={required}
+        menuZIndexClass={menuZIndexClass}
         className="w-full"
       />
     </InlineRow>

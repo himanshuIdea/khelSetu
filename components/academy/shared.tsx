@@ -49,7 +49,7 @@ export function PageBody({
 }) {
   return (
     <div
-      className={`flex-1 min-w-0 px-4 py-4 sm:px-6 sm:py-5 lg:px-[26px] lg:py-6 overflow-x-hidden overflow-y-auto ${className}`}
+      className={`flex-1 min-w-0 min-h-0 px-4 py-4 sm:px-6 sm:py-5 lg:px-[26px] lg:py-6 overflow-x-hidden overflow-y-auto ${className}`}
     >
       {children}
     </div>

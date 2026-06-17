@@ -5,12 +5,14 @@ export type AssignCoachPayload = {
   sportId: string;
   nisLevel: NisLevel;
   batchIds: string[];
+  primaryBatchId?: string;
 };
 
 export type UpdateCoachAssignmentPayload = {
   sportId: string;
   nisLevel: NisLevel;
   batchIds: string[];
+  primaryBatchId?: string;
 };
 
 export type UnassignScope = "sport" | "batch" | "all";
@@ -66,6 +68,29 @@ export type AssignCoachFormOptions = {
   }[];
 };
 
+function validateBatchSelection(batchIds: unknown): string | null {
+  if (!Array.isArray(batchIds) || batchIds.length === 0) {
+    return "Select at least one batch.";
+  }
+  for (const batchId of batchIds) {
+    if (typeof batchId !== "string" || !batchId) {
+      return "Invalid batch selection.";
+    }
+  }
+  return null;
+}
+
+function validatePrimaryBatchId(
+  primaryBatchId: string | undefined,
+  batchIds: string[]
+): string | null {
+  if (!primaryBatchId) return null;
+  if (!batchIds.includes(primaryBatchId)) {
+    return "Primary batch must be one of the selected batches.";
+  }
+  return null;
+}
+
 export function validateAssignCoachPayload(payload: AssignCoachPayload): string | null {
   if (!payload.coachId?.trim()) return "Coach is required.";
   if (!payload.sportId?.trim()) return "Sport is required.";
@@ -76,15 +101,9 @@ export function validateAssignCoachPayload(payload: AssignCoachPayload): string 
   ) {
     return "NIS certification is required.";
   }
-  if (!Array.isArray(payload.batchIds) || payload.batchIds.length === 0) {
-    return "Select at least one batch.";
-  }
-  for (const batchId of payload.batchIds) {
-    if (typeof batchId !== "string" || !batchId) {
-      return "Invalid batch selection.";
-    }
-  }
-  return null;
+  const batchError = validateBatchSelection(payload.batchIds);
+  if (batchError) return batchError;
+  return validatePrimaryBatchId(payload.primaryBatchId, payload.batchIds);
 }
 
 function isValidNisLevel(value: unknown): value is NisLevel {
@@ -96,15 +115,9 @@ export function validateUpdateCoachAssignmentPayload(
 ): string | null {
   if (!payload.sportId?.trim()) return "Sport is required.";
   if (!isValidNisLevel(payload.nisLevel)) return "NIS certification is required.";
-  if (!Array.isArray(payload.batchIds) || payload.batchIds.length === 0) {
-    return "Select at least one batch.";
-  }
-  for (const batchId of payload.batchIds) {
-    if (typeof batchId !== "string" || !batchId) {
-      return "Invalid batch selection.";
-    }
-  }
-  return null;
+  const batchError = validateBatchSelection(payload.batchIds);
+  if (batchError) return batchError;
+  return validatePrimaryBatchId(payload.primaryBatchId, payload.batchIds);
 }
 
 export function validateUnassignPayload(payload: UnassignPayload): string | null {

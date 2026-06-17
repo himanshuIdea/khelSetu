@@ -12,7 +12,11 @@ import {
 import { AuthField } from "@/components/auth/AuthField";
 import { api, ApiError } from "@/lib/api";
 import { dedupeFormBatches, getBatchLabel } from "@/lib/batches";
-import type { PlayerFormOptions } from "@/lib/players";
+import {
+  getCoachesForBatch,
+  getPrimaryCoachIdForBatch,
+  type PlayerFormOptions,
+} from "@/lib/players";
 
 type EditPlayerModalProps = {
   academyId: string;
@@ -38,6 +42,7 @@ export function EditPlayerModal({
   const fieldIds = useId();
   const id = (name: string) => `${fieldIds}-${name}`;
   const prevSportIdRef = useRef<string | null>(null);
+  const prevBatchIdRef = useRef<string | null>(null);
 
   const [fullName, setFullName] = useState("");
   const [sportId, setSportId] = useState("");
@@ -67,9 +72,9 @@ export function EditPlayerModal({
     [formOptions.batches, sportId]
   );
 
-  const coachesForSport = useMemo(
-    () => formOptions.coaches.filter((coach) => coach.sportId === sportId),
-    [formOptions.coaches, sportId]
+  const coachesForBatch = useMemo(
+    () => getCoachesForBatch(formOptions, batchId),
+    [formOptions, batchId]
   );
 
   const batchOptions = useMemo<DropdownOption[]>(
@@ -82,8 +87,12 @@ export function EditPlayerModal({
   );
 
   const coachOptions = useMemo<DropdownOption[]>(
-    () => coachesForSport.map((coach) => ({ value: coach.id, label: coach.name })),
-    [coachesForSport]
+    () =>
+      coachesForBatch.map((coach) => ({
+        value: coach.coachId,
+        label: coach.isPrimary ? `${coach.coachName} · Primary` : coach.coachName,
+      })),
+    [coachesForBatch]
   );
 
   useEffect(() => {
@@ -107,6 +116,7 @@ export function EditPlayerModal({
 
     let cancelled = false;
     prevSportIdRef.current = null;
+    prevBatchIdRef.current = null;
     setIsLoading(true);
     setError(null);
 
@@ -124,9 +134,13 @@ export function EditPlayerModal({
         setMonthlyFee(
           player.monthlyFeePaise != null ? String(player.monthlyFeePaise / 100) : ""
         );
-        setPrimaryCoachId(player.primaryCoachId ?? "");
+        const loadedCoachId = player.primaryCoachId ?? "";
+        const batchCoaches = getCoachesForBatch(formOptions, player.batchId);
+        const coachIsValid = batchCoaches.some((coach) => coach.coachId === loadedCoachId);
+        setPrimaryCoachId(coachIsValid ? loadedCoachId : "");
         setStatus(player.status ?? "active");
         prevSportIdRef.current = player.sportId;
+        prevBatchIdRef.current = player.batchId;
         setIsLoading(false);
       })
       .catch((err) => {
@@ -143,23 +157,40 @@ export function EditPlayerModal({
     return () => {
       cancelled = true;
     };
-  }, [open, externalId, academyId]);
+  }, [open, externalId, academyId, formOptions]);
 
   useEffect(() => {
     if (!open) {
       prevSportIdRef.current = null;
+      prevBatchIdRef.current = null;
       return;
     }
 
     if (prevSportIdRef.current && prevSportIdRef.current !== sportId) {
       setBatchId("");
       setPrimaryCoachId("");
+      prevBatchIdRef.current = null;
     }
 
     if (sportId) {
       prevSportIdRef.current = sportId;
     }
   }, [sportId, open]);
+
+  useEffect(() => {
+    if (!open || isLoading) return;
+
+    const prevBatchId = prevBatchIdRef.current;
+    if (prevBatchId && prevBatchId !== batchId) {
+      setPrimaryCoachId(batchId ? getPrimaryCoachIdForBatch(formOptions, batchId) : "");
+    }
+
+    if (batchId) {
+      prevBatchIdRef.current = batchId;
+    } else if (!batchId) {
+      prevBatchIdRef.current = null;
+    }
+  }, [batchId, open, isLoading, formOptions]);
 
   function handleClose() {
     if (isSubmitting) return;
@@ -206,7 +237,12 @@ export function EditPlayerModal({
   const canSubmit = fullName.trim() !== "" && sportId !== "" && batchId !== "";
   const sportDisabled = sportOptions.length === 0;
   const batchDisabled = !sportId;
-  const coachDisabled = !sportId;
+  const coachDisabled = !batchId;
+  const coachPlaceholder = !batchId
+    ? "Select batch first"
+    : coachesForBatch.length === 0
+      ? "No coaches assigned to this batch"
+      : "No coach assigned";
   const maxDateOfBirth = new Date().toISOString().slice(0, 10);
 
   return (
@@ -280,7 +316,7 @@ export function EditPlayerModal({
                   value={primaryCoachId}
                   onChange={setPrimaryCoachId}
                   options={[{ value: "", label: "No coach assigned" }, ...coachOptions]}
-                  placeholder={!sportId ? "Select sport first" : "No coach assigned"}
+                  placeholder={coachPlaceholder}
                   disabled={coachDisabled}
                 />
 

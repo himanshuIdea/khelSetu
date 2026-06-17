@@ -18,9 +18,14 @@ export function AcademyShell({
   children,
 }: AcademyShellProps) {
   return (
-    <div className="flex min-h-screen bg-surface">
-      <AcademySidebar academyId={academyId} academyMeta={academyMeta} activeItem={activeItem} />
-      <div className="flex flex-1 flex-col min-w-0">
+    <div className="flex h-dvh overflow-hidden bg-surface">
+      <AcademySidebar
+        academyId={academyId}
+        academyMeta={academyMeta}
+        activeItem={activeItem}
+        className="h-full"
+      />
+      <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
         <AcademyTopBar academyMeta={academyMeta} searchPlaceholder={searchPlaceholder} />
         {children}
       </div>

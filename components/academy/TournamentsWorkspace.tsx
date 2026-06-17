@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CalendarIcon, PinIcon, TrophyIcon } from "@/components/academy/icons";
 import { TournamentsPageHeader } from "@/components/academy/TournamentsPageHeader";
+import { TournamentBracketEditor } from "@/components/academy/TournamentBracketEditor";
 import {
   EmptyState,
   Pill,
@@ -13,12 +14,11 @@ import {
 import { formatWeightKg } from "@/lib/format";
 import {
   buildDemoTournamentView,
-  DEMO_FINAL_MATCH,
+  createDefaultDemoBracket,
   DEMO_MAT_SCHEDULE,
   DEMO_MEDAL_TALLY,
-  DEMO_QF_MATCHES,
-  DEMO_SF_MATCHES,
   type CreateTournamentFormValues,
+  type DemoBracketState,
   type DemoTournamentView,
 } from "@/lib/tournaments-demo";
 
@@ -66,6 +66,14 @@ type TournamentsWorkspaceProps = {
   seedMedals: MedalTally;
 };
 
+function inferWinnerFromScores(
+  scoreA: number | null,
+  scoreB: number | null
+): "a" | "b" | null {
+  if (scoreA == null || scoreB == null || scoreA === scoreB) return null;
+  return scoreA > scoreB ? "a" : "b";
+}
+
 function formatSeedDateRange(startDate: Date, endDate: Date) {
   return `${startDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}–${endDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
 }
@@ -78,6 +86,7 @@ export function TournamentsWorkspace({
   seedMedals,
 }: TournamentsWorkspaceProps) {
   const [demoTournament, setDemoTournament] = useState<DemoTournamentView | null>(null);
+  const [demoBracket, setDemoBracket] = useState<DemoBracketState | null>(null);
 
   const isDemo = demoTournament != null;
   const activeTournament = isDemo ? demoTournament : seedTournament;
@@ -95,7 +104,7 @@ export function TournamentsWorkspace({
   const tournamentType = isDemo ? demoTournament.tournamentType : "Knockout";
 
   const qfMatches = useMemo(() => {
-    if (isDemo) return DEMO_QF_MATCHES;
+    if (isDemo) return demoBracket?.qfMatches ?? [];
 
     return seedBracketMatches
       .filter((m) => m.round === "QF")
@@ -111,23 +120,25 @@ export function TournamentsWorkspace({
               : ("bottom" as const)
             : ("top" as const),
       }));
-  }, [isDemo, seedBracketMatches]);
+  }, [isDemo, demoBracket, seedBracketMatches]);
 
   const sfMatches = useMemo(() => {
-    if (isDemo) return DEMO_SF_MATCHES;
+    if (isDemo) return demoBracket?.sfMatches ?? [];
     return seedBracketMatches.filter((m) => m.round === "SF");
-  }, [isDemo, seedBracketMatches]);
+  }, [isDemo, demoBracket, seedBracketMatches]);
 
   const finalMatch = useMemo(() => {
-    if (isDemo) return DEMO_FINAL_MATCH;
+    if (isDemo) return demoBracket?.finalMatch ?? null;
     const match = seedBracketMatches.find((m) => m.round === "Final");
     if (!match) return null;
+    const winner = inferWinnerFromScores(match.scoreA, match.scoreB) ?? undefined;
     return {
       playerAName: match.playerAName ?? "Winner SF1",
       playerBName: match.playerBName ?? "Winner SF2",
       matLabel: match.matLabel ?? undefined,
+      winner,
     };
-  }, [isDemo, seedBracketMatches]);
+  }, [isDemo, demoBracket, seedBracketMatches]);
 
   const matSchedule = isDemo ? DEMO_MAT_SCHEDULE : seedMatSchedule;
   const medals = isDemo ? DEMO_MEDAL_TALLY : seedMedals;
@@ -137,14 +148,15 @@ export function TournamentsWorkspace({
 
   function handleCreate(values: CreateTournamentFormValues) {
     setDemoTournament(buildDemoTournamentView(values));
+    setDemoBracket(createDefaultDemoBracket());
   }
 
   return (
-    <>
+    <div className="flex flex-col flex-1 min-h-0 min-w-0 w-full lg:overflow-hidden">
       <TournamentsPageHeader onCreate={handleCreate} />
 
       {activeTournament && (
-        <div className="bg-card border border-line rounded-(--radius) shadow-card p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-[18px]">
+        <div className="shrink-0 bg-card border border-line rounded-(--radius) shadow-card p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-[18px]">
           <div className="w-[54px] h-[54px] rounded-[14px] bg-linear-to-br from-amber to-brand flex items-center justify-center shrink-0">
             <TrophyIcon className="w-7 h-7 text-white" />
           </div>
@@ -181,8 +193,8 @@ export function TournamentsWorkspace({
           description="Create a tournament to manage brackets, mat schedules and medal tallies for your academy."
         />
       ) : (
-        <SplitLayout>
-          <div className="flex-1 min-w-0 bg-card border border-line rounded-(--radius) shadow-card p-5">
+        <SplitLayout className="flex-1 min-h-0 lg:overflow-hidden">
+          <div className="flex-1 min-w-0 min-h-0 bg-card border border-line rounded-(--radius) shadow-card p-5 lg:overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
             <SectionTitle
               title={`${formatWeightKg(weightClass)} · ${tournamentType} bracket`}
               subtitle="Quarter-finals → Final"
@@ -195,6 +207,8 @@ export function TournamentsWorkspace({
                 title="Bracket not set up yet"
                 description="Add participants and generate match-ups to see the knockout bracket here."
               />
+            ) : isDemo && demoBracket ? (
+              <TournamentBracketEditor bracket={demoBracket} onChange={setDemoBracket} />
             ) : (
               <div className="overflow-x-auto -mx-1 px-1 mt-[18px]">
                 <div className="flex items-stretch gap-0 text-[11.5px] min-w-[480px]">
@@ -205,18 +219,26 @@ export function TournamentsWorkspace({
                         className="bg-card border border-line rounded-(--radius) overflow-hidden"
                       >
                         <div
-                          className={`flex justify-between px-2.5 py-2 border-b border-line2 ${m.winner === "top" ? "font-semibold text-ink" : "text-muted"}`}
+                          className={`flex justify-between px-2.5 py-2 border-b border-line2 ${
+                            m.winner === "top" ? "bg-brand-soft/40" : ""
+                          }`}
                         >
-                          {m.top}{" "}
-                          <span className={m.winner === "top" ? "text-green" : ""}>{m.topScore}</span>
+                          <span className={m.winner === "top" ? "font-semibold text-ink" : "text-muted"}>
+                            {m.top}
+                          </span>
+                          <span className="text-muted">{m.topScore}</span>
                         </div>
                         <div
-                          className={`flex justify-between px-2.5 py-2 ${m.winner === "bottom" ? "font-semibold text-ink" : "text-muted"}`}
+                          className={`flex justify-between px-2.5 py-2 ${
+                            m.winner === "bottom" ? "bg-brand-soft/40" : ""
+                          }`}
                         >
-                          {m.bottom}{" "}
-                          <span className={m.winner === "bottom" ? "text-green" : ""}>
-                            {m.bottomScore}
+                          <span
+                            className={m.winner === "bottom" ? "font-semibold text-ink" : "text-muted"}
+                          >
+                            {m.bottom}
                           </span>
+                          <span className="text-muted">{m.bottomScore}</span>
                         </div>
                       </div>
                     ))}
@@ -231,6 +253,13 @@ export function TournamentsWorkspace({
                       const playerA = "playerAName" in m ? m.playerAName : "";
                       const playerB = "playerBName" in m ? m.playerBName : "";
                       const key = "id" in m ? m.id : `${playerA}-${playerB}`;
+                      const demoWinner = "winner" in m ? m.winner : undefined;
+                      const seedWinner =
+                        "scoreA" in m
+                          ? inferWinnerFromScores(m.scoreA ?? null, m.scoreB ?? null)
+                          : null;
+                      const winnerA = demoWinner === "a" || seedWinner === "a";
+                      const winnerB = demoWinner === "b" || seedWinner === "b";
 
                       return (
                         <div
@@ -238,15 +267,21 @@ export function TournamentsWorkspace({
                           className={`bg-card border rounded-(--radius) overflow-hidden ${isLive ? "border-brand" : "border-line"}`}
                         >
                           <div
-                            className={`flex justify-between px-2.5 py-2 border-b border-line2 ${isLive ? "font-semibold text-ink" : "text-muted"}`}
+                            className={`flex justify-between px-2.5 py-2 border-b border-line2 ${
+                              winnerA ? "bg-brand-soft/40" : ""
+                            }`}
                           >
-                            {playerA}{" "}
+                            <span className={winnerA ? "font-semibold text-ink" : "text-muted"}>
+                              {playerA}
+                            </span>
                             {isLive && <span className="text-brand font-bold">live</span>}
                           </div>
                           <div
-                            className={`flex justify-between px-2.5 py-2 ${isLive ? "font-semibold text-ink" : "text-muted"}`}
+                            className={`flex justify-between px-2.5 py-2 ${winnerB ? "bg-brand-soft/40" : ""}`}
                           >
-                            {playerB}
+                            <span className={winnerB ? "font-semibold text-ink" : "text-muted"}>
+                              {playerB}
+                            </span>
                           </div>
                         </div>
                       );
@@ -257,11 +292,39 @@ export function TournamentsWorkspace({
                   </div>
                   <div className="flex flex-col justify-center flex-1">
                     <div className="bg-ink border-none rounded-(--radius) overflow-hidden text-white">
-                      <div className="flex justify-between px-[11px] py-[9px] border-b border-white/12">
-                        {finalMatch?.playerAName ?? "Winner SF1"}
+                      <div
+                        className={`flex justify-between px-[11px] py-[9px] border-b border-white/12 ${
+                          finalMatch && "winner" in finalMatch && finalMatch.winner === "a"
+                            ? "bg-white/8"
+                            : ""
+                        }`}
+                      >
+                        <span
+                          className={
+                            finalMatch && "winner" in finalMatch && finalMatch.winner === "a"
+                              ? "font-semibold text-white"
+                              : "text-[#A9B5D1]"
+                          }
+                        >
+                          {finalMatch?.playerAName ?? "Winner SF1"}
+                        </span>
                       </div>
-                      <div className="flex justify-between px-[11px] py-[9px] text-[#A9B5D1]">
-                        {finalMatch?.playerBName ?? "Winner SF2"}
+                      <div
+                        className={`flex justify-between px-[11px] py-[9px] ${
+                          finalMatch && "winner" in finalMatch && finalMatch.winner === "b"
+                            ? "bg-white/8"
+                            : ""
+                        }`}
+                      >
+                        <span
+                          className={
+                            finalMatch && "winner" in finalMatch && finalMatch.winner === "b"
+                              ? "font-semibold text-white"
+                              : "text-[#A9B5D1]"
+                          }
+                        >
+                          {finalMatch?.playerBName ?? "Winner SF2"}
+                        </span>
                       </div>
                     </div>
                     <div className="text-center mt-2.5 text-muted text-[10.5px]">
@@ -273,8 +336,8 @@ export function TournamentsWorkspace({
             )}
           </div>
 
-          <SidePanel>
-            <div className="bg-card border border-line rounded-(--radius) shadow-card p-[18px]">
+          <SidePanel className="lg:min-h-0 lg:max-h-full">
+            <div className="bg-card border border-line rounded-(--radius) shadow-card p-[18px] lg:max-h-full lg:overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
               <SectionTitle title="Mat schedule · today" />
               {matSchedule.length === 0 ? (
                 <EmptyState
@@ -326,6 +389,6 @@ export function TournamentsWorkspace({
           </SidePanel>
         </SplitLayout>
       )}
-    </>
+    </div>
   );
 }

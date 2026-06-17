@@ -108,7 +108,7 @@ export function PayrollStaffSection({
           onClick={openAdd}
           className="min-h-[44px] px-4 rounded-[10px] border border-line bg-card text-[13px] font-semibold text-text hover:bg-surface w-full sm:w-auto"
         >
-          Manage staff
+          Add staff
         </button>
         <button
           type="button"

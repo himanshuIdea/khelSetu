@@ -17,7 +17,11 @@ import {
   getBatchLabel,
   inferBatchFromDateOfBirth,
 } from "@/lib/batches";
-import type { PlayerFormOptions } from "@/lib/players";
+import {
+  getCoachesForBatch,
+  getPrimaryCoachIdForBatch,
+  type PlayerFormOptions,
+} from "@/lib/players";
 
 type AddPlayerModalProps = {
   academyId: string;
@@ -68,9 +72,9 @@ export function AddPlayerModal({
     [formOptions.batches, sportId]
   );
 
-  const coachesForSport = useMemo(
-    () => formOptions.coaches.filter((coach) => coach.sportId === sportId),
-    [formOptions.coaches, sportId]
+  const coachesForBatch = useMemo(
+    () => getCoachesForBatch(formOptions, batchId),
+    [formOptions, batchId]
   );
 
   const batchOptions = useMemo<DropdownOption[]>(
@@ -83,8 +87,12 @@ export function AddPlayerModal({
   );
 
   const coachOptions = useMemo<DropdownOption[]>(
-    () => coachesForSport.map((coach) => ({ value: coach.id, label: coach.name })),
-    [coachesForSport]
+    () =>
+      coachesForBatch.map((coach) => ({
+        value: coach.coachId,
+        label: coach.isPrimary ? `${coach.coachName} · Primary` : coach.coachName,
+      })),
+    [coachesForBatch]
   );
 
   useEffect(() => {
@@ -107,6 +115,14 @@ export function AddPlayerModal({
     setBatchId("");
     setPrimaryCoachId("");
   }, [sportId]);
+
+  useEffect(() => {
+    if (!batchId) {
+      setPrimaryCoachId("");
+      return;
+    }
+    setPrimaryCoachId(getPrimaryCoachIdForBatch(formOptions, batchId));
+  }, [batchId, formOptions]);
 
   useEffect(() => {
     if (!dateOfBirth || !sportId) return;
@@ -178,7 +194,12 @@ export function AddPlayerModal({
   const canSubmit = fullName.trim() !== "" && sportId !== "" && batchId !== "";
   const sportDisabled = sportOptions.length === 0;
   const batchDisabled = !sportId;
-  const coachDisabled = !sportId;
+  const coachDisabled = !batchId;
+  const coachPlaceholder = !batchId
+    ? "Select batch first"
+    : coachesForBatch.length === 0
+      ? "No coaches assigned to this batch"
+      : "No coach assigned";
   const maxDateOfBirth = new Date().toISOString().slice(0, 10);
 
   return (
@@ -248,7 +269,7 @@ export function AddPlayerModal({
               value={primaryCoachId}
               onChange={setPrimaryCoachId}
               options={[{ value: "", label: "No coach assigned" }, ...coachOptions]}
-              placeholder={!sportId ? "Select sport first" : "No coach assigned"}
+              placeholder={coachPlaceholder}
               disabled={coachDisabled}
             />
 

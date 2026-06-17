@@ -205,6 +205,8 @@ export async function assignCoachToBatches(academyId: string, payload: AssignCoa
   const roleTitle =
     coach.roleTitle?.trim() || `${sport.name} · Coach`;
 
+  const primaryBatchId = payload.primaryBatchId ?? payload.batchIds[0];
+
   return db.transaction(async (tx) => {
     await tx
       .update(coaches)
@@ -223,7 +225,7 @@ export async function assignCoachToBatches(academyId: string, payload: AssignCoa
         .where(and(eq(batchCoaches.batchId, batchId), eq(batchCoaches.isPrimary, true)))
         .limit(1);
 
-      const isPrimary = !existingPrimary && batchId === payload.batchIds[0];
+      const isPrimary = !existingPrimary && batchId === primaryBatchId;
 
       await tx
         .insert(batchCoaches)
@@ -239,6 +241,22 @@ export async function assignCoachToBatches(academyId: string, payload: AssignCoa
 
     return { coachId: coach.id, batchCount: payload.batchIds.length };
   });
+}
+
+async function promoteCoachToBatchPrimary(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  batchId: string,
+  coachId: string
+) {
+  await tx
+    .update(batchCoaches)
+    .set({ isPrimary: false, updatedAt: new Date() })
+    .where(eq(batchCoaches.batchId, batchId));
+
+  await tx
+    .update(batchCoaches)
+    .set({ isPrimary: true, updatedAt: new Date() })
+    .where(and(eq(batchCoaches.batchId, batchId), eq(batchCoaches.coachId, coachId)));
 }
 
 async function assertCoachInAcademy(academyId: string, coachId: string) {
@@ -283,7 +301,7 @@ export async function listCoachAssignments(
       group = {
         sportId: row.sportId,
         sportName: row.sportName,
-        nisLevel: coach.sportId === row.sportId ? coach.nisLevel : coach.nisLevel,
+        nisLevel: coach.nisLevel,
         batches: [],
       };
       bySport.set(row.sportId, group);
@@ -669,18 +687,23 @@ export async function updateCoachSportAssignment(
     }
 
     for (const batchId of addedBatchIds) {
-      const [existingPrimary] = await tx
-        .select({ id: batchCoaches.id })
-        .from(batchCoaches)
-        .where(and(eq(batchCoaches.batchId, batchId), eq(batchCoaches.isPrimary, true)))
-        .limit(1);
-
-      const isPrimary = !existingPrimary;
-
       await tx
         .insert(batchCoaches)
-        .values({ batchId, coachId, isPrimary })
+        .values({ batchId, coachId, isPrimary: false })
         .onConflictDoNothing({ target: [batchCoaches.batchId, batchCoaches.coachId] });
+    }
+
+    const primaryBatchId = payload.primaryBatchId ?? payload.batchIds[0];
+
+    for (const batchId of payload.batchIds) {
+      if (batchId === primaryBatchId) {
+        await promoteCoachToBatchPrimary(tx, batchId, coachId);
+      } else {
+        await tx
+          .update(batchCoaches)
+          .set({ isPrimary: false, updatedAt: new Date() })
+          .where(and(eq(batchCoaches.batchId, batchId), eq(batchCoaches.coachId, coachId)));
+      }
     }
 
     return {

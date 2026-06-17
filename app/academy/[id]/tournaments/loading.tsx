@@ -3,8 +3,8 @@ import { PageHeaderSkeleton, SidePanelSkeleton } from "@/components/academy/skel
 
 export default function TournamentsPageLoading() {
   return (
-    <PageBody>
-      <div className="animate-pulse min-w-0" aria-busy aria-label="Loading tournaments">
+    <PageBody className="flex flex-col min-h-0 max-h-[calc(100dvh-66px)] lg:overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0 min-w-0 w-full animate-pulse" aria-busy aria-label="Loading tournaments">
         <PageHeaderSkeleton action />
 
         <div className="bg-card border border-line rounded-(--radius) shadow-card p-5 mb-4 flex gap-4">
@@ -16,13 +16,15 @@ export default function TournamentsPageLoading() {
           <div className="h-8 w-24 bg-line2 rounded-full shrink-0 hidden sm:block" />
         </div>
 
-        <SplitLayout>
-          <div className="flex-1 min-w-0 bg-card border border-line rounded-(--radius) shadow-card p-5">
+        <SplitLayout className="flex-1 min-h-0 lg:overflow-hidden">
+          <div className="flex-1 min-w-0 min-h-0 bg-card border border-line rounded-(--radius) shadow-card p-5 lg:overflow-y-auto">
             <div className="h-4 w-48 bg-line2 rounded mb-4" />
             <div className="h-[280px] bg-line2 rounded-(--radius)" />
           </div>
-          <SidePanel>
-            <SidePanelSkeleton rows={3} />
+          <SidePanel className="lg:min-h-0 lg:max-h-full">
+            <div className="lg:max-h-full lg:overflow-y-auto">
+              <SidePanelSkeleton rows={3} />
+            </div>
           </SidePanel>
         </SplitLayout>
       </div>

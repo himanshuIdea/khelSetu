@@ -48,6 +48,8 @@ type InlineSelectProps = {
   variant?: "input" | "pill";
   tone?: "light" | "dark";
   required?: boolean;
+  /** Tailwind z-index class for the portaled menu (default `z-50`). Use `z-[60]` inside nested modals. */
+  menuZIndexClass?: string;
 };
 
 export function InlineSelect({
@@ -62,6 +64,7 @@ export function InlineSelect({
   variant = "input",
   tone = "light",
   required = false,
+  menuZIndexClass = "z-50",
 }: InlineSelectProps) {
   const generatedId = useId();
   const triggerId = id ?? generatedId;
@@ -201,7 +204,7 @@ export function InlineSelect({
       role="listbox"
       aria-labelledby={triggerId}
       style={{ top: position.top, left: position.left, minWidth: position.width }}
-      className="fixed z-50 max-h-44 overflow-y-auto bg-white border border-line rounded-[11px] shadow-card py-1"
+      className={`fixed ${menuZIndexClass} max-h-44 overflow-y-auto bg-white border border-line rounded-[11px] shadow-card py-1`}
     >
       {options.length === 0 ? (
         <li className="px-3.5 py-2.5 text-[13px] text-muted" role="presentation">

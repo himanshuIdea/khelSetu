@@ -99,9 +99,9 @@ export function AcademySidebar({
 
   return (
     <aside
-      className={`w-[236px] shrink-0 bg-ink text-white flex flex-col pl-4 pr-2 py-[22px] ${className}`}
+      className={`w-[236px] shrink-0 bg-ink text-white flex flex-col h-full min-h-0 pl-4 pr-2 py-[22px] ${className}`}
     >
-      <div className="flex items-center justify-between px-1.5 pb-[22px]">
+      <div className="shrink-0 flex items-center justify-between px-1.5 pb-[22px]">
         <div className="flex items-center gap-2.5">
           <div className="w-[34px] h-[34px] rounded-[10px] bg-linear-to-br from-brand to-[#FF9152] flex items-center justify-center">
             <BoltIcon className="w-5 h-5 text-white" />
@@ -122,7 +122,7 @@ export function AcademySidebar({
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto">
+      <nav className="flex-1 min-h-0 overflow-y-auto">
         <NavLabel>Academy</NavLabel>
         {academyNav.map((entry) => (
           <NavLink
@@ -144,7 +144,7 @@ export function AcademySidebar({
         ))}
       </nav>
 
-      <div className="mt-auto flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5">
+      <div className="shrink-0 mt-auto flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5">
         <div className="w-[34px] h-[34px] rounded-[9px] bg-brand flex items-center justify-center font-bold text-[13px] text-white shrink-0">
           {academyMeta.adminInitials}
         </div>
