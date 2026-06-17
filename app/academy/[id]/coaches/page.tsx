@@ -3,7 +3,6 @@ import { CoachesPageHeader } from "@/components/academy/CoachesPageHeader";
 import { CapIcon } from "@/components/academy/icons";
 import { PendingReviewsPanel } from "@/components/academy/PendingReviewsPanel";
 import { EmptyState, PageBody, SidePanel, SplitLayout } from "@/components/academy/shared";
-import { syncOrphanCoachesToStaff } from "@/lib/repositories/coach-staff-sync";
 import {
   getAssignCoachFormOptions,
   getCoachCount,
@@ -17,8 +16,6 @@ type CoachesPageProps = {
 
 export default async function CoachesPage({ params }: CoachesPageProps) {
   const { id } = await params;
-
-  await syncOrphanCoachesToStaff(id);
 
   const [coaches, pendingReviews, coachCount, formOptions] = await Promise.all([
     getCoaches(id),

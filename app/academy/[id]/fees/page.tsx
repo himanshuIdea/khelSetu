@@ -1,6 +1,5 @@
 import { FeesWorkspace } from "@/components/academy/FeesWorkspace";
 import { PageBody } from "@/components/academy/shared";
-import { syncOrphanCoachesToStaff } from "@/lib/repositories/coach-staff-sync";
 import { getFeeBillingStats, getFeeFormOptions, listPlayerFeeBilling } from "@/lib/repositories/fees";
 import { getPayrollStats, getStaffMembers } from "@/lib/repositories/payroll";
 
@@ -15,8 +14,6 @@ export default async function FeesPage({ params }: FeesPageProps) {
     month: "long",
     year: "numeric",
   });
-
-  await syncOrphanCoachesToStaff(id);
 
   const [payrollStats, staffMembers, feeStats, billingRows, formOptions] = await Promise.all([
     getPayrollStats(id),

@@ -18,8 +18,8 @@ function resolvePoolMax(): number {
     const parsed = Number(configured);
     if (!Number.isNaN(parsed) && parsed > 0) return parsed;
   }
-  // Keep dev connection usage low across Next.js + microservices.
-  return process.env.NODE_ENV === "production" ? 10 : 2;
+  // Serverless: reuse one connection per warm instance; override via DATABASE_POOL_MAX.
+  return process.env.NODE_ENV === "production" ? 1 : 2;
 }
 
 function createClient() {
@@ -37,18 +37,17 @@ function createClient() {
 }
 
 function createDb(): Database {
-  const client = globalForDb.client ?? createClient();
-  if (process.env.NODE_ENV !== "production") {
-    globalForDb.client = client;
+  if (!globalForDb.client) {
+    globalForDb.client = createClient();
   }
-  return drizzle(client, { schema });
+  if (!globalForDb.db) {
+    globalForDb.db = drizzle(globalForDb.client, { schema });
+  }
+  return globalForDb.db;
 }
 
 export const db: Database = new Proxy({} as Database, {
   get(_target, prop, receiver) {
-    if (!globalForDb.db) {
-      globalForDb.db = createDb();
-    }
-    return Reflect.get(globalForDb.db, prop, receiver);
+    return Reflect.get(createDb(), prop, receiver);
   },
 });

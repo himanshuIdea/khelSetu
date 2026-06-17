@@ -107,6 +107,8 @@ await api.academies.getPlayers(id); // gateway adds latency
 - `Promise.all` for independent fetches
 - `Suspense` boundaries for slow secondary panels
 - `React.cache()` on `resolveAcademy` — shared across layout + pages in one request
+- **Vercel:** set function region near Supabase (e.g. `bom1`); use pooler `DATABASE_URL` (port `6543`, `prepare: false`); `DATABASE_POOL_MAX=1` per serverless instance
+- **DB client:** `lib/db/client.ts` caches postgres on `globalThis` in production for warm reuse
 
 ### UI
 

@@ -35,7 +35,7 @@ Work completed across recent agent sessions, in approximate order:
 6. **Players page (ship + polish)** — Full CRUD modals (`AddPlayerModal`, `EditPlayerModal`, `RemovePlayerDialog`); `PlayersWorkspace` + `PlayerSidePanelClient` deferred detail fetch; filter pills with portaled menus; responsive table columns.
 7. **Player form enhancements** — Height category field + migration `0010_players_height_category`; custom `InlineDatePicker`; batch inference from DOB.
 8. **Academy empty states** — Shared `EmptyState` in `components/academy/shared.tsx`; context-specific copy on every academy screen and sub-section.
-9. **Performance patterns** — `resolveAcademy` via `React.cache()`; `Promise.all` on RSC pages; `loading.tsx` for `app/academy/[id]/` and `players/`; `listAcademyBatches` on read paths (not `ensureAcademyBatches`).
+9. **Performance patterns** — `resolveAcademy` via `React.cache()`; `unstable_cache` on `getAcademyMeta` (60s); academy layout streams via `Suspense` + `AcademyShellSkeleton`; `Promise.all` on RSC pages; per-route `loading.tsx` for all academy child routes; dashboard sections stream with `Suspense`; postgres client cached on `globalThis` in production; `listAcademyBatches` on read paths (not `ensureAcademyBatches`); removed `syncOrphanCoachesToStaff` from coaches/fees page loads.
 10. **Agent / workflow docs** — `AGENTS.md`, `.cursor/rules/khelsetu-workflow.mdc`, `.cursor/skills/khelsetu-mockup-ui/SKILL.md` codify mockup fidelity, repo-direct reads, and acceptance checklists.
 11. **Coaches & Teams create** — Coach onboarding via Manage Staff + `AssignCoachModal`; `AddTeamModal` POST to Next.js API routes.
 12. **Teams roster role edit** — Role column editable via `InlineSelect` in edit mode; captain assignment confirms via `ChangeCaptainDialog`; PATCH member accepts `role` and demotes prior captain in one transaction.
@@ -430,7 +430,7 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | **`services/README.md` stale** | Low | Says "Next.js never talks to DB directly" — RSC pages now use repositories directly |
 | **OTP auth** | Medium | Stub only (`lib/auth/otp.ts`); `phone_verified` never set true |
 | **Password reset** | Medium | Login UI link with no flow |
-| **Academy `loading.tsx` coverage** | Low | Only `[id]/loading.tsx` and `[id]/players/loading.tsx` — other child routes inherit parent skeleton |
+| **Academy `loading.tsx` coverage** | Done | All child routes have route-specific skeletons; shared primitives in `components/academy/skeletons.tsx` |
 | **State portal** | Expected | Entire `/state` tree uses mock data — no backend |
 | **Reports (academy)** | Expected | Static template cards |
 | **Inert action buttons** | Low | Quick add, Run payroll, Generate report, Review lineup, Open review queue |
@@ -447,7 +447,7 @@ Priority order based on incomplete CRUD and user-facing stubs:
 2. **Record fee payment** — Repository + `POST .../players/[id]/payments` + wire side panel button; updates `feeInvoices` / `feePayments` and refreshes list.
 3. **Coach update + drill review** — PATCH coach; POST review decision on `drillSubmissions`; wire `PendingReviewsPanel`.
 4. **Team metadata edit** — PATCH team name, coach, weight class.
-5. **Extend `loading.tsx`** — Per-route skeletons for coaches, teams, dashboard (per `AGENTS.md` checklist).
+5. ~~**Extend `loading.tsx`**~~ — Done: coaches, tournaments, dashboard, teams, attendance, gear, fees.
 6. **Gateway alignment** — Add mutation handlers to people/competitions services **or** stop proxying writes and document Next.js as sole mutation layer.
 7. ~~**Payroll actions**~~ — Done: run payroll, approve payslip, staff CRUD, player fees billing.
 8. ~~**Inventory writes** — Add item + issue/return gear against existing schema.~~ ✅ Done
