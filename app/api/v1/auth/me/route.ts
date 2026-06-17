@@ -20,11 +20,13 @@ export async function GET() {
     return NextResponse.json({
       user: {
         id: profile.id,
+        username: profile.username,
         email: profile.email,
         phone: profile.phone,
         fullName: profile.fullName,
         platformRole: profile.platformRole,
         phoneVerified: profile.phoneVerified,
+        mustChangePassword: profile.mustChangePassword,
       },
       academies: profile.academies,
       needsAcademyOnboarding: profile.needsAcademyOnboarding,

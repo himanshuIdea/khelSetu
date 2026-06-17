@@ -1,4 +1,4 @@
-import { boolean, pgEnum, pgSchema, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, pgEnum, pgSchema, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { primaryId, timestamps } from "../_shared";
 
 export const identitySchema = pgSchema("identity");
@@ -17,9 +17,12 @@ export const users = identitySchema.table(
   {
     id: primaryId(),
     authUserId: uuid("auth_user_id"),
+    username: text("username"),
     email: text("email"),
     phone: text("phone"),
     passwordHash: text("password_hash"),
+    mustChangePassword: boolean("must_change_password").notNull().default(false),
+    passwordChangedAt: timestamp("password_changed_at", { withTimezone: true }),
     phoneVerified: boolean("phone_verified").notNull().default(false),
     platformRole: platformRoleEnum("platform_role"),
     fullName: text("full_name").notNull(),
@@ -28,6 +31,7 @@ export const users = identitySchema.table(
     ...timestamps,
   },
   (table) => [
+    uniqueIndex("users_username_idx").on(table.username),
     uniqueIndex("users_email_idx").on(table.email),
     uniqueIndex("users_phone_idx").on(table.phone),
   ]

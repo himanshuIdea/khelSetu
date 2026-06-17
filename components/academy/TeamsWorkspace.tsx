@@ -8,6 +8,7 @@ import { InlineSelect } from "@/components/academy/InlineSelect";
 import { CheckIcon, CloseIcon, FlagIcon, PencilIcon, PlusIcon } from "@/components/academy/icons";
 import { TeamMembersEmptyState } from "@/components/academy/TeamMembersEmptyState";
 import { TeamsPageHeader } from "@/components/academy/TeamsPageHeader";
+import { CoachTeamsPageHeader } from "@/components/coach/CoachTeamsPageHeader";
 import {
   AcademyTable,
   Avatar,
@@ -83,6 +84,8 @@ type TeamsWorkspaceProps = {
   lineupSuggestion: LineupSuggestion | null;
   memberFormOptions: TeamMemberFormOptions;
   formOptions: TeamFormOptions;
+  coachId?: string;
+  headerSubtitle?: string;
 };
 
 export function TeamsWorkspace({
@@ -93,6 +96,8 @@ export function TeamsWorkspace({
   lineupSuggestion,
   memberFormOptions,
   formOptions,
+  coachId,
+  headerSubtitle,
 }: TeamsWorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -213,11 +218,20 @@ export function TeamsWorkspace({
   return (
     <SplitLayout>
       <div className={`flex-1 min-w-0 ${isPending ? "opacity-60 pointer-events-none" : ""}`}>
-        <TeamsPageHeader
-          academyId={academyId}
-          subtitle="Build squads, name captains and pick line-ups for tournaments."
-          formOptions={formOptions}
-        />
+        {coachId ? (
+          <CoachTeamsPageHeader
+            academyId={academyId}
+            coachId={coachId}
+            subtitle={headerSubtitle ?? "Squads you coach sync with academy teams."}
+            formOptions={formOptions}
+          />
+        ) : (
+          <TeamsPageHeader
+            academyId={academyId}
+            subtitle={headerSubtitle ?? "Build squads, name captains and pick line-ups for tournaments."}
+            formOptions={formOptions}
+          />
+        )}
 
         {activeTeam && (
           <div

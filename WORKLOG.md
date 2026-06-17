@@ -40,6 +40,7 @@ Work completed across recent agent sessions, in approximate order:
 11. **Coaches & Teams create** — Coach onboarding via Manage Staff + `AssignCoachModal`; `AddTeamModal` POST to Next.js API routes.
 12. **Teams roster role edit** — Role column editable via `InlineSelect` in edit mode; captain assignment confirms via `ChangeCaptainDialog`; PATCH member accepts `role` and demotes prior captain in one transaction.
 13. **Attendance marking (full)** — `AttendanceWorkspace` with sport/batch/date filters; present/absent per player; `saveAttendanceRecords` upsert + batch history; Next.js API routes for mark/history.
+14. **Coach portal (M3 v1)** — `/coach/[id]/*` hybrid shell (academy sidebar `lg+`, mobile tab bar `<lg`); home assignments, scoped players (read-only detail), attendance for assigned batches, teams create/manage synced to `competitions.teams`; coach-only login redirect; API guards on attendance/teams for `membership_role = coach`.
 
 ---
 
@@ -302,7 +303,7 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 |------|--------|------|--------|--------|----------|-----------|-------|
 | **Overview** | — | 🔲 | — | — | 🔲 | ❌ | `lib/state-mock-data` |
 | **Districts** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
-| **Nurseries** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
+| **Nurseries** | ✅ register | ✅ | — | ✅ deregister | ✅ | ✅ | `state_nursery_registrations` + search/register flow |
 | **Athletes** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
 | **Verification** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
 | **Funds** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
@@ -310,7 +311,7 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | **Reports** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
 
 **Auth:** JWT middleware requires `state_admin`  
-**Data:** No `lib/repositories/state*` — all pages import `lib/state-mock-data`
+**Data:** State nurseries use `lib/repositories/state-nurseries.ts` + `/api/v1/state/nurseries`; other state pages still import `lib/state-mock-data`
 
 ---
 
@@ -435,7 +436,7 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 | **Reports (academy)** | Expected | Static template cards |
 | **Inert action buttons** | Low | Quick add, Run payroll, Generate report, Review lineup, Open review queue |
 | **Team metadata edit** | Low | No PATCH team name/coach/weight class |
-| **Coach edit/delete** | Medium | No APIs |
+| **Coach portal (M3)** | 🟡 Partial | `/coach/[id]/{home,players,attendance,teams}` — assignments, scoped players, attendance mark, teams CRUD; drill review queue not wired |
 | **Middleware scope** | Low | `/auth/login` and `/auth/sign-up` not in matcher — public by design; academy membership not verified per-route in middleware (relies on API 403) |
 ---
 

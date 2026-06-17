@@ -85,6 +85,20 @@
       "when": 1781244403908,
       "tag": "0011_weekly_timetable",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1781244404008,
+      "tag": "0012_state_nursery_registrations",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1781244404108,
+      "tag": "0013_academy_credentials",
+      "breakpoints": true
     }
   ]
 }

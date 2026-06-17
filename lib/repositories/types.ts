@@ -26,6 +26,18 @@ export type Coach = {
   toReview: number;
 };
 
+export type CoachPortalMeta = {
+  id: string;
+  name: string;
+  role: string;
+  initials: string;
+  avatarColor: string;
+  badge: CoachBadge;
+  badgeLabel: string;
+  rating: number;
+  drillsPerWeek: number;
+};
+
 export type PendingReview = {
   drill: string;
   player: string;

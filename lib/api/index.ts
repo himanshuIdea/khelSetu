@@ -23,6 +23,12 @@ import type {
 } from "@/lib/teams";
 import type { OnboardingPayload, OnboardingResult } from "@/lib/onboarding";
 import type {
+  StateNurseryDetail,
+  StateNurseryFilters,
+  StateNurseryListItem,
+  StateNurserySearchResult,
+} from "@/lib/state-nurseries";
+import type {
   ScheduleSettingsPayload,
   SlotPayload,
   TimetableData,
@@ -49,17 +55,20 @@ export { ApiError } from "./http";
 
 type AuthUserResponse = {
   id: string;
+  username: string | null;
   email: string | null;
   phone: string | null;
   fullName: string;
   platformRole: PlatformRole | null;
   phoneVerified: boolean;
+  mustChangePassword: boolean;
 };
 
 type AuthSessionResponse = {
   user: AuthUserResponse;
   academies: AuthAcademy[];
   needsAcademyOnboarding: boolean;
+  mustChangePassword?: boolean;
   redirectTo: string;
 };
 
@@ -75,11 +84,16 @@ export const api = {
     }) => apiPost<AuthSessionResponse>("/auth/register", body),
     login: (body: {
       mode: "password" | "otp";
+      identifier?: string;
       email?: string;
       password?: string;
       phone?: string;
       otp?: string;
+      portal?: "player" | "coach" | "staff" | "admin";
+      next?: string;
     }) => apiPost<AuthSessionResponse>("/auth/login", body),
+    changePassword: (body: { currentPassword: string; newPassword: string }) =>
+      apiPost<AuthSessionResponse>("/auth/change-password", body),
     me: () => apiGet<AuthSessionResponse>("/auth/me"),
     logout: () => apiPost<{ ok: boolean }>("/auth/logout", {}),
   },
@@ -430,5 +444,73 @@ export const api = {
         `/academies/${academyId}/fees/invoices/generate`,
         {}
       ),
+  },
+
+  credentials: {
+    summary: (academyId: string) =>
+      apiGet<import("@/lib/repositories/credentials").CredentialSummary>(
+        `/academies/${academyId}/credentials/summary`
+      ),
+    listAthletes: (academyId: string) =>
+      apiGet<import("@/lib/repositories/credentials").CredentialRow[]>(
+        `/academies/${academyId}/credentials/athletes`
+      ),
+    listCoaches: (academyId: string) =>
+      apiGet<import("@/lib/repositories/credentials").CredentialRow[]>(
+        `/academies/${academyId}/credentials/coaches`
+      ),
+    listStaff: (academyId: string) =>
+      apiGet<import("@/lib/repositories/credentials").CredentialRow[]>(
+        `/academies/${academyId}/credentials/staff`
+      ),
+    provision: (academyId: string, role: string, personId: string) =>
+      apiPost<{ username: string; temporaryPassword: string }>(
+        `/academies/${academyId}/credentials/${role}/${personId}/provision`,
+        {}
+      ),
+    reissue: (academyId: string, role: string, personId: string) =>
+      apiPost<{ username: string; temporaryPassword: string }>(
+        `/academies/${academyId}/credentials/${role}/${personId}/reissue`,
+        {}
+      ),
+  },
+
+  coach: {
+    players: {
+      detail: (academyId: string, externalId: string) =>
+        apiGet<PlayerDetail>(`/coach/${academyId}/players/${encodeURIComponent(externalId)}`),
+    },
+  },
+
+  state: {
+    nurseries: {
+      list: (filters?: StateNurseryFilters) => {
+        const search = new URLSearchParams();
+        if (filters?.district && filters.district !== "all") {
+          search.set("district", filters.district);
+        }
+        if (filters?.sport && filters.sport !== "all") {
+          search.set("sport", filters.sport);
+        }
+        if (filters?.status && filters.status !== "all") {
+          search.set("status", filters.status);
+        }
+        const query = search.toString();
+        return apiGet<{ nurseries: StateNurseryListItem[] }>(
+          `/state/nurseries${query ? `?${query}` : ""}`
+        );
+      },
+      search: (q: string) =>
+        apiGet<{ results: StateNurserySearchResult[] }>(
+          `/state/nurseries/search?q=${encodeURIComponent(q)}`
+        ),
+      detail: (academyId: string) =>
+        apiGet<{ nursery: StateNurseryDetail; registered: boolean }>(
+          `/state/nurseries/${academyId}`
+        ),
+      register: (academyId: string) =>
+        apiPost<{ ok: boolean }>("/state/nurseries", { academyId }),
+      deregister: (academyId: string) => apiDelete(`/state/nurseries/${academyId}`),
+    },
   },
 };

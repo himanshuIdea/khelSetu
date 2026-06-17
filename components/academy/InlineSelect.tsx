@@ -50,6 +50,12 @@ type InlineSelectProps = {
   required?: boolean;
   /** Tailwind z-index class for the portaled menu (default `z-50`). Use `z-[60]` inside nested modals. */
   menuZIndexClass?: string;
+  /** Tailwind max-height class for the portaled menu (default `max-h-44`). */
+  menuMaxHeightClass?: string;
+  /** When `variant="pill"`, highlight as an active filter (brand border/text). */
+  active?: boolean;
+  /** When `variant="pill"`, use filter-pill inactive styling (`text-muted`). */
+  filterPill?: boolean;
 };
 
 export function InlineSelect({
@@ -65,6 +71,9 @@ export function InlineSelect({
   tone = "light",
   required = false,
   menuZIndexClass = "z-50",
+  menuMaxHeightClass = "max-h-44",
+  active = false,
+  filterPill = false,
 }: InlineSelectProps) {
   const generatedId = useId();
   const triggerId = id ?? generatedId;
@@ -190,9 +199,15 @@ export function InlineSelect({
               : "text-ink hover:bg-surface"
         } ${!selected ? "text-muted2" : ""}`;
 
+  const pillToneClassName = active
+    ? "border-brand text-brand"
+    : filterPill
+      ? "border-line text-muted"
+      : "border-line text-ink";
+
   const triggerClassName =
     variant === "pill"
-      ? `inline-flex items-center justify-between gap-1.5 min-h-[44px] text-[11px] font-semibold px-2.5 py-1.5 rounded-full border border-line bg-card text-ink disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${
+      ? `inline-flex items-center justify-between gap-1.5 min-h-[44px] text-[11px] font-semibold px-2.5 py-1.5 rounded-full border bg-card disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${pillToneClassName} ${
           open ? "ring-1 ring-brand/25" : ""
         }`
       : inputTriggerClassName;
@@ -204,7 +219,7 @@ export function InlineSelect({
       role="listbox"
       aria-labelledby={triggerId}
       style={{ top: position.top, left: position.left, minWidth: position.width }}
-      className={`fixed ${menuZIndexClass} max-h-44 overflow-y-auto bg-white border border-line rounded-[11px] shadow-card py-1`}
+      className={`fixed ${menuZIndexClass} min-w-[148px] ${menuMaxHeightClass} overflow-y-auto bg-white border border-line rounded-[11px] shadow-card py-1`}
     >
       {options.length === 0 ? (
         <li className="px-3.5 py-2.5 text-[13px] text-muted" role="presentation">

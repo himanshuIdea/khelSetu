@@ -18,6 +18,7 @@ type AddTeamModalProps = {
   open: boolean;
   onClose: () => void;
   formOptions: TeamFormOptions;
+  fixedCoachId?: string;
 };
 
 export function AddTeamModal({
@@ -25,6 +26,7 @@ export function AddTeamModal({
   open,
   onClose,
   formOptions,
+  fixedCoachId,
 }: AddTeamModalProps) {
   const router = useRouter();
   const fieldIds = useId();
@@ -73,8 +75,12 @@ export function AddTeamModal({
   }, [open, onClose]);
 
   useEffect(() => {
+    if (fixedCoachId) {
+      setCoachId(fixedCoachId);
+      return;
+    }
     setCoachId("");
-  }, [sportId]);
+  }, [sportId, fixedCoachId]);
 
   function resetForm() {
     setName("");
@@ -101,7 +107,7 @@ export function AddTeamModal({
       await api.teams.create(academyId, {
         name: name.trim(),
         sportId,
-        coachId: coachId || undefined,
+        coachId: fixedCoachId ?? (coachId || undefined),
         weightClass: weightClass.trim() || undefined,
       });
 
@@ -173,6 +179,7 @@ export function AddTeamModal({
               required
             />
 
+            {!fixedCoachId && (
             <InlineDropdown
               label="Coach"
               id={id("coach")}
@@ -182,6 +189,7 @@ export function AddTeamModal({
               placeholder={!sportId ? "Select sport first" : "No coach assigned"}
               disabled={coachDisabled}
             />
+            )}
 
             <InlineInput
               label="Weight class"

@@ -490,3 +490,201 @@ export async function updateTeamMemberRole(
 
   return { role };
 }
+
+export async function assertCoachOwnsTeam(
+  academyId: string,
+  coachId: string,
+  teamId: string
+): Promise<void> {
+  const [team] = await db
+    .select({ coachId: teams.coachId })
+    .from(teams)
+    .where(and(eq(teams.academyId, academyId), eq(teams.id, teamId)))
+    .limit(1);
+
+  if (!team) {
+    throw new Error("Team not found.");
+  }
+
+  if (team.coachId !== coachId) {
+    throw new Error("You can only manage teams you coach.");
+  }
+}
+
+export async function getCoachFeaturedTeam(academyId: string, coachId: string) {
+  const [team] = await db
+    .select({ id: teams.id })
+    .from(teams)
+    .where(and(eq(teams.academyId, academyId), eq(teams.coachId, coachId)))
+    .orderBy(sql`${teams.createdAt} asc`)
+    .limit(1);
+
+  if (!team) return null;
+  return getTeamById(academyId, team.id);
+}
+
+export async function resolveActiveCoachTeam(
+  academyId: string,
+  coachId: string,
+  teamId?: string | null
+) {
+  if (teamId) {
+    const team = await getTeamById(academyId, teamId);
+    if (team) {
+      const [owned] = await db
+        .select({ id: teams.id })
+        .from(teams)
+        .where(
+          and(eq(teams.academyId, academyId), eq(teams.id, teamId), eq(teams.coachId, coachId))
+        )
+        .limit(1);
+      if (owned) return team;
+    }
+  }
+  return getCoachFeaturedTeam(academyId, coachId);
+}
+
+export async function getCoachOtherTeams(
+  academyId: string,
+  coachId: string,
+  excludeTeamId?: string
+): Promise<OtherTeam[]> {
+  const conditions = excludeTeamId
+    ? and(
+        eq(teams.academyId, academyId),
+        eq(teams.coachId, coachId),
+        ne(teams.id, excludeTeamId)
+      )
+    : and(eq(teams.academyId, academyId), eq(teams.coachId, coachId));
+
+  const rows = await db
+    .select({
+      team: teams,
+      coachName: coaches.fullName,
+      memberCount: sql<number>`(
+        select count(*) from competitions.team_members tm where tm.team_id = ${teams.id}
+      )`,
+    })
+    .from(teams)
+    .leftJoin(coaches, eq(teams.coachId, coaches.id))
+    .where(conditions)
+    .orderBy(sql`${teams.createdAt} asc`);
+
+  return rows.map((row) => ({
+    id: row.team.id,
+    initials: row.team.name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2),
+    name: row.team.name,
+    meta: `Coach ${row.coachName?.split(" ")[0] ?? "—"} · ${Number(row.memberCount)} members`,
+    color: row.team.color ?? "#7C5CFC",
+  }));
+}
+
+export async function getCoachTeamFormOptions(
+  academyId: string,
+  coachId: string
+): Promise<TeamFormOptions> {
+  const { listCoachAssignments } = await import("@/lib/repositories/coaches");
+  const assignments = await listCoachAssignments(academyId, coachId);
+  const coach = await db
+    .select({ fullName: coaches.fullName, sportId: coaches.sportId })
+    .from(coaches)
+    .where(and(eq(coaches.id, coachId), eq(coaches.academyId, academyId)))
+    .limit(1)
+    .then((rows) => rows[0]);
+
+  const sportMap = new Map<string, string>();
+  for (const group of assignments) {
+    sportMap.set(group.sportId, group.sportName);
+  }
+
+  const sports = [...sportMap.entries()].map(([id, name]) => ({ id, name }));
+
+  return {
+    sports,
+    coaches: coach
+      ? [{ id: coachId, name: coach.fullName, sportId: coach.sportId }]
+      : [],
+  };
+}
+
+export async function getCoachTeamMemberFormOptions(
+  academyId: string,
+  coachId: string,
+  teamId: string
+): Promise<TeamMemberFormOptions> {
+  const [team] = await db
+    .select({ sportId: teams.sportId })
+    .from(teams)
+    .where(and(eq(teams.id, teamId), eq(teams.academyId, academyId), eq(teams.coachId, coachId)))
+    .limit(1);
+
+  if (!team) {
+    return { players: [] };
+  }
+
+  const { getCoachAssignedBatchIds } = await import("@/lib/repositories/coaches");
+  const batchIds = await getCoachAssignedBatchIds(academyId, coachId);
+
+  if (batchIds.length === 0) {
+    return { players: [] };
+  }
+
+  const roster = await db
+    .select({
+      id: players.id,
+      name: players.fullName,
+      weight: players.weightCategory,
+      batchName: batches.name,
+      avatarColor: players.avatarColor,
+    })
+    .from(players)
+    .innerJoin(batches, eq(players.batchId, batches.id))
+    .where(
+      and(
+        eq(players.academyId, academyId),
+        eq(players.sportId, team.sportId),
+        inArray(players.batchId, batchIds),
+        ne(players.status, "inactive")
+      )
+    )
+    .orderBy(players.fullName);
+
+  const onTeam = await db
+    .select({ playerId: teamMembers.playerId })
+    .from(teamMembers)
+    .where(eq(teamMembers.teamId, teamId));
+
+  const onTeamIds = new Set(onTeam.map((row) => row.playerId));
+
+  return {
+    players: roster
+      .filter((player) => !onTeamIds.has(player.id))
+      .map((player) => ({
+        id: player.id,
+        name: player.name,
+        weight: formatWeightKg(player.weight),
+        batch: player.batchName ?? "—",
+        avatarColor: player.avatarColor,
+      })),
+  };
+}
+
+export async function assertCoachSportAssigned(
+  academyId: string,
+  coachId: string,
+  sportId: string
+): Promise<void> {
+  const { listCoachAssignments } = await import("@/lib/repositories/coaches");
+  const assignments = await listCoachAssignments(academyId, coachId);
+  const hasSport = assignments.some((group) => group.sportId === sportId);
+  if (!hasSport) {
+    throw new Error("You are not assigned to this sport.");
+  }
+}

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { DashboardCredentialsCard } from "@/components/academy/dashboard/DashboardCredentialsCard";
 import { PageBody, PageHeader, StatCard, StatGrid } from "@/components/academy/shared";
 import { FeeTrendChart } from "@/components/academy/dashboard/FeeTrendChart";
 import { PlayersBySportChart } from "@/components/academy/dashboard/PlayersBySportChart";
@@ -27,6 +28,7 @@ import {
   type TrendMonths,
 } from "@/lib/repositories/dashboard";
 import { resolveAcademy } from "@/lib/repositories/resolve-academy";
+import { getCredentialSummary } from "@/lib/repositories/credentials";
 
 const statIcons = [UsersIcon, CashIcon, CalendarIcon, TrophyIcon];
 
@@ -87,6 +89,21 @@ export async function DashboardStatsSection({ academyId }: DashboardStatsSection
   );
 }
 
+type DashboardCredentialsSectionProps = {
+  academyId: string;
+};
+
+export async function DashboardCredentialsSection({ academyId }: DashboardCredentialsSectionProps) {
+  const summary = await getCredentialSummary(academyId);
+  const pendingTotal =
+    summary.athletes.total -
+    summary.athletes.provisioned +
+    (summary.coaches.total - summary.coaches.provisioned) +
+    (summary.staff.total - summary.staff.provisioned);
+
+  return <DashboardCredentialsCard academyId={academyId} pendingTotal={pendingTotal} />;
+}
+
 type DashboardChartsSectionProps = {
   academyId: string;
   trendMonths: TrendMonths;
@@ -144,6 +161,14 @@ export function DashboardPageSections({ academyId, trendMonths }: DashboardPageS
 
       <Suspense fallback={<StatGridSkeleton />}>
         <DashboardStatsSection academyId={academyId} />
+      </Suspense>
+
+      <Suspense
+        fallback={
+          <div className="h-[88px] rounded-2xl bg-line/60 animate-pulse min-w-0 w-full" aria-busy />
+        }
+      >
+        <DashboardCredentialsSection academyId={academyId} />
       </Suspense>
 
       <Suspense fallback={<ChartRowSkeleton />}>

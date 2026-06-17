@@ -3,6 +3,11 @@ import { AcademyAccessError, requireAcademyAccess } from "@/lib/auth/require-aca
 import { loadEnv } from "@/lib/load-env";
 import { validateUpdateTeamMemberPayload, type UpdateTeamMemberPayload } from "@/lib/teams";
 import {
+  assertCoachCanManageTeam,
+  getTeamAccessContext,
+  handleTeamRouteError,
+} from "@/app/api/v1/academies/[academyId]/teams/_auth";
+import {
   removeTeamMember,
   updateTeamMemberRole,
   updateTeamMemberSelection,
@@ -20,6 +25,16 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     const { academyId, teamId, playerId } = await context.params;
     await requireAcademyAccess(academyId);
+
+    const access = await getTeamAccessContext(academyId);
+    if (!access.ok) {
+      return access.response;
+    }
+
+    const manageError = await assertCoachCanManageTeam(academyId, teamId, access.context);
+    if (manageError) {
+      return manageError;
+    }
 
     const body = (await request.json()) as UpdateTeamMemberPayload;
     const validationError = validateUpdateTeamMemberPayload(body);
@@ -60,6 +75,16 @@ export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const { academyId, teamId, playerId } = await context.params;
     await requireAcademyAccess(academyId);
+
+    const access = await getTeamAccessContext(academyId);
+    if (!access.ok) {
+      return access.response;
+    }
+
+    const manageError = await assertCoachCanManageTeam(academyId, teamId, access.context);
+    if (manageError) {
+      return manageError;
+    }
 
     await removeTeamMember(academyId, teamId, playerId);
     return new NextResponse(null, { status: 204 });

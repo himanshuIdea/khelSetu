@@ -10,6 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { academies, batches, sports } from "../academy";
+import { users } from "../identity";
 import { primaryId, timestamps } from "../_shared";
 
 export const peopleSchema = pgSchema("people");
@@ -58,6 +59,7 @@ export const players = peopleSchema.table(
     academyId: uuid("academy_id")
       .notNull()
       .references(() => academies.id),
+    userId: uuid("user_id").references(() => users.id),
     externalId: text("external_id").notNull(),
     fullName: text("full_name").notNull(),
     sportId: uuid("sport_id")

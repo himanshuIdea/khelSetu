@@ -4,7 +4,7 @@ import { createAuthResponse } from "@/lib/auth/response";
 import {
   AuthError,
   InvalidCredentialsError,
-  loginWithPassword,
+  loginWithIdentifier,
   loginWithPhone,
 } from "@/lib/repositories/auth";
 
@@ -12,32 +12,42 @@ export const runtime = "nodejs";
 
 loadEnv();
 
+import type { PortalKind } from "@/lib/auth/portal-login";
+
 type LoginBody = {
   mode: "password" | "otp";
+  identifier?: string;
   email?: string;
   password?: string;
   phone?: string;
   otp?: string;
+  portal?: PortalKind;
+  next?: string;
 };
 
 export async function POST(request: Request) {
   const body = (await request.json()) as LoginBody;
+  const authOptions = {
+    portal: body.portal,
+    next: body.next,
+  };
 
   try {
     if (body.mode === "password") {
-      if (!body.email?.trim() || !body.password?.trim()) {
+      const identifier = (body.identifier ?? body.email)?.trim();
+      if (!identifier || !body.password?.trim()) {
         return NextResponse.json(
-          { error: "Email and password are required." },
+          { error: "Username, email, or phone and password are required." },
           { status: 400 }
         );
       }
 
-      const profile = await loginWithPassword({
-        email: body.email,
+      const profile = await loginWithIdentifier({
+        identifier,
         password: body.password,
       });
 
-      return createAuthResponse(profile);
+      return createAuthResponse(profile, authOptions);
     }
 
     if (!body.phone?.trim() || !body.otp?.trim()) {
@@ -52,7 +62,7 @@ export async function POST(request: Request) {
       otp: body.otp,
     });
 
-    return createAuthResponse(profile);
+    return createAuthResponse(profile, authOptions);
   } catch (error) {
     if (error instanceof InvalidCredentialsError || error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: 401 });

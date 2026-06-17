@@ -12,6 +12,7 @@ export default function DashboardLoading() {
       <div className="animate-pulse space-y-4 min-w-0" aria-busy aria-label="Loading dashboard">
         <PageHeaderSkeleton />
         <StatGridSkeleton />
+        <div className="h-[88px] rounded-2xl bg-line/60" />
         <ChartRowSkeleton />
         <SessionsRowSkeleton />
       </div>

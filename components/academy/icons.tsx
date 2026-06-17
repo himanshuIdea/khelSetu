@@ -231,6 +231,27 @@ export function CheckIcon({ className = "w-[11px] h-[11px]" }: IconProps) {
   );
 }
 
+export function CopyIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125H5.625c-.621 0-1.125-.504-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125h3.375"
+      />
+      <path
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M8.25 15.75h7.5c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125h-7.5c-.621 0-1.125.504-1.125 1.125v9c0 .621.504 1.125 1.125 1.125z"
+      />
+    </Svg>
+  );
+}
+
 export function UpIcon({ className = "w-[13px] h-[13px]" }: IconProps) {
   return (
     <Svg className={className}>

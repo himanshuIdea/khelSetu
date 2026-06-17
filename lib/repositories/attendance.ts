@@ -38,6 +38,41 @@ export async function getAttendanceFormOptions(academyId: string): Promise<Atten
   return { sports: sportRows, batches: batchRows };
 }
 
+export async function getCoachAttendanceFormOptions(
+  academyId: string,
+  coachId: string
+): Promise<AttendanceFormOptions> {
+  const rows = await db
+    .select({
+      batchId: batches.id,
+      batchName: batches.name,
+      sportId: sports.id,
+      sportName: sports.name,
+    })
+    .from(batchCoaches)
+    .innerJoin(batches, eq(batchCoaches.batchId, batches.id))
+    .innerJoin(sports, eq(batches.sportId, sports.id))
+    .where(and(eq(batchCoaches.coachId, coachId), eq(batches.academyId, academyId)))
+    .orderBy(sports.name, batches.name);
+
+  const sportMap = new Map<string, string>();
+  const batchRows: AttendanceFormOptions["batches"] = [];
+
+  for (const row of rows) {
+    sportMap.set(row.sportId, row.sportName);
+    batchRows.push({
+      id: row.batchId,
+      name: row.batchName,
+      sportId: row.sportId,
+    });
+  }
+
+  return {
+    sports: [...sportMap.entries()].map(([id, name]) => ({ id, name })),
+    batches: batchRows,
+  };
+}
+
 async function assertBatchInAcademy(academyId: string, batchId: string) {
   const [batch] = await db
     .select({ id: batches.id, sportId: batches.sportId, name: batches.name })

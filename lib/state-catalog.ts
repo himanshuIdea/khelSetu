@@ -1,0 +1,41 @@
+/** All 22 districts of Haryana (matches onboarding district suggestions). */
+export const HARYANA_DISTRICTS = [
+  "Ambala",
+  "Bhiwani",
+  "Charkhi Dadri",
+  "Faridabad",
+  "Fatehabad",
+  "Gurugram",
+  "Hisar",
+  "Jhajjar",
+  "Jind",
+  "Kaithal",
+  "Karnal",
+  "Kurukshetra",
+  "Mahendragarh",
+  "Nuh",
+  "Palwal",
+  "Panchkula",
+  "Panipat",
+  "Rewari",
+  "Rohtak",
+  "Sirsa",
+  "Sonipat",
+  "Yamunanagar",
+] as const;
+
+/** Haryana state-level featured sports (matches onboarding sport suggestions). */
+export const HARYANA_FEATURED_SPORTS = [
+  "Wrestling",
+  "Boxing",
+  "Athletics",
+  "Kabaddi",
+  "Hockey",
+  "Football",
+  "Cricket",
+  "Judo",
+  "Taekwondo",
+  "Weightlifting",
+  "Badminton",
+  "Volleyball",
+] as const;

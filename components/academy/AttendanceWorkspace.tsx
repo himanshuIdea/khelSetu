@@ -34,6 +34,8 @@ type AttendanceWorkspaceProps = {
   formOptions: AttendanceFormOptions;
   sessions: AttendanceSession[];
   children?: React.ReactNode;
+  coachMode?: boolean;
+  initialBatchId?: string;
 };
 
 type LocalStatusMap = Record<string, AttendanceMarkStatus | null>;
@@ -84,11 +86,20 @@ export function AttendanceWorkspace({
   formOptions,
   sessions,
   children,
+  coachMode = false,
+  initialBatchId,
 }: AttendanceWorkspaceProps) {
   const router = useRouter();
-  const defaultSportId = formOptions.sports[0]?.id ?? "";
+  const defaultSportId =
+    (initialBatchId
+      ? formOptions.batches.find((batch) => batch.id === initialBatchId)?.sportId
+      : undefined) ??
+    formOptions.sports[0]?.id ??
+    "";
   const defaultBatchId =
-    formOptions.batches.find((batch) => batch.sportId === defaultSportId)?.id ?? "";
+    initialBatchId ??
+    formOptions.batches.find((batch) => batch.sportId === defaultSportId)?.id ??
+    "";
 
   const [sportId, setSportId] = useState(defaultSportId);
   const [batchId, setBatchId] = useState(defaultBatchId);
@@ -251,6 +262,7 @@ export function AttendanceWorkspace({
     <div className="min-w-0 w-full">
       {children}
 
+      {!coachMode && (
       <div className="flex gap-1 p-1 mb-4 rounded-[11px] border border-line bg-surface/60 w-full sm:w-fit min-w-0">
         <button
           type="button"
@@ -275,12 +287,13 @@ export function AttendanceWorkspace({
           Staff
         </button>
       </div>
+      )}
 
-      {activeTab === "staff" ? (
+      {!coachMode && activeTab === "staff" ? (
         <StaffAttendanceSection academyId={academyId} />
       ) : null}
 
-      {activeTab === "athletes" ? (
+      {coachMode || activeTab === "athletes" ? (
       <>
       <div className="bg-card border border-line rounded-(--radius) shadow-card p-4 sm:p-5 mb-4 min-w-0">
         <div className="flex items-start gap-3 min-w-0">
@@ -573,6 +586,7 @@ export function AttendanceWorkspace({
         </div>
       )}
 
+      {!coachMode && (
       <div className="min-w-0 w-full">
         <SectionTitle title="Recent sessions" subtitle="All batches — tap a row to jump to marking." />
         {sessions.length === 0 ? (
@@ -639,6 +653,7 @@ export function AttendanceWorkspace({
           </>
         )}
       </div>
+      )}
       </>
       ) : null}
     </div>

@@ -14,6 +14,13 @@ export {
 } from "@/lib/rbac/routes";
 
 export {
+  MEMBERSHIP_ROLES,
+  isPlayerMembershipRole,
+  isStaffMembershipRole,
+  type MembershipRole,
+} from "@/lib/rbac/membership-roles";
+
+export {
   hasPlatformRole,
   canAccessRoute,
   canAccessStateRoutes,

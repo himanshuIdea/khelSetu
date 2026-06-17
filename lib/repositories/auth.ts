@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { academies, academyMemberships, users } from "@/db/schema";
 import { verifyOtpChallenge } from "@/lib/auth/otp";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { normalizeUsername } from "@/lib/auth/username";
 import type { AuthProfile } from "@/lib/auth/types";
 import { db, isUniqueViolation } from "@/lib/db";
 import { getInitials } from "@/lib/onboarding";
@@ -50,11 +51,13 @@ function toAuthProfile(
 
   return {
     id: user.id,
+    username: user.username,
     email: user.email,
     phone: user.phone,
     fullName: user.fullName,
     platformRole: user.platformRole,
     phoneVerified: user.phoneVerified,
+    mustChangePassword: user.mustChangePassword,
     academies: academiesList,
     needsAcademyOnboarding: !isStateAdmin(user.platformRole) && academiesList.length === 0,
   };
@@ -143,24 +146,116 @@ export async function registerWithPhone(input: {
   }
 }
 
-export async function loginWithPassword(input: {
-  email: string;
-  password: string;
-}): Promise<AuthProfile> {
-  const email = normalizeEmail(input.email);
-  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+function looksLikeEmail(value: string) {
+  return value.includes("@");
+}
 
-  if (!user?.passwordHash) {
+function looksLikePhone(value: string) {
+  return /^\+?\d[\d\s-]{7,}$/.test(value.trim());
+}
+
+async function findUserByIdentifier(identifier: string) {
+  const trimmed = identifier.trim();
+  if (!trimmed) return null;
+
+  if (looksLikeEmail(trimmed)) {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, normalizeEmail(trimmed)))
+      .limit(1);
+    return user ?? null;
+  }
+
+  if (looksLikePhone(trimmed)) {
+    const phone = normalizePhone(trimmed);
+    const [user] = await db.select().from(users).where(eq(users.phone, phone)).limit(1);
+    return user ?? null;
+  }
+
+  const username = normalizeUsername(trimmed);
+  const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
+  return user ?? null;
+}
+
+async function authenticatePasswordUser(user: DbUser, password: string): Promise<AuthProfile> {
+  if (!user.passwordHash) {
     throw new InvalidCredentialsError();
   }
 
-  const valid = await verifyPassword(input.password, user.passwordHash);
+  const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) {
     throw new InvalidCredentialsError();
   }
 
   const memberships = await getMembershipsForUser(user.id);
   return toAuthProfile(user, memberships);
+}
+
+export async function loginWithPassword(input: {
+  email: string;
+  password: string;
+}): Promise<AuthProfile> {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, normalizeEmail(input.email)))
+    .limit(1);
+
+  if (!user) {
+    throw new InvalidCredentialsError();
+  }
+
+  return authenticatePasswordUser(user, input.password);
+}
+
+export async function loginWithIdentifier(input: {
+  identifier: string;
+  password: string;
+}): Promise<AuthProfile> {
+  const user = await findUserByIdentifier(input.identifier);
+  if (!user) {
+    throw new InvalidCredentialsError();
+  }
+
+  return authenticatePasswordUser(user, input.password);
+}
+
+export async function changePassword(input: {
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+}): Promise<AuthProfile> {
+  const newPassword = input.newPassword.trim();
+  if (newPassword.length < 8) {
+    throw new AuthError("New password must be at least 8 characters.");
+  }
+
+  const [user] = await db.select().from(users).where(eq(users.id, input.userId)).limit(1);
+  if (!user?.passwordHash) {
+    throw new InvalidCredentialsError();
+  }
+
+  const valid = await verifyPassword(input.currentPassword, user.passwordHash);
+  if (!valid) {
+    throw new InvalidCredentialsError("Current password is incorrect.");
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+
+  const [updated] = await db
+    .update(users)
+    .set({
+      passwordHash,
+      mustChangePassword: false,
+      passwordChangedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, input.userId))
+    .returning();
+
+  const memberships = await getMembershipsForUser(updated.id);
+  return toAuthProfile(updated, memberships);
 }
 
 export async function loginWithPhone(input: {

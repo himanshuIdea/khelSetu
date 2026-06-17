@@ -604,3 +604,155 @@ export async function removePlayer(academyId: string, externalId: string) {
     await tx.delete(batchEnrollments).where(eq(batchEnrollments.playerId, existing.id));
   });
 }
+
+export type CoachPlayerFilters = {
+  batchId?: string;
+  status?: "all" | "active" | "on_hold";
+};
+
+export type CoachPlayerFormOptions = {
+  batches: { id: string; name: string; sportId: string }[];
+};
+
+export async function getCoachPlayerFormOptions(
+  academyId: string,
+  coachId: string
+): Promise<CoachPlayerFormOptions> {
+  const { listCoachAssignments } = await import("@/lib/repositories/coaches");
+  const assignments = await listCoachAssignments(academyId, coachId);
+
+  const batches = assignments.flatMap((group) =>
+    group.batches.map((batch) => ({
+      id: batch.id,
+      name: batch.name,
+      sportId: group.sportId,
+    }))
+  );
+
+  return { batches };
+}
+
+export async function getCoachPlayers(
+  academyId: string,
+  coachId: string,
+  filters: CoachPlayerFilters = {}
+): Promise<Player[]> {
+  const { getCoachAssignedBatchIds } = await import("@/lib/repositories/coaches");
+  const batchIds = await getCoachAssignedBatchIds(academyId, coachId);
+
+  if (batchIds.length === 0) {
+    return [];
+  }
+
+  const scopedBatchIds = filters.batchId
+    ? batchIds.includes(filters.batchId)
+      ? [filters.batchId]
+      : []
+    : batchIds;
+
+  if (scopedBatchIds.length === 0) {
+    return [];
+  }
+
+  const statusCondition =
+    filters.status === "active"
+      ? eq(players.status, "active")
+      : filters.status === "on_hold"
+        ? eq(players.status, "on_hold")
+        : inArray(players.status, ["active", "on_hold"]);
+
+  const rows = await db
+    .select({
+      player: players,
+      sportName: sports.name,
+      batchName: batches.name,
+    })
+    .from(players)
+    .innerJoin(sports, eq(players.sportId, sports.id))
+    .leftJoin(batches, eq(players.batchId, batches.id))
+    .where(
+      and(
+        eq(players.academyId, academyId),
+        inArray(players.batchId, scopedBatchIds),
+        statusCondition
+      )
+    );
+
+  const playerIds = rows.map((row) => row.player.id);
+
+  const attendanceRows =
+    playerIds.length > 0
+      ? await db
+          .select({
+            playerId: attendanceRecords.playerId,
+            present: sql<number>`count(*) filter (where ${attendanceRecords.status} = 'present')`,
+            total: sql<number>`count(*)`,
+          })
+          .from(attendanceRecords)
+          .where(inArray(attendanceRecords.playerId, playerIds))
+          .groupBy(attendanceRecords.playerId)
+      : [];
+
+  const attendanceByPlayer = new Map(
+    attendanceRows.map((row) => [
+      row.playerId,
+      formatPlayerAttendanceRate(row.present, row.total),
+    ])
+  );
+
+  return rows.map((row) => ({
+    initials: getInitials(row.player.fullName),
+    name: row.player.fullName,
+    id: row.player.externalId,
+    age: formatAge(row.player.dateOfBirth),
+    sport: row.sportName,
+    weight: formatWeightKg(row.player.weightCategory),
+    batch: row.batchName ?? "—",
+    fees: "—",
+    feesVariant: "grey" as const,
+    attendance: attendanceByPlayer.get(row.player.id) ?? "—",
+    status: row.player.status === "on_hold" ? "On hold" : "Active",
+    statusVariant: row.player.status === "on_hold" ? "amber" : "green",
+    avatarColor: row.player.avatarColor,
+  }));
+}
+
+export async function getCoachPlayerDetail(
+  academyId: string,
+  coachId: string,
+  externalId: string
+): Promise<PlayerDetail | null> {
+  const { getCoachAssignedBatchIds } = await import("@/lib/repositories/coaches");
+  const batchIds = await getCoachAssignedBatchIds(academyId, coachId);
+
+  const [row] = await db
+    .select({ batchId: players.batchId })
+    .from(players)
+    .where(and(eq(players.academyId, academyId), eq(players.externalId, externalId)))
+    .limit(1);
+
+  if (!row?.batchId || !batchIds.includes(row.batchId)) {
+    return null;
+  }
+
+  return getPlayerDetail(academyId, externalId);
+}
+
+export async function isCoachPlayerInScope(
+  academyId: string,
+  coachId: string,
+  externalId: string
+): Promise<boolean> {
+  const detail = await getCoachPlayerDetail(academyId, coachId, externalId);
+  return detail !== null;
+}
+
+export async function resolvePlayerForUser(academyId: string, userId: string) {
+  const [row] = await db
+    .select({ id: players.id })
+    .from(players)
+    .where(and(eq(players.academyId, academyId), eq(players.userId, userId)))
+    .limit(1);
+
+  return row ?? null;
+}

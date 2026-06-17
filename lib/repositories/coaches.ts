@@ -9,6 +9,7 @@ import {
   playerCoachAssignments,
   players,
   sports,
+  staff,
 } from "@/db/schema";
 import type {
   AssignCoachFormOptions,
@@ -21,7 +22,7 @@ import type {
   UpdateCoachAssignmentPayload,
 } from "@/lib/coaches";
 import { formatTimeAgo, getInitials, nisLevelLabel } from "@/lib/format";
-import type { Coach, PendingReview } from "./types";
+import type { Coach, CoachPortalMeta, PendingReview } from "./types";
 
 async function getActivePlayerCountsByCoach(academyId: string) {
   const rows = await db
@@ -714,4 +715,133 @@ export async function updateCoachSportAssignment(
       addedBatchCount: addedBatchIds.length,
     };
   });
+}
+
+export async function resolveCoachForUser(academyId: string, userId: string) {
+  const [direct] = await db
+    .select()
+    .from(coaches)
+    .where(and(eq(coaches.academyId, academyId), eq(coaches.userId, userId)))
+    .limit(1);
+
+  if (direct) return direct;
+
+  const [viaStaff] = await db
+    .select({ coach: coaches })
+    .from(coaches)
+    .innerJoin(staff, eq(coaches.staffId, staff.id))
+    .where(and(eq(coaches.academyId, academyId), eq(staff.userId, userId)))
+    .limit(1);
+
+  return viaStaff?.coach ?? null;
+}
+
+export async function getCoachAssignedBatchIds(academyId: string, coachId: string): Promise<string[]> {
+  const rows = await db
+    .select({ batchId: batchCoaches.batchId })
+    .from(batchCoaches)
+    .innerJoin(batches, eq(batchCoaches.batchId, batches.id))
+    .where(and(eq(batchCoaches.coachId, coachId), eq(batches.academyId, academyId)));
+
+  return rows.map((row) => row.batchId);
+}
+
+export async function assertCoachAssignedToBatch(
+  academyId: string,
+  coachId: string,
+  batchId: string
+): Promise<void> {
+  const batchIds = await getCoachAssignedBatchIds(academyId, coachId);
+  if (!batchIds.includes(batchId)) {
+    throw new Error("You are not assigned to this batch.");
+  }
+}
+
+export async function getCoachPortalMeta(academyId: string, coachId: string): Promise<CoachPortalMeta> {
+  const coach = await assertCoachInAcademy(academyId, coachId);
+  const nis = nisLevelLabel(coach.nisLevel);
+
+  return {
+    id: coach.id,
+    name: coach.fullName,
+    role: coach.roleTitle,
+    initials: getInitials(coach.fullName),
+    avatarColor: coach.avatarColor,
+    badge: nis.badge,
+    badgeLabel: nis.label,
+    rating: Number(coach.rating),
+    drillsPerWeek: coach.drillsPerWeek,
+  };
+}
+
+export type CoachHomeBatch = {
+  id: string;
+  name: string;
+  isPrimary: boolean;
+  playerCount: number;
+};
+
+export type CoachHomeAssignmentGroup = {
+  sportId: string;
+  sportName: string;
+  nisLevel: CoachAssignmentGroup["nisLevel"];
+  batches: CoachHomeBatch[];
+};
+
+export type CoachHomeSummary = {
+  coach: CoachPortalMeta;
+  assignments: CoachHomeAssignmentGroup[];
+  totalPlayers: number;
+  batchCount: number;
+};
+
+export async function getCoachHomeSummary(academyId: string, coachId: string): Promise<CoachHomeSummary> {
+  const [coachMeta, assignments] = await Promise.all([
+    getCoachPortalMeta(academyId, coachId),
+    listCoachAssignments(academyId, coachId),
+  ]);
+
+  const batchIds = assignments.flatMap((group) => group.batches.map((batch) => batch.id));
+
+  const playerCounts =
+    batchIds.length > 0
+      ? await db
+          .select({
+            batchId: players.batchId,
+            count: sql<number>`count(*)`,
+          })
+          .from(players)
+          .where(
+            and(
+              eq(players.academyId, academyId),
+              inArray(players.batchId, batchIds),
+              inArray(players.status, ["active", "on_hold"])
+            )
+          )
+          .groupBy(players.batchId)
+      : [];
+
+  const countByBatch = new Map(
+    playerCounts.map((row) => [row.batchId, Number(row.count)])
+  );
+
+  const enrichedAssignments: CoachHomeAssignmentGroup[] = assignments.map((group) => ({
+    ...group,
+    batches: group.batches.map((batch) => ({
+      ...batch,
+      playerCount: countByBatch.get(batch.id) ?? 0,
+    })),
+  }));
+
+  const totalPlayers = enrichedAssignments.reduce(
+    (sum, group) => sum + group.batches.reduce((batchSum, batch) => batchSum + batch.playerCount, 0),
+    0
+  );
+
+  return {
+    coach: coachMeta,
+    assignments: enrichedAssignments,
+    totalPlayers,
+    batchCount: batchIds.length,
+  };
 }

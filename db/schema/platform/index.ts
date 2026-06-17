@@ -1,10 +1,17 @@
-import { jsonb, pgEnum, pgSchema, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { jsonb, pgEnum, pgSchema, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { academies } from "../academy";
-import { primaryId } from "../_shared";
+import { users } from "../identity";
+import { primaryId, timestamps } from "../_shared";
 
 export const platformSchema = pgSchema("platform");
 
 export const reportStatusEnum = pgEnum("report_status", ["pending", "ready", "failed"]);
+
+export const nurseryVerificationStatusEnum = pgEnum("nursery_verification_status", [
+  "verified",
+  "pending",
+  "flagged",
+]);
 
 export const activityEvents = platformSchema.table("activity_events", {
   id: primaryId(),
@@ -41,3 +48,22 @@ export const reportExports = platformSchema.table("report_exports", {
   generatedAt: timestamp("generated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** State-recognized sports nursery registry (links to academy). */
+export const stateNurseryRegistrations = platformSchema.table(
+  "state_nursery_registrations",
+  {
+    id: primaryId(),
+    academyId: uuid("academy_id")
+      .notNull()
+      .references(() => academies.id),
+    verificationStatus: nurseryVerificationStatusEnum("verification_status")
+      .notNull()
+      .default("verified"),
+    registeredByUserId: uuid("registered_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("state_nursery_registrations_academy_idx").on(table.academyId)]
+);

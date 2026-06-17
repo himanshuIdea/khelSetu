@@ -1,8 +1,13 @@
 "use client";
 
+/**
+ * Mockup preview frame — device bezel for gallery/demo only.
+ * The live athlete app uses `PlayerLayoutClient` at `/player/*` (full viewport).
+ */
+
 import { usePathname } from "next/navigation";
-import { getActiveMobileNavItem } from "@/lib/mobile-nav";
-import { MobileTabBar } from "./MobileTabBar";
+import { getActivePlayerNavItem, playerRouteShowsTabBar } from "@/lib/player-nav";
+import { PlayerTabBar } from "./PlayerTabBar";
 
 type PhoneShellProps = {
   children: React.ReactNode;
@@ -41,7 +46,8 @@ function StatusBar() {
 
 export function PhoneShell({ children, showTabBar = true }: PhoneShellProps) {
   const pathname = usePathname();
-  const activeItem = getActiveMobileNavItem(pathname);
+  const activeItem = getActivePlayerNavItem(pathname);
+  const tabBarVisible = showTabBar && playerRouteShowsTabBar(pathname);
 
   return (
     <div className="min-h-screen bg-[#cfd6e4] flex items-center justify-center p-6 md:p-10">
@@ -50,7 +56,7 @@ export function PhoneShell({ children, showTabBar = true }: PhoneShellProps) {
           <div className="absolute top-[13px] left-1/2 -translate-x-1/2 w-[122px] h-[30px] bg-[#0B1424] rounded-b-[18px] z-10" />
           <StatusBar />
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">{children}</div>
-          {showTabBar && <MobileTabBar activeItem={activeItem} />}
+          {tabBarVisible && <PlayerTabBar activeItem={activeItem} />}
         </div>
       </div>
     </div>

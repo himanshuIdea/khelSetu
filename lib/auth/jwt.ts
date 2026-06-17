@@ -33,12 +33,14 @@ export async function signSessionToken(input: {
   email?: string | null;
   phone?: string | null;
   platformRole?: PlatformRole | null;
+  mustChangePassword?: boolean;
 }): Promise<string> {
   const payload: SessionTokenPayload = {
     sub: input.userId,
     ...(input.email ? { email: input.email } : {}),
     ...(input.phone ? { phone: input.phone } : {}),
     ...(input.platformRole ? { platformRole: input.platformRole } : {}),
+    ...(input.mustChangePassword ? { mustChangePassword: true } : {}),
   };
 
   return new SignJWT(payload)
@@ -63,6 +65,7 @@ export async function verifySessionToken(
         payload.platformRole === PLATFORM_ROLES.STATE_ADMIN
           ? PLATFORM_ROLES.STATE_ADMIN
           : undefined,
+      mustChangePassword: payload.mustChangePassword === true,
     };
   } catch {
     return null;
