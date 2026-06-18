@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   BoltIcon,
@@ -9,6 +11,7 @@ import {
   UsersIcon,
   VideoIcon,
 } from "@/components/academy/icons";
+import { PortalLogoutButton } from "@/components/auth/PortalLogoutButton";
 import type { AcademyMeta, CoachPortalMeta } from "@/lib/repositories/types";
 import { coachRoutes, type CoachNavItem } from "@/lib/coach-nav";
 
@@ -94,20 +97,23 @@ export function CoachSidebar({
         ))}
       </nav>
 
-      <div className="shrink-0 mt-auto flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5">
-        <div
-          className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center font-bold text-[13px] text-white shrink-0"
-          style={{ background: coachMeta.avatarColor }}
-        >
-          {coachMeta.initials}
-        </div>
-        <div className="min-w-0">
-          <div className="text-[12.5px] font-semibold text-white truncate">{coachMeta.name}</div>
-          <div className="text-[11px] text-[#8c97b3] flex items-center gap-1 truncate">
-            <CapIcon className="w-3 h-3 shrink-0" />
-            {coachMeta.role}
+      <div className="shrink-0 mt-auto">
+        <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5">
+          <div
+            className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center font-bold text-[13px] text-white shrink-0"
+            style={{ background: coachMeta.avatarColor }}
+          >
+            {coachMeta.initials}
+          </div>
+          <div className="min-w-0">
+            <div className="text-[12.5px] font-semibold text-white truncate">{coachMeta.name}</div>
+            <div className="text-[11px] text-[#8c97b3] flex items-center gap-1 truncate">
+              <CapIcon className="w-3 h-3 shrink-0" />
+              {coachMeta.role}
+            </div>
           </div>
         </div>
+        <PortalLogoutButton portal="coach" variant="sidebar" onLoggedOut={onNavigate} />
       </div>
     </aside>
   );

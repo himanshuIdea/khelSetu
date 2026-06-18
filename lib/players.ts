@@ -137,7 +137,7 @@ export function validatePlayerPayload(
   payload: CreatePlayerPayload | UpdatePlayerPayload
 ): string | null {
   if (!payload.fullName.trim()) return "Player name is required.";
-  if (!payload.sportId.trim()) return "Sport is required.";
+  if (!payload.sportId?.trim()) return "Sport is required.";
   if (!payload.batchId?.trim()) return "Batch is required.";
   if (payload.monthlyFeePaise != null && payload.monthlyFeePaise < 0) {
     return "Monthly fee cannot be negative.";

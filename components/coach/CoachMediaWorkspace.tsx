@@ -14,21 +14,27 @@ import {
   StatCard,
   StatGrid,
 } from "@/components/academy/shared";
+import { InlineVideoPlayer } from "@/components/shared/InlineVideoPlayer";
+import { api, ApiError } from "@/lib/api";
 import { coachRoutes } from "@/lib/coach-nav";
 import type {
+  AcademyPublishedMediaItem,
   CoachMediaFilterOptions,
   CoachMediaSubmission,
   CoachMediaTab,
 } from "@/lib/repositories/coach-media";
 
 type CoachMediaWorkspaceProps = {
+  academyId: string;
   submissions: CoachMediaSubmission[];
+  publishedMedia: AcademyPublishedMediaItem[];
   filterOptions: CoachMediaFilterOptions;
   pendingCount: number;
+  myPostCount: number;
 };
 
 type DateFilter = "all" | "7d" | "30d";
-type StatusFilter = "all" | "pending" | "reviewed";
+type MediaTypeFilter = "all" | "player_submission" | "coach_post";
 
 const TAB_LABELS: Record<CoachMediaTab, string> = {
   "to-review": "To review",
@@ -43,20 +49,38 @@ function parseTab(value: string | null): CoachMediaTab {
   return "to-review";
 }
 
-function matchesDateFilter(submittedAt: string, dateFilter: DateFilter): boolean {
+function matchesDateFilter(isoDate: string, dateFilter: DateFilter): boolean {
   if (dateFilter === "all") {
     return true;
   }
-  const submitted = new Date(submittedAt).getTime();
+  const submitted = new Date(isoDate).getTime();
   const days = dateFilter === "7d" ? 7 : 30;
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
   return submitted >= cutoff;
 }
 
+function AccordionChevron({ expanded }: { expanded: boolean }) {
+  return (
+    <span
+      className={`shrink-0 flex items-center justify-center w-9 h-9 text-muted transition-transform duration-200 ${
+        expanded ? "rotate-90" : ""
+      }`}
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
 export function CoachMediaWorkspace({
+  academyId,
   submissions,
+  publishedMedia,
   filterOptions,
   pendingCount,
+  myPostCount,
 }: CoachMediaWorkspaceProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -67,11 +91,14 @@ export function CoachMediaWorkspace({
   const [dateFilter, setDateFilter] = useState<DateFilter>(
     (searchParams.get("date") as DateFilter) ?? "all"
   );
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
-    (searchParams.get("status") as StatusFilter) ?? "all"
+  const [typeFilter, setTypeFilter] = useState<MediaTypeFilter>(
+    (searchParams.get("type") as MediaTypeFilter) ?? "all"
   );
   const [playerQuery, setPlayerQuery] = useState(searchParams.get("player") ?? "");
   const [drillQuery, setDrillQuery] = useState(searchParams.get("drill") ?? "");
+  const [unverifyError, setUnverifyError] = useState<string | null>(null);
+  const [unverifyLoadingId, setUnverifyLoadingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const syncParams = useCallback(
     (next: {
@@ -79,7 +106,7 @@ export function CoachMediaWorkspace({
       sport?: string;
       batch?: string;
       date?: DateFilter;
-      status?: StatusFilter;
+      type?: MediaTypeFilter;
       player?: string;
       drill?: string;
     }) => {
@@ -88,7 +115,7 @@ export function CoachMediaWorkspace({
       const resolvedSport = next.sport ?? sportId;
       const resolvedBatch = next.batch ?? batchId;
       const resolvedDate = next.date ?? dateFilter;
-      const resolvedStatus = next.status ?? statusFilter;
+      const resolvedType = next.type ?? typeFilter;
       const resolvedPlayer = next.player ?? playerQuery;
       const resolvedDrill = next.drill ?? drillQuery;
 
@@ -104,8 +131,8 @@ export function CoachMediaWorkspace({
       if (resolvedDate !== "all") {
         params.set("date", resolvedDate);
       }
-      if (resolvedTab === "academy-media" && resolvedStatus !== "all") {
-        params.set("status", resolvedStatus);
+      if (resolvedTab === "academy-media" && resolvedType !== "all") {
+        params.set("type", resolvedType);
       }
       if (resolvedPlayer.trim()) {
         params.set("player", resolvedPlayer.trim());
@@ -119,7 +146,7 @@ export function CoachMediaWorkspace({
         scroll: false,
       });
     },
-    [batchId, dateFilter, drillQuery, playerQuery, router, sportId, statusFilter, tab]
+    [batchId, dateFilter, drillQuery, playerQuery, router, sportId, tab, typeFilter]
   );
 
   const setTab = (nextTab: CoachMediaTab) => {
@@ -127,7 +154,10 @@ export function CoachMediaWorkspace({
   };
 
   const sportOptions = useMemo(
-    () => [{ value: "all", label: "All sports" }, ...filterOptions.sports.map((s) => ({ value: s.id, label: s.name }))],
+    () => [
+      { value: "all", label: "All sports" },
+      ...filterOptions.sports.map((s) => ({ value: s.id, label: s.name })),
+    ],
     [filterOptions.sports]
   );
 
@@ -136,19 +166,22 @@ export function CoachMediaWorkspace({
       sportId === "all"
         ? filterOptions.batches
         : filterOptions.batches.filter((batch) => batch.sportId === sportId);
-    return [{ value: "all", label: "All batches" }, ...batches.map((b) => ({ value: b.id, label: b.name }))];
+    return [
+      { value: "all", label: "All batches" },
+      ...batches.map((b) => ({ value: b.id, label: b.name })),
+    ];
   }, [filterOptions.batches, sportId]);
 
   const tabCounts = useMemo(
     () => ({
       "to-review": submissions.filter((s) => s.status === "pending").length,
-      "academy-media": submissions.length,
+      "academy-media": publishedMedia.length,
       reviewed: submissions.filter((s) => s.status === "reviewed").length,
     }),
-    [submissions]
+    [publishedMedia.length, submissions]
   );
 
-  const filtered = useMemo(() => {
+  const filteredSubmissions = useMemo(() => {
     return submissions.filter((submission) => {
       if (tab === "to-review" && submission.status !== "pending") {
         return false;
@@ -165,9 +198,6 @@ export function CoachMediaWorkspace({
       if (!matchesDateFilter(submission.submittedAt, dateFilter)) {
         return false;
       }
-      if (tab === "academy-media" && statusFilter !== "all" && submission.status !== statusFilter) {
-        return false;
-      }
       if (playerQuery.trim()) {
         const q = playerQuery.trim().toLowerCase();
         if (!submission.playerName.toLowerCase().includes(q)) {
@@ -182,7 +212,59 @@ export function CoachMediaWorkspace({
       }
       return true;
     });
-  }, [batchId, dateFilter, drillQuery, playerQuery, sportId, statusFilter, submissions, tab]);
+  }, [batchId, dateFilter, drillQuery, playerQuery, sportId, submissions, tab]);
+
+  const filteredPublished = useMemo(() => {
+    return publishedMedia.filter((item) => {
+      if (sportId !== "all" && item.sportId !== sportId) {
+        return false;
+      }
+      if (batchId !== "all" && item.batchId !== batchId) {
+        return false;
+      }
+      if (!matchesDateFilter(item.publishedAt, dateFilter)) {
+        return false;
+      }
+      if (typeFilter !== "all" && item.type !== typeFilter) {
+        return false;
+      }
+      if (playerQuery.trim() && item.authorKind === "player") {
+        const q = playerQuery.trim().toLowerCase();
+        if (!item.authorName.toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      if (drillQuery.trim()) {
+        const q = drillQuery.trim().toLowerCase();
+        if (!item.drillName.toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [batchId, dateFilter, drillQuery, playerQuery, publishedMedia, sportId, typeFilter]);
+
+  function toggleExpanded(key: string) {
+    setExpandedId((current) => (current === key ? null : key));
+  }
+
+  async function handleUnverify(item: AcademyPublishedMediaItem) {
+    const key = `${item.type}:${item.sourceId}`;
+    setUnverifyLoadingId(key);
+    setUnverifyError(null);
+    try {
+      if (item.type === "player_submission") {
+        await api.coach.media.setSubmissionPublished(academyId, item.sourceId, false);
+      } else {
+        await api.coach.media.setDrillPostPublished(academyId, item.sourceId, false);
+      }
+      router.refresh();
+    } catch (err) {
+      setUnverifyError(err instanceof ApiError ? err.message : "Could not remove from academy.");
+    } finally {
+      setUnverifyLoadingId(null);
+    }
+  }
 
   const emptyCopy =
     tab === "to-review"
@@ -196,9 +278,12 @@ export function CoachMediaWorkspace({
             description: "Completed reviews will show up in this list.",
           }
         : {
-            title: "No media matches filters",
-            description: "Try changing sport, batch, date, or search filters.",
+            title: "No published media",
+            description: "Verified player clips and published coach drills appear here.",
           };
+
+  const listEmpty =
+    tab === "academy-media" ? filteredPublished.length === 0 : filteredSubmissions.length === 0;
 
   return (
     <PageBody>
@@ -207,26 +292,60 @@ export function CoachMediaWorkspace({
         subtitle={`${pendingCount} player submission${pendingCount === 1 ? "" : "s"} awaiting your review.`}
       />
 
+      <Link
+        href={coachRoutes.mySubmissions}
+        className="flex items-center gap-3 mb-5 p-4 border border-line rounded-xl bg-card shadow-card min-w-0 min-h-[44px] hover:border-brand/30 transition-colors"
+      >
+        <div
+          className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0"
+          style={{ background: "var(--brand-soft)" }}
+        >
+          <VideoIcon className="w-4 h-4 text-[var(--brand-d)]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-[13.5px] text-ink">My drill videos</div>
+          <div className="text-[12px] text-muted truncate">
+            {myPostCount === 0
+              ? "View and manage videos you've posted"
+              : `${myPostCount} video${myPostCount === 1 ? "" : "s"} posted by you`}
+          </div>
+        </div>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          className="w-4 h-4 text-muted shrink-0"
+          aria-hidden="true"
+        >
+          <path
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M8.25 4.5l7.5 7.5-7.5 7.5"
+          />
+        </svg>
+      </Link>
+
       <div className="mb-5">
         <StatGrid>
           {(Object.keys(TAB_LABELS) as CoachMediaTab[]).map((tabId) => (
-          <button
-            key={tabId}
-            type="button"
-            onClick={() => setTab(tabId)}
-            className="text-left min-w-0"
-          >
-            <StatCard
-              compact
-              value={String(tabCounts[tabId])}
-              label={TAB_LABELS[tabId]}
-              valueColor={tab === tabId ? "var(--brand-d)" : undefined}
-              icon={<VideoIcon className="w-5 h-5" />}
-              iconBg={tab === tabId ? "var(--brand-soft)" : "var(--surface)"}
-              iconColor={tab === tabId ? "var(--brand-d)" : "var(--muted)"}
-            />
-          </button>
-        ))}
+            <button
+              key={tabId}
+              type="button"
+              onClick={() => setTab(tabId)}
+              className="text-left min-w-0"
+            >
+              <StatCard
+                compact
+                value={String(tabCounts[tabId])}
+                label={TAB_LABELS[tabId]}
+                valueColor={tab === tabId ? "var(--brand-d)" : undefined}
+                icon={<VideoIcon className="w-5 h-5" />}
+                iconBg={tab === tabId ? "var(--brand-soft)" : "var(--surface)"}
+                iconColor={tab === tabId ? "var(--brand-d)" : "var(--muted)"}
+              />
+            </button>
+          ))}
         </StatGrid>
       </div>
 
@@ -283,19 +402,19 @@ export function CoachMediaWorkspace({
             <InlineSelect
               variant="pill"
               filterPill
-              aria-label="Filter by status"
-              value={statusFilter}
+              aria-label="Filter by type"
+              value={typeFilter}
               onChange={(value) => {
-                const next = value as StatusFilter;
-                setStatusFilter(next);
-                syncParams({ status: next });
+                const next = value as MediaTypeFilter;
+                setTypeFilter(next);
+                syncParams({ type: next });
               }}
-              active={statusFilter !== "all"}
+              active={typeFilter !== "all"}
               className="shrink-0 text-[12.5px] font-medium px-[13px] py-2"
               options={[
-                { value: "all", label: "All status" },
-                { value: "pending", label: "Pending" },
-                { value: "reviewed", label: "Reviewed" },
+                { value: "all", label: "All types" },
+                { value: "player_submission", label: "Player" },
+                { value: "coach_post", label: "Coach drill" },
               ]}
             />
           )}
@@ -330,16 +449,113 @@ export function CoachMediaWorkspace({
           </label>
         </div>
 
-        {filtered.length === 0 ? (
+        {unverifyError ? (
+          <p className="text-[12px] text-red-600 font-medium mb-3" role="alert">
+            {unverifyError}
+          </p>
+        ) : null}
+
+        {listEmpty ? (
           <EmptyState
             compact
             icon={<VideoIcon className="w-5 h-5" />}
             title={emptyCopy.title}
             description={emptyCopy.description}
           />
+        ) : tab === "academy-media" ? (
+          <div className="flex flex-col gap-[11px] min-w-0">
+            {filteredPublished.map((item) => {
+              const key = `${item.type}:${item.sourceId}`;
+              const isExpanded = expandedId === key;
+              const reviewHref =
+                item.type === "player_submission"
+                  ? `${coachRoutes.media}/${item.sourceId}`
+                  : null;
+
+              return (
+                <div
+                  key={key}
+                  className="border border-line rounded-xl bg-card shadow-card min-w-0 overflow-hidden"
+                >
+                  <div className="flex gap-[11px] items-center p-[11px] min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(key)}
+                      className="flex gap-[11px] items-center flex-1 min-w-0 min-h-[44px] text-left"
+                      aria-expanded={isExpanded}
+                      aria-label={
+                        isExpanded ? `Collapse video for ${item.drillName}` : `Expand video for ${item.drillName}`
+                      }
+                    >
+                      <div
+                        className="w-[46px] h-[34px] rounded-[7px] flex items-center justify-center shrink-0 overflow-hidden"
+                        style={{ background: item.thumbnailGradient }}
+                      >
+                        <VideoIcon className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-[12.5px] text-text truncate">
+                          {item.drillName}
+                        </div>
+                        <div className="text-[11.5px] text-muted truncate">
+                          {item.authorName} · {item.sportName}
+                          {item.batchName ? ` · ${item.batchName}` : ""} · {item.timeAgo}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <Pill variant="green">Verified</Pill>
+                        <Pill variant={item.authorKind === "coach" ? "blue" : "grey"}>
+                          {item.authorKind === "coach" ? "Coach" : "Player"}
+                        </Pill>
+                      </div>
+                      <AccordionChevron expanded={isExpanded} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void handleUnverify(item);
+                      }}
+                      disabled={unverifyLoadingId === key}
+                      className="shrink-0 min-h-[44px] px-3 rounded-[10px] border border-line text-[12px] font-semibold text-red-600 disabled:opacity-60"
+                    >
+                      {unverifyLoadingId === key ? "…" : "Remove"}
+                    </button>
+                  </div>
+
+                  {isExpanded ? (
+                    <div className="px-[11px] pb-[11px] min-w-0 border-t border-line pt-3">
+                      <InlineVideoPlayer
+                        src={item.videoUrl}
+                        posterGradient={item.thumbnailGradient}
+                        durationSeconds={item.durationSeconds}
+                        tag={item.sportName}
+                        variant="review"
+                        objectFit="contain"
+                        ariaLabel={`Play ${item.drillName}`}
+                      />
+                      {item.subtitle ? (
+                        <p className="text-[12.5px] text-muted leading-relaxed mt-3">
+                          {item.subtitle}
+                        </p>
+                      ) : null}
+                      {reviewHref ? (
+                        <Link
+                          href={reviewHref}
+                          className="inline-flex items-center min-h-[44px] mt-2 text-[13px] font-semibold text-brand"
+                        >
+                          Open full review →
+                        </Link>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <div className="flex flex-col gap-[11px] min-w-0">
-            {filtered.map((submission) => (
+            {filteredSubmissions.map((submission) => (
               <Link
                 key={submission.id}
                 href={`${coachRoutes.media}/${submission.id}`}
@@ -360,9 +576,12 @@ export function CoachMediaWorkspace({
                     {submission.batchName ? ` · ${submission.batchName}` : ""} · {submission.timeAgo}
                   </div>
                 </div>
-                <Pill variant={submission.status === "pending" ? "amber" : "green"}>
-                  {submission.status === "pending" ? "Pending" : "Reviewed"}
-                </Pill>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <Pill variant={submission.status === "pending" ? "amber" : "green"}>
+                    {submission.status === "pending" ? "Pending" : "Reviewed"}
+                  </Pill>
+                  {submission.isPublished ? <Pill variant="green">Live</Pill> : null}
+                </div>
               </Link>
             ))}
           </div>

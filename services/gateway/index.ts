@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { checkDatabaseHealth } from "@/lib/db/health";
 import { loadEnv } from "../../lib/load-env";
+import { gatewayAuthMiddleware } from "../shared/auth-middleware";
 import { servicePorts, serviceUrls } from "../shared/config";
 import { formatServiceError } from "../shared/errors";
 import { proxyRequest } from "../shared/proxy";
@@ -34,6 +35,7 @@ app.get("/health/ready", async (c) => {
 });
 
 const v1 = new Hono();
+v1.use("*", gatewayAuthMiddleware);
 
 // Academy service
 v1.all("/academies/:academyId/meta", (c) =>

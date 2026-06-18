@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { VideoIcon } from "@/components/academy/icons";
 import { PageBody, Pill } from "@/components/academy/shared";
+import { InlineVideoPlayer } from "@/components/shared/InlineVideoPlayer";
 import { api, ApiError } from "@/lib/api";
 import { coachRoutes } from "@/lib/coach-nav";
 import type { CoachSubmissionDetail } from "@/lib/repositories/coach-media";
@@ -76,8 +76,11 @@ export function CoachSubmissionReviewWorkspace({
     speed: submission.review?.criteriaScores?.speed ?? 7,
     form: submission.review?.criteriaScores?.form ?? 7,
   });
+  const [publishToAcademy, setPublishToAcademy] = useState(false);
+  const [publishLoading, setPublishLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPublished, setIsPublished] = useState(submission.isPublished);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -89,6 +92,7 @@ export function CoachSubmissionReviewWorkspace({
         rating,
         notes: notes.trim() || null,
         criteriaScores: criteria,
+        publishToAcademy,
       });
       router.push(`${coachRoutes.media}?tab=reviewed`);
       router.refresh();
@@ -96,6 +100,20 @@ export function CoachSubmissionReviewWorkspace({
       setError(err instanceof ApiError ? err.message : "Could not submit review.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleTogglePublish() {
+    setPublishLoading(true);
+    setError(null);
+    try {
+      await api.coach.media.setSubmissionPublished(academyId, submission.id, !isPublished);
+      setIsPublished(!isPublished);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not update publish status.");
+    } finally {
+      setPublishLoading(false);
     }
   }
 
@@ -133,37 +151,78 @@ export function CoachSubmissionReviewWorkspace({
         <div className="text-[11px] font-bold text-muted uppercase tracking-[0.6px] mb-2">
           Player submission
         </div>
-        <div
-          className="w-full h-[180px] rounded-xl flex items-center justify-center relative mb-3"
-          style={{ background: submission.thumbnailGradient }}
-        >
-          <VideoIcon className="w-10 h-10 text-white/90" />
-        </div>
+        <InlineVideoPlayer
+          src={submission.videoUrl}
+          posterGradient={submission.thumbnailGradient}
+          durationSeconds={submission.durationSeconds}
+          tag={submission.sportName}
+          variant="review"
+          objectFit="contain"
+          ariaLabel={`Play ${submission.drillName}`}
+          className="mb-3"
+        />
         <div className="text-[13px] text-muted">Submitted {submission.timeAgo}</div>
       </div>
 
       {isReviewed && existingReview ? (
-        <div className="bg-brand-soft border border-[#FFD9C5] rounded-(--radius) p-4 min-w-0">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="text-[12.5px] font-bold text-brand-d">Coach feedback</div>
-            <div className="inline-flex items-center gap-1 bg-white px-3 py-1.5 rounded-full">
-              <span className="text-[13px] font-bold text-ink">{existingReview.rating}</span>
-              <span className="text-[10px] text-muted">/10</span>
+        <div className="space-y-4 min-w-0">
+          <div className="bg-brand-soft border border-[#FFD9C5] rounded-(--radius) p-4 min-w-0">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="text-[12.5px] font-bold text-brand-d">Coach feedback</div>
+              <div className="inline-flex items-center gap-1 bg-white px-3 py-1.5 rounded-full">
+                <span className="text-[13px] font-bold text-ink">{existingReview.rating}</span>
+                <span className="text-[10px] text-muted">/10</span>
+              </div>
+            </div>
+            {existingReview.notes && (
+              <p className="text-[12.5px] text-[#7a4a30] leading-relaxed mb-4">
+                {existingReview.notes}
+              </p>
+            )}
+            {(Object.keys(CRITERIA_LABELS) as CriteriaKey[]).map((key) => (
+              <CriteriaBar
+                key={key}
+                label={CRITERIA_LABELS[key]}
+                value={existingReview.criteriaScores?.[key] ?? existingReview.rating}
+                readOnly
+              />
+            ))}
+          </div>
+
+          <div className="bg-card border border-line rounded-(--radius) shadow-card p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[12.5px] font-bold text-ink">Academy feed</div>
+                <p className="text-[12px] text-muted mt-1">
+                  {isPublished
+                    ? "This video is visible on player Home and Explore."
+                    : "Not published to academy feeds yet."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleTogglePublish}
+                disabled={publishLoading}
+                className={`min-h-[44px] px-4 rounded-[10px] text-[13px] font-semibold ${
+                  isPublished
+                    ? "border border-line text-red-600"
+                    : "bg-brand text-white"
+                } disabled:opacity-60`}
+              >
+                {publishLoading
+                  ? "Saving…"
+                  : isPublished
+                    ? "Remove from academy"
+                    : "Publish to academy"}
+              </button>
             </div>
           </div>
-          {existingReview.notes && (
-            <p className="text-[12.5px] text-[#7a4a30] leading-relaxed mb-4">
-              {existingReview.notes}
+
+          {error ? (
+            <p className="text-[12.5px] text-red font-medium" role="alert">
+              {error}
             </p>
-          )}
-          {(Object.keys(CRITERIA_LABELS) as CriteriaKey[]).map((key) => (
-            <CriteriaBar
-              key={key}
-              label={CRITERIA_LABELS[key]}
-              value={existingReview.criteriaScores?.[key] ?? existingReview.rating}
-              readOnly
-            />
-          ))}
+          ) : null}
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="bg-card border border-line rounded-(--radius) shadow-card p-4 min-w-0">
@@ -203,6 +262,23 @@ export function CoachSubmissionReviewWorkspace({
               placeholder="Share specific feedback for the athlete…"
               className="w-full rounded-[10px] border border-line bg-surface px-3 py-2.5 text-[13px] text-ink placeholder:text-muted2 resize-y min-h-[100px]"
             />
+          </label>
+
+          <label className="flex items-start gap-3 mb-4 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={publishToAcademy}
+              onChange={(event) => setPublishToAcademy(event.target.checked)}
+              className="mt-1 w-4 h-4 accent-brand"
+            />
+            <span>
+              <span className="text-[12.5px] font-semibold text-ink block">
+                Publish to academy
+              </span>
+              <span className="text-[12px] text-muted">
+                Show on player Home, Explore, and Academy media after review.
+              </span>
+            </span>
           </label>
 
           {error && (

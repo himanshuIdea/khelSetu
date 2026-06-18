@@ -47,6 +47,7 @@ export async function createAuthResponse(
     },
     academies: profile.academies,
     needsAcademyOnboarding: profile.needsAcademyOnboarding,
+    onboardingRequest: profile.onboardingRequest,
     redirectTo,
   });
 

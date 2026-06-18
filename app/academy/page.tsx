@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
-import { SEED_ACADEMY_ID } from "@/lib/seed-constants";
+import { getAcademyBySlug } from "@/lib/repositories/academy";
+import { SEED_ACADEMY_SLUG } from "@/lib/seed-constants";
 
-export default function AcademyIndex() {
-  redirect(`/academy/${SEED_ACADEMY_ID}/dashboard`);
+export default async function AcademyIndex() {
+  const academy = await getAcademyBySlug(SEED_ACADEMY_SLUG);
+  if (!academy) {
+    redirect("/login");
+  }
+  redirect(`/academy/${academy.id}/dashboard`);
 }

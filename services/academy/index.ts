@@ -1,4 +1,4 @@
-import { getAcademyMeta } from "@/lib/repositories/academy";
+import { fetchAcademyMeta } from "@/lib/repositories/academy";
 import { isSlugAvailable } from "@/lib/repositories/onboarding";
 import { isValidAcademyId } from "@/lib/academy-id";
 import { validateBrandedLink } from "@/lib/branded-link";
@@ -18,7 +18,7 @@ createService({
       if (!isValidAcademyId(academyId)) {
         return c.json({ error: "Invalid academy id" }, 400);
       }
-      const meta = await getAcademyMeta(academyId);
+      const meta = await fetchAcademyMeta(academyId);
       if (!meta) return c.json({ error: "Academy not found" }, 404);
       return c.json(meta);
     });

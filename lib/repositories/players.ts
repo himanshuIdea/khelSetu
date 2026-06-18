@@ -7,6 +7,8 @@ import {
   batchEnrollments,
   batches,
   coaches,
+  drillReviews,
+  drillSubmissions,
   feeInvoices,
   feePayments,
   playerCoachAssignments,
@@ -14,6 +16,7 @@ import {
   sports,
   teamMemberResults,
   teamMembers,
+  type DrillReviewCriteriaScores,
 } from "@/db/schema";
 import {
   currentFeePeriod,
@@ -22,6 +25,7 @@ import {
   formatFeeStatus,
   formatPaiseFull,
   formatSportWeightLine,
+  formatTimeAgo,
   formatWeightKg,
   getInitials,
   resolvePlayerFeeDisplay,
@@ -755,4 +759,176 @@ export async function resolvePlayerForUser(academyId: string, userId: string) {
     .limit(1);
 
   return row ?? null;
+}
+
+export type PlayerPortalSkillScore = {
+  key: keyof DrillReviewCriteriaScores;
+  label: string;
+  score: number;
+};
+
+export type PlayerPortalRatingPoint = {
+  rating: number;
+  reviewedAt: string;
+  timeAgo: string;
+};
+
+export type PlayerPortalProfile = {
+  playerId: string;
+  externalId: string;
+  fullName: string;
+  initials: string;
+  avatarColor: string;
+  sportName: string;
+  weightCategory: string | null;
+  batchName: string | null;
+  coachName: string | null;
+  status: string;
+  rating: string | null;
+  attendance: string;
+  sessionsCount: number;
+  drillsDone: number;
+  boutsWon: number;
+  joinedAt: string | null;
+  ratingTrend: PlayerPortalRatingPoint[];
+  skillScores: PlayerPortalSkillScore[];
+};
+
+const SKILL_LABELS: Record<keyof DrillReviewCriteriaScores, string> = {
+  technique: "Technique",
+  speed: "Speed",
+  form: "Form",
+};
+
+function averageSkillScores(
+  rows: { criteria: DrillReviewCriteriaScores | null; rating: number | null }[]
+): PlayerPortalSkillScore[] {
+  const totals: Record<keyof DrillReviewCriteriaScores, { sum: number; count: number }> = {
+    technique: { sum: 0, count: 0 },
+    speed: { sum: 0, count: 0 },
+    form: { sum: 0, count: 0 },
+  };
+
+  for (const row of rows) {
+    const criteria = row.criteria;
+    if (criteria) {
+      for (const key of Object.keys(SKILL_LABELS) as (keyof DrillReviewCriteriaScores)[]) {
+        const value = criteria[key];
+        if (typeof value === "number" && Number.isFinite(value)) {
+          totals[key].sum += value;
+          totals[key].count += 1;
+        }
+      }
+    } else if (row.rating != null) {
+      for (const key of Object.keys(SKILL_LABELS) as (keyof DrillReviewCriteriaScores)[]) {
+        totals[key].sum += row.rating;
+        totals[key].count += 1;
+      }
+    }
+  }
+
+  return (Object.keys(SKILL_LABELS) as (keyof DrillReviewCriteriaScores)[])
+    .map((key) => {
+      const { sum, count } = totals[key];
+      if (count === 0) return null;
+      return {
+        key,
+        label: SKILL_LABELS[key],
+        score: Math.round((sum / count) * 10) / 10,
+      };
+    })
+    .filter((row): row is PlayerPortalSkillScore => row != null);
+}
+
+export async function getPlayerPortalProfile(
+  academyId: string,
+  playerId: string
+): Promise<PlayerPortalProfile | null> {
+  const [row] = await db
+    .select({
+      player: players,
+      sportName: sports.name,
+      coachName: coaches.fullName,
+      batchName: batches.name,
+    })
+    .from(players)
+    .innerJoin(sports, eq(players.sportId, sports.id))
+    .leftJoin(coaches, eq(players.primaryCoachId, coaches.id))
+    .leftJoin(batches, eq(players.batchId, batches.id))
+    .where(and(eq(players.academyId, academyId), eq(players.id, playerId)))
+    .limit(1);
+
+  if (!row) return null;
+
+  const [[wins], [sessionsRow], [drillsRow], attendance, reviewRows, trendRows] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(teamMemberResults)
+      .innerJoin(teamMembers, eq(teamMemberResults.teamMemberId, teamMembers.id))
+      .where(and(eq(teamMembers.playerId, row.player.id), eq(teamMemberResults.result, "W"))),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(attendanceRecords)
+      .where(
+        and(eq(attendanceRecords.playerId, row.player.id), eq(attendanceRecords.status, "present"))
+      ),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(drillSubmissions)
+      .where(eq(drillSubmissions.playerId, row.player.id)),
+    getPlayerAttendanceRate(row.player.id),
+    db
+      .select({
+        criteria: drillReviews.criteriaScores,
+        rating: drillReviews.rating,
+      })
+      .from(drillReviews)
+      .innerJoin(drillSubmissions, eq(drillReviews.submissionId, drillSubmissions.id))
+      .where(eq(drillSubmissions.playerId, row.player.id)),
+    db
+      .select({
+        rating: drillReviews.rating,
+        reviewedAt: drillReviews.reviewedAt,
+      })
+      .from(drillReviews)
+      .innerJoin(drillSubmissions, eq(drillReviews.submissionId, drillSubmissions.id))
+      .where(and(eq(drillSubmissions.playerId, row.player.id), sql`${drillReviews.rating} is not null`))
+      .orderBy(desc(drillReviews.reviewedAt))
+      .limit(8),
+  ]);
+
+  const statusLabel =
+    row.player.status === "on_hold"
+      ? "On hold"
+      : row.player.status === "inactive"
+        ? "Inactive"
+        : "Active";
+
+  return {
+    playerId: row.player.id,
+    externalId: row.player.externalId,
+    fullName: row.player.fullName,
+    initials: getInitials(row.player.fullName),
+    avatarColor: row.player.avatarColor,
+    sportName: row.sportName,
+    weightCategory: row.player.weightCategory,
+    batchName: row.batchName,
+    coachName: row.player.primaryCoachId ? row.coachName : null,
+    status: statusLabel,
+    rating: row.player.rating != null ? String(row.player.rating) : null,
+    attendance,
+    sessionsCount: Number(sessionsRow?.count ?? 0) || 0,
+    drillsDone: Number(drillsRow?.count ?? 0) || 0,
+    boutsWon: Number(wins?.count ?? 0) || 0,
+    joinedAt: row.player.joinedAt ? formatDate(row.player.joinedAt) : null,
+    ratingTrend: trendRows
+      .filter((point) => point.rating != null)
+      .map((point) => ({
+        rating: point.rating!,
+        reviewedAt: point.reviewedAt.toISOString(),
+        timeAgo: formatTimeAgo(point.reviewedAt),
+      }))
+      .reverse(),
+    skillScores: averageSkillScores(reviewRows),
+  };
 }

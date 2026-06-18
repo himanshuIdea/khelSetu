@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AcademyTopBar } from "@/components/academy/AcademyTopBar";
+import { MenuIcon } from "@/components/academy/icons";
 import { CoachSidebar } from "@/components/coach/CoachSidebar";
 import { CoachTabBar } from "@/components/coach/CoachTabBar";
 import {
@@ -71,6 +72,15 @@ export function CoachShellClient({
         >
           <header className="fixed top-0 left-1/2 z-20 w-full max-w-lg min-w-0 -translate-x-1/2 shrink-0 bg-card border-b border-line px-4 py-3 pt-[max(12px,env(safe-area-inset-top))]">
             <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                className="min-h-[44px] min-w-[44px] w-[38px] h-[38px] rounded-[10px] bg-surface border border-line flex items-center justify-center text-muted shrink-0"
+                aria-label={menuOpen ? "Close menu" : "Open menu"}
+                aria-expanded={menuOpen}
+              >
+                <MenuIcon />
+              </button>
               <div className="w-9 h-9 rounded-[9px] bg-brand-soft border border-[#FFD9C5] flex items-center justify-center font-extrabold text-brand-d text-sm shrink-0">
                 {academyMeta.initials}
               </div>
@@ -78,14 +88,6 @@ export function CoachShellClient({
                 <div className="text-sm font-bold text-ink truncate">{academyMeta.name}</div>
                 <div className="text-[11px] text-muted truncate">{coachMeta.name} · Coach</div>
               </div>
-              <button
-                type="button"
-                onClick={() => setMenuOpen((open) => !open)}
-                className="w-9 h-9 rounded-[10px] bg-surface border border-line flex items-center justify-center text-muted shrink-0 text-xs font-semibold"
-                aria-label="Open menu"
-              >
-                ···
-              </button>
             </div>
           </header>
 

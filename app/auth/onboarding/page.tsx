@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
-import { OnboardingProfileForm } from "@/components/auth/OnboardingProfileForm";
+import { OnboardingWorkspace } from "@/components/auth/onboarding/OnboardingWorkspace";
 import { OnboardingSkeleton } from "@/components/auth/onboarding/OnboardingSkeleton";
 import { authConfig } from "@/lib/auth-config";
 import { api, ApiError } from "@/lib/api";
@@ -30,6 +30,14 @@ export default function AcademyOnboardingPage() {
 
         if (!session.needsAcademyOnboarding && session.academies.length > 0) {
           router.replace(`/academy/${session.academies[0].id}/dashboard`);
+          return;
+        }
+
+        if (
+          session.onboardingRequest?.status === "approved" &&
+          session.onboardingRequest.academyId
+        ) {
+          router.replace(`/academy/${session.onboardingRequest.academyId}/dashboard`);
           return;
         }
 
@@ -60,7 +68,7 @@ export default function AcademyOnboardingPage() {
       activeStep={onboarding.activeStep}
       progressPercent={onboarding.progressPercent}
     >
-      {isReady ? <OnboardingProfileForm /> : <OnboardingSkeleton />}
+      {isReady ? <OnboardingWorkspace /> : <OnboardingSkeleton />}
     </AuthShell>
   );
 }

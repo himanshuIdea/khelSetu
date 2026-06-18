@@ -8,6 +8,7 @@ export const coachRoutes = {
   attendance: `${COACH_ROUTE_PREFIX}/attendance`,
   teams: `${COACH_ROUTE_PREFIX}/teams`,
   media: `${COACH_ROUTE_PREFIX}/media`,
+  mySubmissions: `${COACH_ROUTE_PREFIX}/media/submissions`,
   post: `${COACH_ROUTE_PREFIX}/post`,
 } as const;
 

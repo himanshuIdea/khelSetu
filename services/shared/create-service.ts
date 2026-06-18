@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { checkDatabaseHealth } from "@/lib/db/health";
+import { createServiceAuthMiddleware } from "./auth-middleware";
 import { formatServiceError } from "./errors";
 
 type ServiceOptions = {
@@ -10,9 +11,20 @@ type ServiceOptions = {
   routes: (app: Hono) => void;
   /** When true, exposes /health/ready with a live PostgreSQL probe. */
   dbHealth?: boolean;
+  /** When true, requires session + academy membership on academy routes (gateway only). */
+  requireAuth?: boolean;
+  /** Extra path patterns that skip auth (e.g. slug availability). */
+  publicPaths?: RegExp[];
 };
 
-export function createService({ name, port, routes, dbHealth = false }: ServiceOptions) {
+export function createService({
+  name,
+  port,
+  routes,
+  dbHealth = false,
+  requireAuth = false,
+  publicPaths = [],
+}: ServiceOptions) {
   const app = new Hono();
 
   app.use("*", cors());
@@ -24,6 +36,10 @@ export function createService({ name, port, routes, dbHealth = false }: ServiceO
       const ready = database.status === "ok";
       return c.json({ status: ready ? "ok" : "degraded", service: name, database }, ready ? 200 : 503);
     });
+  }
+
+  if (requireAuth) {
+    app.use("*", createServiceAuthMiddleware(publicPaths));
   }
 
   routes(app);

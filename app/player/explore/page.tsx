@@ -1,48 +1,35 @@
-import { SearchIcon } from "@/components/academy/icons";
-import { Avatar, Pill } from "@/components/academy/shared";
+import { PlayerExploreFeed } from "@/components/player/PlayerExploreFeed";
+import { PlayerPageHeader } from "@/components/player/PlayerPageHeader";
 import { PlayerScreen } from "@/components/player/PlayerScreen";
+import { requirePlayerAccess } from "@/lib/auth/require-player-access";
+import {
+  listAcademyAthletes,
+  listAcademyFeed,
+  listFeedSports,
+  listFeedTopics,
+} from "@/lib/repositories/academy-feed";
 
-const trending = [
-  { initials: "PD", color: "#7C5CFC", name: "Priya Dahiya", sport: "Boxing", district: "Bhiwani" },
-  { initials: "RS", color: "#FF6B2C", name: "Rohit Sangwan", sport: "Wrestling", district: "Sonipat" },
-  { initials: "SM", color: "#12B886", name: "Sahil Malik", sport: "Athletics", district: "Hisar" },
-];
+export default async function PlayerExplorePage() {
+  const { profile, academyId, playerId } = await requirePlayerAccess();
 
-const topics = ["State trials", "Drill challenges", "Coach tips", "Tournament highlights"];
+  const [items, sports, topics, athletes] = await Promise.all([
+    listAcademyFeed(academyId, { viewerUserId: profile.id }),
+    listFeedSports(academyId),
+    listFeedTopics(academyId),
+    listAcademyAthletes(academyId, { excludePlayerId: playerId }),
+  ]);
 
-export default function PlayerExplorePage() {
   return (
     <PlayerScreen>
-      <div className="px-[18px] pb-3 shrink-0">
-        <div className="text-[17px] font-bold text-ink mb-3">Explore</div>
-        <div className="flex items-center gap-2 bg-card border border-line rounded-[11px] px-3 py-2.5 text-muted2">
-          <SearchIcon />
-          <span className="text-[13px]">Search athletes, drills, coaches…</span>
-        </div>
-      </div>
+      <PlayerPageHeader title="Explore" />
 
-      <div className="flex-1 overflow-y-auto overscroll-y-contain px-4 pb-2 [-webkit-overflow-scrolling:touch]">
-        <div className="text-xs font-bold text-muted uppercase tracking-[0.6px] mb-2">Trending topics</div>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {topics.map((t, i) => (
-            <Pill key={t} variant={i === 0 ? "brand" : "grey"} className="px-3 py-2">{t}</Pill>
-          ))}
-        </div>
-
-        <div className="text-xs font-bold text-muted uppercase tracking-[0.6px] mb-2">Athletes to follow</div>
-        {trending.map((a) => (
-          <div key={a.name} className="bg-card border border-line rounded-[18px] p-3 mb-2.5 flex items-center gap-2.5">
-            <Avatar initials={a.initials} color={a.color} size="sm" />
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-[13px] text-ink">{a.name}</div>
-              <div className="text-[11.5px] text-muted">{a.sport} · {a.district}</div>
-            </div>
-            <button type="button" className="text-[12px] font-semibold text-brand px-3 py-1.5 rounded-lg bg-brand-soft">
-              Follow
-            </button>
-          </div>
-        ))}
-      </div>
+      <PlayerExploreFeed
+        academyId={academyId}
+        items={items}
+        sports={sports}
+        topics={topics}
+        athletes={athletes}
+      />
     </PlayerScreen>
   );
 }

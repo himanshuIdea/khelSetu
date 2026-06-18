@@ -1,8 +1,9 @@
-import { and, eq, ilike, inArray, notInArray, sql } from "drizzle-orm";
+import { and, eq, ilike, inArray, isNotNull, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   academies,
   academyMemberships,
+  academyOnboardingRequests,
   academySports,
   players,
   sports,
@@ -73,12 +74,44 @@ async function getAthleteCountByAcademy(academyIds: string[]) {
   return new Map(rows.map((row) => [row.academyId, Number(row.count)]));
 }
 
-async function getRegisteredAcademyIds() {
-  const rows = await db
-    .select({ academyId: stateNurseryRegistrations.academyId })
+async function getNurseryVerificationByAcademy(): Promise<
+  Map<string, NurseryVerificationStatus>
+> {
+  const registrationRows = await db
+    .select({
+      academyId: stateNurseryRegistrations.academyId,
+      verificationStatus: stateNurseryRegistrations.verificationStatus,
+    })
     .from(stateNurseryRegistrations);
 
-  return rows.map((row) => row.academyId);
+  const map = new Map<string, NurseryVerificationStatus>(
+    registrationRows.map((row) => [
+      row.academyId,
+      row.verificationStatus as NurseryVerificationStatus,
+    ])
+  );
+
+  const approvedRows = await db
+    .select({ academyId: academyOnboardingRequests.academyId })
+    .from(academyOnboardingRequests)
+    .where(
+      and(
+        eq(academyOnboardingRequests.status, "approved"),
+        isNotNull(academyOnboardingRequests.academyId)
+      )
+    );
+
+  for (const row of approvedRows) {
+    if (row.academyId && !map.has(row.academyId)) {
+      map.set(row.academyId, "verified");
+    }
+  }
+
+  return map;
+}
+
+async function getListedNurseryAcademyIds(): Promise<string[]> {
+  return [...(await getNurseryVerificationByAcademy()).keys()];
 }
 
 function applyListFilters(
@@ -108,6 +141,10 @@ function applyListFilters(
 export async function listStateNurseries(
   filters?: StateNurseryFilters
 ): Promise<StateNurseryListItem[]> {
+  const verificationByAcademy = await getNurseryVerificationByAcademy();
+  const academyIds = [...verificationByAcademy.keys()];
+  if (academyIds.length === 0) return [];
+
   const rows = await db
     .select({
       academyId: academies.id,
@@ -115,21 +152,21 @@ export async function listStateNurseries(
       initials: academies.initials,
       color: academies.brandColor,
       district: academies.district,
-      verificationStatus: stateNurseryRegistrations.verificationStatus,
     })
-    .from(stateNurseryRegistrations)
-    .innerJoin(academies, eq(stateNurseryRegistrations.academyId, academies.id))
+    .from(academies)
+    .where(and(inArray(academies.id, academyIds), isNull(academies.deletedAt)))
     .orderBy(academies.name);
 
-  const academyIds = rows.map((row) => row.academyId);
+  const listedAcademyIds = rows.map((row) => row.academyId);
   const [sportByAcademy, athleteCountByAcademy] = await Promise.all([
-    getPrimarySportByAcademy(academyIds),
-    getAthleteCountByAcademy(academyIds),
+    getPrimarySportByAcademy(listedAcademyIds),
+    getAthleteCountByAcademy(listedAcademyIds),
   ]);
 
   const items: StateNurseryListItem[] = rows.map((row) => {
+    const verificationStatus = verificationByAcademy.get(row.academyId) ?? "verified";
     const sportLabel = sportByAcademy.get(row.academyId) ?? "Multi-sport";
-    const pill = nurseryStatusToPill(row.verificationStatus as NurseryVerificationStatus);
+    const pill = nurseryStatusToPill(verificationStatus);
     const detail = buildNurseryDetailLine(row.district, sportLabel);
 
     return {
@@ -143,7 +180,7 @@ export async function listStateNurseries(
       athleteCount: athleteCountByAcademy.get(row.academyId) ?? 0,
       status: pill.variant,
       statusLabel: pill.label,
-      verificationStatus: row.verificationStatus as NurseryVerificationStatus,
+      verificationStatus,
     };
   });
 
@@ -164,7 +201,7 @@ export async function searchUnregisteredAcademies(
   const trimmed = query.trim();
   if (trimmed.length < 2) return [];
 
-  const registeredIds = await getRegisteredAcademyIds();
+  const registeredIds = await getListedNurseryAcademyIds();
 
   const rows = await db
     .select({
@@ -203,22 +240,44 @@ export async function searchUnregisteredAcademies(
 export async function getStateNurseryDetail(
   academyId: string
 ): Promise<StateNurseryDetail | null> {
-  const [registration] = await db
+  const verificationByAcademy = await getNurseryVerificationByAcademy();
+  const verificationStatus = verificationByAcademy.get(academyId);
+  if (!verificationStatus) return null;
+
+  const [academy] = await db
     .select({
-      verificationStatus: stateNurseryRegistrations.verificationStatus,
-      registeredAt: stateNurseryRegistrations.createdAt,
       name: academies.name,
       initials: academies.initials,
       color: academies.brandColor,
       district: academies.district,
       locationLabel: academies.locationLabel,
     })
-    .from(stateNurseryRegistrations)
-    .innerJoin(academies, eq(stateNurseryRegistrations.academyId, academies.id))
-    .where(eq(stateNurseryRegistrations.academyId, academyId))
+    .from(academies)
+    .where(and(eq(academies.id, academyId), isNull(academies.deletedAt)))
     .limit(1);
 
-  if (!registration) return null;
+  if (!academy) return null;
+
+  const [registration, onboardingReview] = await Promise.all([
+    db
+      .select({ registeredAt: stateNurseryRegistrations.createdAt })
+      .from(stateNurseryRegistrations)
+      .where(eq(stateNurseryRegistrations.academyId, academyId))
+      .limit(1),
+    db
+      .select({ reviewedAt: academyOnboardingRequests.reviewedAt })
+      .from(academyOnboardingRequests)
+      .where(
+        and(
+          eq(academyOnboardingRequests.academyId, academyId),
+          eq(academyOnboardingRequests.status, "approved")
+        )
+      )
+      .limit(1),
+  ]);
+
+  const registeredAt =
+    registration[0]?.registeredAt ?? onboardingReview[0]?.reviewedAt ?? null;
 
   const [sportsList, athleteCounts, adminRow] = await Promise.all([
     getSportsByAcademy(academyId),
@@ -232,28 +291,30 @@ export async function getStateNurseryDetail(
       })
       .from(academyMemberships)
       .innerJoin(users, eq(academyMemberships.userId, users.id))
-      .where(eq(academyMemberships.academyId, academyId))
+      .where(
+        and(eq(academyMemberships.academyId, academyId), eq(academyMemberships.role, "admin"))
+      )
       .limit(1),
   ]);
 
   const sportLabel = sportsList[0] ?? "Multi-sport";
-  const pill = nurseryStatusToPill(registration.verificationStatus as NurseryVerificationStatus);
+  const pill = nurseryStatusToPill(verificationStatus);
   const admin = adminRow[0];
 
   return {
     academyId,
-    name: registration.name,
-    initials: registration.initials,
-    color: registration.color,
-    district: registration.district,
-    locationLabel: registration.locationLabel,
+    name: academy.name,
+    initials: academy.initials,
+    color: academy.color,
+    district: academy.district,
+    locationLabel: academy.locationLabel,
     sports: sportsList,
     sportLabel,
     athleteCount: athleteCounts.get(academyId) ?? 0,
-    verificationStatus: registration.verificationStatus as NurseryVerificationStatus,
+    verificationStatus,
     status: pill.variant,
     statusLabel: pill.label,
-    registeredAt: formatDate(registration.registeredAt),
+    registeredAt: registeredAt ? formatDate(registeredAt) : "",
     admin: admin
       ? {
           fullName: admin.fullName,
@@ -269,7 +330,7 @@ export async function getStateNurseryDetail(
 export async function getUnregisteredAcademyPreview(
   academyId: string
 ): Promise<StateNurseryDetail | null> {
-  const registeredIds = await getRegisteredAcademyIds();
+  const registeredIds = await getListedNurseryAcademyIds();
   if (registeredIds.includes(academyId)) {
     return null;
   }
@@ -330,6 +391,26 @@ export async function getUnregisteredAcademyPreview(
         }
       : null,
   };
+}
+
+export async function ensureStateNurseryRegistered(
+  academyId: string,
+  registeredByUserId: string,
+  verificationStatus: NurseryVerificationStatus = "verified"
+) {
+  const [existing] = await db
+    .select({ id: stateNurseryRegistrations.id })
+    .from(stateNurseryRegistrations)
+    .where(eq(stateNurseryRegistrations.academyId, academyId))
+    .limit(1);
+
+  if (existing) return;
+
+  await db.insert(stateNurseryRegistrations).values({
+    academyId,
+    registeredByUserId,
+    verificationStatus,
+  });
 }
 
 export async function registerStateNursery(academyId: string, registeredByUserId: string) {

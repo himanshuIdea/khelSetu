@@ -24,6 +24,7 @@ export async function POST(request: Request, context: RouteContext) {
       rating?: number;
       notes?: string | null;
       criteriaScores?: DrillReviewCriteriaScores | null;
+      publishToAcademy?: boolean;
     };
 
     if (body.rating == null || Number.isNaN(Number(body.rating))) {
@@ -34,6 +35,7 @@ export async function POST(request: Request, context: RouteContext) {
       rating: Number(body.rating),
       notes: body.notes ?? null,
       criteriaScores: body.criteriaScores ?? null,
+      publishToAcademy: Boolean(body.publishToAcademy),
     });
 
     return NextResponse.json({ ok: true });

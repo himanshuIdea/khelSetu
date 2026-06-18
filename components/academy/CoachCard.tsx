@@ -69,7 +69,7 @@ export function CoachCard({ coach, onClick }: CoachCardProps) {
         <div>
           <div className="font-bold text-[15px] text-ink flex items-center gap-[3px]">
             <StarIcon className="text-amber" />
-            {coach.rating}
+            {coach.rating > 0 ? coach.rating.toFixed(1) : "—"}
           </div>
           <div className="text-[11.5px] text-muted">Rating</div>
         </div>

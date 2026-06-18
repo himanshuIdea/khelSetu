@@ -23,6 +23,15 @@ import type {
 } from "@/lib/teams";
 import type { OnboardingPayload, OnboardingResult } from "@/lib/onboarding";
 import type {
+  AcademyOnboardingDraftPayload,
+  AcademyOnboardingRequestDetail,
+  AcademyOnboardingRequestType,
+  AcademyOnboardingStatus,
+  OnboardingDocumentType,
+  OnboardingRequiredAction,
+  StateOnboardingRequestListItem,
+} from "@/lib/academy-onboarding";
+import type {
   StateNurseryDetail,
   StateNurseryFilters,
   StateNurseryListItem,
@@ -68,6 +77,16 @@ type AuthSessionResponse = {
   user: AuthUserResponse;
   academies: AuthAcademy[];
   needsAcademyOnboarding: boolean;
+  onboardingRequest: {
+    id: string;
+    status: AcademyOnboardingStatus;
+    requestType: AcademyOnboardingRequestType;
+    requiredActions: string[];
+    reviewNotes: string | null;
+    submittedAt: string | null;
+    reviewedAt: string | null;
+    academyId: string | null;
+  } | null;
   mustChangePassword?: boolean;
   redirectTo: string;
 };
@@ -77,6 +96,7 @@ export const api = {
     register: (body: {
       mode: "password" | "otp";
       fullName: string;
+      identifier?: string;
       email?: string;
       password?: string;
       phone?: string;
@@ -106,6 +126,23 @@ export const api = {
       ),
     create: (payload: OnboardingPayload) =>
       apiPost<OnboardingResult>("/academies/onboarding", payload),
+  },
+
+  onboarding: {
+    getRequest: () =>
+      apiGet<{ request: AcademyOnboardingRequestDetail | null }>("/onboarding/request"),
+    saveDraft: (payload: AcademyOnboardingDraftPayload) =>
+      apiPut<{ request: AcademyOnboardingRequestDetail }>("/onboarding/request", payload),
+    submit: () => apiPost<{ request: AcademyOnboardingRequestDetail }>("/onboarding/request/submit", {}),
+    uploadDocument: (docType: OnboardingDocumentType, file: File) => {
+      const formData = new FormData();
+      formData.append("docType", docType);
+      formData.append("file", file);
+      return apiPostFormData<{
+        request: AcademyOnboardingRequestDetail;
+        document: { docType: string; objectKey: string; contentType: string };
+      }>("/onboarding/documents/upload", formData);
+    },
   },
 
   players: {
@@ -484,11 +521,21 @@ export const api = {
       upload: (academyId: string, file: File) => {
         const formData = new FormData();
         formData.set("file", file);
-        return apiPostFormData<{ url: string; thumbnailGradient: string }>(
-          `/coach/${academyId}/media/upload`,
-          formData
-        );
+        return apiPostFormData<{
+          url: string;
+          objectKey: string;
+          thumbnailGradient: string;
+          contentType: string;
+        }>(`/coach/${academyId}/media/upload`, formData);
       },
+      deleteUpload: (academyId: string, objectKey: string) =>
+        apiDelete(
+          `/coach/${academyId}/media/upload?objectKey=${encodeURIComponent(objectKey)}`
+        ),
+      listDrillPosts: (academyId: string) =>
+        apiGet<{ posts: import("@/lib/repositories/coach-media").CoachDrillPostItem[] }>(
+          `/coach/${academyId}/drill-posts`
+        ),
       createDrillPost: (
         academyId: string,
         payload: {
@@ -499,11 +546,14 @@ export const api = {
           videoUrl: string;
           thumbnailGradient?: string | null;
           durationSeconds?: number | null;
+          publishToAcademy?: boolean;
         }
       ) => apiPost<{ id: string; drillName: string; postedAt: string }>(
         `/coach/${academyId}/drill-posts`,
         payload
       ),
+      setDrillPostPublished: (academyId: string, postId: string, published: boolean) =>
+        apiPatch<{ ok: true }>(`/coach/${academyId}/drill-posts/${postId}/publish`, { published }),
       listSubmissions: (academyId: string) =>
         apiGet<{ submissions: import("@/lib/repositories/coach-media").CoachMediaSubmission[] }>(
           `/coach/${academyId}/media/submissions`
@@ -519,12 +569,75 @@ export const api = {
           rating: number;
           notes?: string | null;
           criteriaScores?: { technique?: number; speed?: number; form?: number } | null;
+          publishToAcademy?: boolean;
         }
       ) =>
         apiPost<{ ok: true }>(
           `/coach/${academyId}/media/submissions/${submissionId}/review`,
           payload
         ),
+      setSubmissionPublished: (academyId: string, submissionId: string, published: boolean) =>
+        apiPatch<{ ok: true }>(
+          `/coach/${academyId}/media/submissions/${submissionId}/publish`,
+          { published }
+        ),
+    },
+  },
+
+  player: {
+    media: {
+      upload: (academyId: string, file: File) => {
+        const formData = new FormData();
+        formData.set("file", file);
+        return apiPostFormData<{
+          url: string;
+          objectKey: string;
+          thumbnailGradient: string;
+          contentType: string;
+        }>(`/player/${academyId}/media/upload`, formData);
+      },
+      deleteUpload: (academyId: string, objectKey: string) =>
+        apiDelete(
+          `/player/${academyId}/media/upload?objectKey=${encodeURIComponent(objectKey)}`
+        ),
+      createSubmission: (
+        academyId: string,
+        payload: {
+          drillName: string;
+          videoUrl: string;
+          drillPostId?: string | null;
+          thumbnailGradient?: string | null;
+          durationSeconds?: number | null;
+        }
+      ) =>
+        apiPost<{ id: string; drillName: string; submittedAt: string }>(
+          `/player/${academyId}/submissions`,
+          payload
+        ),
+    },
+    feed: {
+      like: (academyId: string, type: string, id: string) =>
+        apiPost<{ liked: boolean; likeCount: number }>(
+          `/player/${academyId}/feed/${type}/${id}/like`,
+          {}
+        ),
+      unlike: (academyId: string, type: string, id: string) =>
+        apiDelete(`/player/${academyId}/feed/${type}/${id}/like`),
+      listComments: (academyId: string, type: string, id: string) =>
+        apiGet<{ comments: import("@/lib/repositories/academy-feed").FeedComment[] }>(
+          `/player/${academyId}/feed/${type}/${id}/comments`
+        ),
+      addComment: (academyId: string, type: string, id: string, body: string) =>
+        apiPost<{ comment: import("@/lib/repositories/academy-feed").FeedComment }>(
+          `/player/${academyId}/feed/${type}/${id}/comments`,
+          { body }
+        ),
+    },
+    follows: {
+      follow: (academyId: string, playerId: string) =>
+        apiPost<{ ok: true }>(`/player/${academyId}/follows/${playerId}`, {}),
+      unfollow: (academyId: string, playerId: string) =>
+        apiDelete(`/player/${academyId}/follows/${playerId}`),
     },
   },
 
@@ -557,6 +670,48 @@ export const api = {
       register: (academyId: string) =>
         apiPost<{ ok: boolean }>("/state/nurseries", { academyId }),
       deregister: (academyId: string) => apiDelete(`/state/nurseries/${academyId}`),
+    },
+    onboardingRequests: {
+      list: (filters?: {
+        status?: AcademyOnboardingStatus | "all";
+        requestType?: AcademyOnboardingRequestType | "all";
+        district?: string;
+        days?: number | "all";
+      }) => {
+        const search = new URLSearchParams();
+        if (filters?.status && filters.status !== "all") search.set("status", filters.status);
+        if (filters?.requestType && filters.requestType !== "all") {
+          search.set("requestType", filters.requestType);
+        }
+        if (filters?.district && filters.district !== "all") {
+          search.set("district", filters.district);
+        }
+        if (filters?.days && filters.days !== "all") {
+          search.set("days", String(filters.days));
+        }
+        const query = search.toString();
+        return apiGet<{ requests: StateOnboardingRequestListItem[] }>(
+          `/state/nurseries/requests${query ? `?${query}` : ""}`
+        );
+      },
+      detail: (requestId: string) =>
+        apiGet<{ request: AcademyOnboardingRequestDetail }>(
+          `/state/nurseries/requests/${requestId}`
+        ),
+      review: (
+        requestId: string,
+        body: {
+          action: "approve" | "needs_action" | "reject";
+          reviewNotes?: string;
+          requiredActions?: OnboardingRequiredAction[];
+        }
+      ) =>
+        apiPatch<{ request: AcademyOnboardingRequestDetail }>(
+          `/state/nurseries/requests/${requestId}`,
+          body
+        ),
+      documentUrl: (requestId: string, type: OnboardingDocumentType) =>
+        `/api/v1/state/nurseries/requests/${requestId}/documents/${type}`,
     },
   },
 };

@@ -1,10 +1,12 @@
-import { and, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   academySports,
   batchCoaches,
   batches,
+  coachDrillPosts,
   coaches,
+  drillReviews,
   drillSubmissions,
   playerCoachAssignments,
   players,
@@ -24,27 +26,81 @@ import type {
 import { formatTimeAgo, getInitials, nisLevelLabel } from "@/lib/format";
 import type { Coach, CoachPortalMeta, PendingReview } from "./types";
 
-async function getActivePlayerCountsByCoach(academyId: string) {
+async function getRosterPlayerCountsByCoach(academyId: string) {
   const rows = await db
     .select({
-      coachId: players.primaryCoachId,
-      count: sql<number>`count(*)`,
+      coachId: batchCoaches.coachId,
+      count: sql<number>`count(distinct ${players.id})`,
     })
-    .from(players)
+    .from(batchCoaches)
+    .innerJoin(batches, eq(batchCoaches.batchId, batches.id))
+    .innerJoin(players, eq(players.batchId, batches.id))
     .where(
       and(
-        eq(players.academyId, academyId),
-        isNotNull(players.primaryCoachId),
+        eq(batches.academyId, academyId),
         inArray(players.status, ["active", "on_hold"])
       )
     )
-    .groupBy(players.primaryCoachId);
+    .groupBy(batchCoaches.coachId);
 
-  return new Map(rows.map((row) => [row.coachId!, Number(row.count)]));
+  return new Map(rows.map((row) => [row.coachId, Number(row.count)]));
+}
+
+async function getCoachDrillPostCountsByWeek(academyId: string) {
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const rows = await db
+    .select({
+      coachId: coachDrillPosts.coachId,
+      count: sql<number>`count(*)`,
+    })
+    .from(coachDrillPosts)
+    .where(and(eq(coachDrillPosts.academyId, academyId), gte(coachDrillPosts.postedAt, weekAgo)))
+    .groupBy(coachDrillPosts.coachId);
+
+  return new Map(rows.map((row) => [row.coachId, Number(row.count)]));
+}
+
+async function getCoachReviewRatingAverages(academyId: string) {
+  const rows = await db
+    .select({
+      coachId: drillReviews.reviewerCoachId,
+      avgRating: sql<number>`avg(${drillReviews.rating})`,
+    })
+    .from(drillReviews)
+    .innerJoin(drillSubmissions, eq(drillReviews.submissionId, drillSubmissions.id))
+    .where(and(eq(drillSubmissions.academyId, academyId), isNotNull(drillReviews.rating)))
+    .groupBy(drillReviews.reviewerCoachId);
+
+  return new Map(
+    rows.map((row) => [row.coachId, Math.round((Number(row.avgRating) / 2) * 10) / 10])
+  );
+}
+
+function formatCoachRole(sportName: string, roleTitle: string): string {
+  const trimmed = roleTitle.trim();
+  if (!trimmed || trimmed === "Coach") {
+    return `${sportName} · Coach`;
+  }
+
+  if (trimmed.toLowerCase().startsWith(sportName.toLowerCase())) {
+    return trimmed;
+  }
+
+  const parts = trimmed.split("·").map((part) => part.trim());
+  if (parts.length === 2 && parts[1].toLowerCase() === sportName.toLowerCase()) {
+    return `${parts[1]} · ${parts[0]}`;
+  }
+
+  return `${sportName} · ${trimmed}`;
 }
 
 export async function getCoaches(academyId: string): Promise<Coach[]> {
-  const playerCountsByCoach = await getActivePlayerCountsByCoach(academyId);
+  const [playerCountsByCoach, drillsPerWeekByCoach, ratingByCoach] = await Promise.all([
+    getRosterPlayerCountsByCoach(academyId),
+    getCoachDrillPostCountsByWeek(academyId),
+    getCoachReviewRatingAverages(academyId),
+  ]);
 
   const rows = await db
     .select({
@@ -68,13 +124,13 @@ export async function getCoaches(academyId: string): Promise<Coach[]> {
       id: row.coach.id,
       initials: getInitials(row.coach.fullName),
       name: row.coach.fullName,
-      role: row.coach.roleTitle,
+      role: formatCoachRole(row.sportName, row.coach.roleTitle),
       badge: nis.badge,
       badgeLabel: nis.label,
       avatarColor: row.coach.avatarColor,
       players: playerCountsByCoach.get(row.coach.id) ?? 0,
-      rating: Number(row.coach.rating),
-      drillsPerWeek: row.coach.drillsPerWeek,
+      rating: ratingByCoach.get(row.coach.id) ?? 0,
+      drillsPerWeek: drillsPerWeekByCoach.get(row.coach.id) ?? 0,
       toReview: Number(row.pendingCount),
     };
   });

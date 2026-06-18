@@ -27,33 +27,37 @@ export async function getAcademyBySlug(slug: string) {
   return academy ?? null;
 }
 
+/** Plain DB fetch — safe for microservices and scripts (no Next.js cache). */
+export async function fetchAcademyMeta(academyId: string): Promise<AcademyMeta | null> {
+  const academy = await getAcademyById(academyId);
+  if (!academy) return null;
+
+  const [adminRow] = await db
+    .select({
+      fullName: users.fullName,
+      avatarInitials: users.avatarInitials,
+    })
+    .from(academyMemberships)
+    .innerJoin(users, eq(academyMemberships.userId, users.id))
+    .where(eq(academyMemberships.academyId, academy.id))
+    .limit(1);
+
+  return {
+    id: academy.id,
+    slug: academy.slug,
+    initials: academy.initials,
+    name: academy.name,
+    location: academy.locationLabel,
+    adminInitials: adminRow?.avatarInitials ?? "AD",
+    adminName: adminRow?.fullName ?? "Academy Admin",
+    adminRole: "Academy Admin",
+  };
+}
+
+/** Next.js RSC paths — wraps fetch with `unstable_cache` (60s). */
 export async function getAcademyMeta(academyId: string): Promise<AcademyMeta | null> {
   return unstable_cache(
-    async () => {
-      const academy = await getAcademyById(academyId);
-      if (!academy) return null;
-
-      const [adminRow] = await db
-        .select({
-          fullName: users.fullName,
-          avatarInitials: users.avatarInitials,
-        })
-        .from(academyMemberships)
-        .innerJoin(users, eq(academyMemberships.userId, users.id))
-        .where(eq(academyMemberships.academyId, academy.id))
-        .limit(1);
-
-      return {
-        id: academy.id,
-        slug: academy.slug,
-        initials: academy.initials,
-        name: academy.name,
-        location: academy.locationLabel,
-        adminInitials: adminRow?.avatarInitials ?? "AD",
-        adminName: adminRow?.fullName ?? "Academy Admin",
-        adminRole: "Academy Admin",
-      };
-    },
+    async () => fetchAcademyMeta(academyId),
     ["academy-meta", academyId],
     { revalidate: 60 }
   )();

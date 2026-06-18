@@ -26,7 +26,7 @@ export function PlayerTabBar({ activeItem }: PlayerTabBarProps) {
   return (
     <nav
       aria-label="Player navigation"
-      className="h-[72px] bg-card border-t border-line flex items-start justify-around pt-[11px] shrink-0"
+      className="h-[72px] bg-card flex items-start justify-around pt-[11px] px-1 shrink-0 min-w-0"
     >
       {tabs.map((tab) => {
         const active = activeItem === tab.id;

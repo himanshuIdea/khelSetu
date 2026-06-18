@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { MEMBERSHIP_ROLES } from "@/lib/rbac/membership-roles";
 import { AuthRequiredError, requireSessionUserId } from "@/lib/auth/server";
-import { isStateAdmin } from "@/lib/rbac";
-import { getAuthProfile } from "@/lib/repositories/auth";
+import {
+  checkAcademyReadAccess,
+  getAcademyMembershipRole,
+} from "@/lib/auth/academy-access";
 import {
   assertCoachAssignedToBatch,
   resolveCoachForUser,
@@ -10,25 +12,20 @@ import {
 
 export async function assertAcademyAttendanceAccess(academyId: string, batchId?: string) {
   const userId = await requireSessionUserId();
-  const profile = await getAuthProfile(userId);
+  const denial = await checkAcademyReadAccess(userId, academyId, {
+    stateAdminMessage: "State administrators cannot manage academy attendance.",
+  });
 
-  if (!profile) {
-    return NextResponse.json({ error: "User not found." }, { status: 404 });
+  if (denial) {
+    return NextResponse.json({ error: denial.error }, { status: denial.status });
   }
 
-  if (isStateAdmin(profile.platformRole)) {
-    return NextResponse.json(
-      { error: "State administrators cannot manage academy attendance." },
-      { status: 403 }
-    );
-  }
-
-  const membership = profile.academies.find((academy) => academy.id === academyId);
-  if (!membership) {
+  const role = await getAcademyMembershipRole(userId, academyId);
+  if (!role) {
     return NextResponse.json({ error: "You do not have access to this academy." }, { status: 403 });
   }
 
-  if (membership.role === MEMBERSHIP_ROLES.COACH) {
+  if (role === MEMBERSHIP_ROLES.COACH) {
     const coach = await resolveCoachForUser(academyId, userId);
     if (!coach) {
       return NextResponse.json({ error: "Coach profile not found." }, { status: 403 });

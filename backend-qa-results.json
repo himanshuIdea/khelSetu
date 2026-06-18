@@ -1,0 +1,285 @@
+{
+  "total": 42,
+  "pass": 31,
+  "fail": 11,
+  "skip": 0,
+  "results": [
+    {
+      "name": "health:gateway",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "ok",
+      "durationMs": 17
+    },
+    {
+      "name": "health:academy",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "ok",
+      "durationMs": 1
+    },
+    {
+      "name": "health:people",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "ok",
+      "durationMs": 1
+    },
+    {
+      "name": "health:operations",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "ok",
+      "durationMs": 1
+    },
+    {
+      "name": "health:competitions",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "ok",
+      "durationMs": 1
+    },
+    {
+      "name": "health:inventory",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "ok",
+      "durationMs": 1
+    },
+    {
+      "name": "health:payroll",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "ok",
+      "durationMs": 2
+    },
+    {
+      "name": "health:gateway-ready",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "db=ok",
+      "durationMs": 34
+    },
+    {
+      "name": "slug-available:seed-slug",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "available=false",
+      "durationMs": 67
+    },
+    {
+      "name": "meta:hardcoded-seed-id",
+      "status": "fail",
+      "httpStatus": 500,
+      "detail": "{\"error\":\"Invariant: incrementalCache missing in unstable_cache async()=>{const academy=await getAcademyById(academyId);if(!academy)return null;const[adminRow]=await import_db.db.select({fullName:import_schema.users.fullName,avatarInitials:import_schema.users.avatarInitials}).from(import_schema.academyMemberships).innerJoin(import_schema.users,(0,import_drizzle_orm.eq)(import_schema.academyMemberships.userId,import_schema.users.id)).where((0,import_drizzle_orm.eq)(import_schema.academyMemberships.academyId,academy.id)).limit(1);return{id:academy.id,slug:academy.slug,initials:academy.initials,name:academy.name,location:academy.locationLabel,adminInitials:adminRow?.avatarInitials??\\\"AD\\\",adminName:adminRow?.fullName??\\\"Academy Admin\\\",adminRole:\\\"Academy Admin\\\"}}\"}",
+      "durationMs": 1
+    },
+    {
+      "name": "auth:login:gateway",
+      "status": "fail",
+      "httpStatus": 404,
+      "detail": "Auth not proxied on gateway (expected architecture gap)"
+    },
+    {
+      "name": "auth:login:nextjs",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "user=rajesh@dronacharya.in",
+      "durationMs": 382
+    },
+    {
+      "name": "auth:me:nextjs",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "academies=1",
+      "durationMs": 137
+    },
+    {
+      "name": "academy-id:alignment",
+      "status": "fail",
+      "detail": "constant=a1000000-0000-4000-8000-000000000001 db=8d5f61eb-13de-44a2-955d-84106f371f2d session=8d5f61eb-13de-44a2-955d-84106f371f2d"
+    },
+    {
+      "name": "data:seed-id-mismatch",
+      "status": "fail",
+      "detail": "players constantId=0 dbId=8"
+    },
+    {
+      "name": "protected:players-list",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"initials\":\"DK\",\"name\":\"Deepak Kundu\",\"id\":\"HRWR-1099\",\"age\":\"15y\",\"sport\":\"Wrestling\",\"weight\":\"52 kg\",\"batch\":\"Sub-j",
+      "durationMs": 138
+    },
+    {
+      "name": "protected:coaches-list",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"id\":\"7748d7bc-7015-4ad2-95d8-1d22af776179\",\"initials\":\"JS\",\"name\":\"Jagdeep Singh\",\"role\":\"Kabaddi · Coach\",\"badge\":\"i",
+      "durationMs": 138
+    },
+    {
+      "name": "protected:dashboard-stats",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"value\":\"7\",\"label\":\"Active players\",\"delta\":\"+7 this month\",\"iconBg\":\"var(--brand-soft)\",\"iconColor\":\"var(--brand-d)\"",
+      "durationMs": 420
+    },
+    {
+      "name": "protected:teams-list",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"id\":\"836a5017-17a9-4fe0-837b-15c64dffa0b3\",\"initials\":\"SS\",\"name\":\"Sonipat Sub-Junior Wrestling Squad\",\"meta\":\"Coach ",
+      "durationMs": 72
+    },
+    {
+      "name": "protected:inventory-items",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"id\":\"89fac5ee-9350-46e3-aab2-da286751c0ae\",\"name\":\"Boxing gloves · 12oz\",\"category\":\"Boxing\",\"inStock\":8,\"issued\":46,",
+      "durationMs": 77
+    },
+    {
+      "name": "protected:fees-billing",
+      "status": "fail",
+      "httpStatus": 404,
+      "detail": "{\"error\":\"Not found\"}",
+      "durationMs": 1
+    },
+    {
+      "name": "protected:payroll-staff",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"id\":\"803bd313-350a-450d-b37b-c09aa9f41ec4\",\"staffId\":\"803bd313-350a-450d-b37b-c09aa9f41ec4\",\"payslipId\":\"095c6f83-50f",
+      "durationMs": 138
+    },
+    {
+      "name": "protected:timetable",
+      "status": "fail",
+      "httpStatus": 404,
+      "detail": "{\"error\":\"Not found\"}",
+      "durationMs": 2
+    },
+    {
+      "name": "protected:players-list",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"initials\":\"DK\",\"name\":\"Deepak Kundu\",\"id\":\"HRWR-1099\",\"age\":\"15y\",\"sport\":\"Wrestling\",\"weight\":\"52 kg\",\"batch\":\"Sub-j",
+      "durationMs": 139
+    },
+    {
+      "name": "protected:coaches-list",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"id\":\"7748d7bc-7015-4ad2-95d8-1d22af776179\",\"initials\":\"JS\",\"name\":\"Jagdeep Singh\",\"role\":\"Kabaddi · Coach\",\"badge\":\"i",
+      "durationMs": 138
+    },
+    {
+      "name": "protected:dashboard-stats",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"value\":\"7\",\"label\":\"Active players\",\"delta\":\"+7 this month\",\"iconBg\":\"var(--brand-soft)\",\"iconColor\":\"var(--brand-d)\"",
+      "durationMs": 418
+    },
+    {
+      "name": "protected:teams-list",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"id\":\"836a5017-17a9-4fe0-837b-15c64dffa0b3\",\"initials\":\"SS\",\"name\":\"Sonipat Sub-Junior Wrestling Squad\",\"meta\":\"Coach ",
+      "durationMs": 72
+    },
+    {
+      "name": "protected:inventory-items",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"id\":\"89fac5ee-9350-46e3-aab2-da286751c0ae\",\"name\":\"Boxing gloves · 12oz\",\"category\":\"Boxing\",\"inStock\":8,\"issued\":46,",
+      "durationMs": 75
+    },
+    {
+      "name": "protected:fees-billing",
+      "status": "fail",
+      "httpStatus": 404,
+      "detail": "{\"error\":\"Not found\"}",
+      "durationMs": 1
+    },
+    {
+      "name": "protected:payroll-staff",
+      "status": "pass",
+      "httpStatus": 200,
+      "detail": "[{\"id\":\"803bd313-350a-450d-b37b-c09aa9f41ec4\",\"staffId\":\"803bd313-350a-450d-b37b-c09aa9f41ec4\",\"payslipId\":\"095c6f83-50f",
+      "durationMs": 136
+    },
+    {
+      "name": "protected:timetable",
+      "status": "fail",
+      "httpStatus": 404,
+      "detail": "{\"error\":\"Not found\"}",
+      "durationMs": 0
+    },
+    {
+      "name": "state:login:nextjs",
+      "status": "pass",
+      "httpStatus": 200
+    },
+    {
+      "name": "state:nurseries:nextjs",
+      "status": "pass",
+      "httpStatus": 200,
+      "durationMs": 241
+    },
+    {
+      "name": "state:nurseries:gateway",
+      "status": "fail",
+      "httpStatus": 404,
+      "detail": "not proxied on gateway",
+      "durationMs": 2
+    },
+    {
+      "name": "auth:invalid-login-returns-401",
+      "status": "pass",
+      "httpStatus": 401
+    },
+    {
+      "name": "meta:invalid-uuid",
+      "status": "pass",
+      "httpStatus": 400,
+      "detail": "should reject invalid UUID"
+    },
+    {
+      "name": "nextjs-only:fees-billing",
+      "status": "pass",
+      "httpStatus": 200,
+      "durationMs": 211
+    },
+    {
+      "name": "nextjs-only:timetable",
+      "status": "pass",
+      "httpStatus": 200,
+      "durationMs": 397
+    },
+    {
+      "name": "nextjs-only:players-create",
+      "status": "fail",
+      "httpStatus": 500,
+      "durationMs": 143
+    },
+    {
+      "name": "security:gateway-post-teams-no-auth",
+      "status": "fail",
+      "httpStatus": 404,
+      "detail": "rejected"
+    },
+    {
+      "name": "nextjs:next-auth-me",
+      "status": "pass",
+      "httpStatus": 401,
+      "durationMs": 4
+    },
+    {
+      "name": "nextjs:next-slug-available",
+      "status": "pass",
+      "httpStatus": 200,
+      "durationMs": 72
+    }
+  ]
+}

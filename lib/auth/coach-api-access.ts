@@ -85,6 +85,20 @@ export function handleCoachApiError(error: unknown) {
   }
 
   const message = error instanceof Error ? error.message : "Coach request failed.";
-  const status = message.includes("not assigned") || message.includes("only manage") ? 403 : 500;
-  return NextResponse.json({ error: message }, { status });
+  const lower = message.toLowerCase();
+
+  if (lower.includes("not assigned") || lower.includes("only manage")) {
+    return NextResponse.json({ error: message }, { status: 403 });
+  }
+
+  if (
+    lower.includes("unsupported video") ||
+    lower.includes("50mb") ||
+    lower.includes("video file is required") ||
+    lower.includes("credentials are not configured")
+  ) {
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  return NextResponse.json({ error: message }, { status: 500 });
 }

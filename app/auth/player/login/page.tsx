@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { PortalLoginForm } from "@/components/auth/PortalLoginForm";
+import { redirectIfAuthenticated } from "@/lib/auth/redirect";
 
 function LoginFallback() {
   return (
@@ -9,7 +10,14 @@ function LoginFallback() {
   );
 }
 
-export default function PlayerLoginPage() {
+type PlayerLoginPageProps = {
+  searchParams: Promise<{ next?: string }>;
+};
+
+export default async function PlayerLoginPage({ searchParams }: PlayerLoginPageProps) {
+  const { next } = await searchParams;
+  await redirectIfAuthenticated("player", next);
+
   return (
     <Suspense fallback={<LoginFallback />}>
       <PortalLoginForm portal="player" />

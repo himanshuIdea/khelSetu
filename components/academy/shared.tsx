@@ -94,7 +94,7 @@ export function SidePanel({
 
 export function FilterPills({ children }: { children: React.ReactNode }) {
   return (
-    <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain pb-1 mb-3.5 pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+    <div className="w-full max-w-full min-w-0 overflow-x-auto overscroll-x-contain pb-1 mb-3.5 pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       <div className="flex flex-nowrap items-center gap-[9px] w-max max-w-none pr-3">
         {children}
       </div>

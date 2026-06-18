@@ -49,7 +49,7 @@ export function UserSignUpForm() {
           ? await api.auth.register({
               mode: "password",
               fullName: fullName.trim(),
-              email: identifier.trim(),
+              identifier: identifier.trim(),
               password,
             })
           : await api.auth.register({

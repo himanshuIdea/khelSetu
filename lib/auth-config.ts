@@ -243,6 +243,6 @@ export const authConfig = {
       },
     },
     backLabel: "Back",
-    continueLabel: "Continue",
+    continueLabel: "Submit for verification",
   },
 } as const;

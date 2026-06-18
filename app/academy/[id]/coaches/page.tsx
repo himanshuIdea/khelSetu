@@ -9,6 +9,7 @@ import {
   getCoaches,
   getPendingReviews,
 } from "@/lib/repositories/coaches";
+import { resolveAcademy } from "@/lib/repositories/resolve-academy";
 
 type CoachesPageProps = {
   params: Promise<{ id: string }>;
@@ -17,7 +18,8 @@ type CoachesPageProps = {
 export default async function CoachesPage({ params }: CoachesPageProps) {
   const { id } = await params;
 
-  const [coaches, pendingReviews, coachCount, formOptions] = await Promise.all([
+  const [, coaches, pendingReviews, coachCount, formOptions] = await Promise.all([
+    resolveAcademy(id),
     getCoaches(id),
     getPendingReviews(id),
     getCoachCount(id),

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CapIcon } from "@/components/academy/icons";
 import {
@@ -71,7 +72,7 @@ export function NurseriesWorkspace({ nurseries }: NurseriesWorkspaceProps) {
     });
   }, [nurseries, districtFilter, sportFilter, statusFilter]);
 
-  const subtitle = `${nurseries.length} registered nurseries across ${districtCount} district${districtCount === 1 ? "" : "s"}`;
+  const subtitle = `${nurseries.length} active nurseries across ${districtCount} district${districtCount === 1 ? "" : "s"}`;
 
   return (
     <>
@@ -81,6 +82,15 @@ export function NurseriesWorkspace({ nurseries }: NurseriesWorkspaceProps) {
         actionLabel={meta.actionLabel!}
         onActionClick={() => setAddOpen(true)}
       />
+
+      <div className="mb-4">
+        <Link
+          href="/state/nurseries/requests"
+          className="inline-flex items-center min-h-[40px] px-4 py-2 rounded-full border border-line bg-card text-[12.5px] font-semibold text-brand"
+        >
+          Onboarding requests
+        </Link>
+      </div>
 
       <FilterPills>
         <InlineSelect
@@ -124,8 +134,8 @@ export function NurseriesWorkspace({ nurseries }: NurseriesWorkspaceProps) {
       {nurseries.length === 0 ? (
         <EmptyState
           icon={<CapIcon className="w-5 h-5" />}
-          title="No nurseries registered yet"
-          description="Search for an academy and register it as a state-recognized sports nursery."
+          title="No active nurseries yet"
+          description="Approved academy onboarding requests and manually registered nurseries appear here."
         />
       ) : filteredNurseries.length === 0 ? (
         <EmptyState

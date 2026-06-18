@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadEnv } from "@/lib/load-env";
 import { getCoachApiContext, handleCoachApiError } from "@/lib/auth/coach-api-access";
-import { createCoachDrillPost } from "@/lib/repositories/coach-media";
+import { createCoachDrillPost, listCoachDrillPosts } from "@/lib/repositories/coach-media";
 
 export const runtime = "nodejs";
 
@@ -10,6 +10,21 @@ loadEnv();
 type RouteContext = {
   params: Promise<{ academyId: string }>;
 };
+
+export async function GET(_request: Request, context: RouteContext) {
+  try {
+    const { academyId } = await context.params;
+    const access = await getCoachApiContext(academyId);
+    if (!access.ok) {
+      return access.response;
+    }
+
+    const posts = await listCoachDrillPosts(academyId, access.context.coachId);
+    return NextResponse.json({ posts });
+  } catch (error) {
+    return handleCoachApiError(error);
+  }
+}
 
 export async function POST(request: Request, context: RouteContext) {
   try {
@@ -27,6 +42,7 @@ export async function POST(request: Request, context: RouteContext) {
       videoUrl?: string;
       thumbnailGradient?: string | null;
       durationSeconds?: number | null;
+      publishToAcademy?: boolean;
     };
 
     if (!body.sportId || !body.drillName?.trim() || !body.videoUrl?.trim()) {
@@ -46,6 +62,7 @@ export async function POST(request: Request, context: RouteContext) {
       videoUrl: body.videoUrl.trim(),
       thumbnailGradient: body.thumbnailGradient ?? null,
       durationSeconds: body.durationSeconds ?? null,
+      publishToAcademy: Boolean(body.publishToAcademy),
     });
 
     return NextResponse.json(post, { status: 201 });

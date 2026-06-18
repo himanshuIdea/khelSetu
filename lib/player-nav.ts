@@ -12,6 +12,14 @@ export const playerRoutes: Record<PlayerNavItem, string> = {
 
 export const playerAiFormRoute = `${PLAYER_ROUTE_PREFIX}/ai-form`;
 
+export function playerDrillDetailRoute(postId: string): string {
+  return `${playerRoutes.drills}/${postId}`;
+}
+
+export function playerAthleteProfileRoute(playerId: string): string {
+  return `${playerRoutes.explore}/athletes/${playerId}`;
+}
+
 /** Bottom nav height in px — keep in sync with `PlayerTabBar` (`h-[72px]`). */
 export const PLAYER_TAB_BAR_HEIGHT_PX = 72;
 

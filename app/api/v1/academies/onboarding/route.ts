@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
-import { SlugTakenError } from "@/lib/db";
 import { loadEnv } from "@/lib/load-env";
 import { AuthRequiredError, requireSessionUserId } from "@/lib/auth/server";
-import { validateOnboardingPayload, type OnboardingPayload } from "@/lib/onboarding";
 import { isStateAdmin } from "@/lib/rbac";
 import { getAuthProfile, userHasAcademyMembership } from "@/lib/repositories/auth";
-import { createAcademyProfile } from "@/lib/repositories/onboarding";
 
 export const runtime = "nodejs";
 
 loadEnv();
 
-export async function POST(request: Request) {
+/** @deprecated Academy creation now requires state verification — use /api/v1/onboarding/request/submit */
+export async function POST() {
   try {
     const userId = await requireSessionUserId();
     const profile = await getAuthProfile(userId);
@@ -34,21 +32,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as OnboardingPayload;
-    const validationError = validateOnboardingPayload(body);
-
-    if (validationError) {
-      return NextResponse.json({ error: validationError }, { status: 400 });
-    }
-
-    const result = await createAcademyProfile(userId, body);
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(
+      {
+        error:
+          "Academy onboarding now requires state verification. Complete the form at /auth/onboarding and submit for review.",
+      },
+      { status: 400 }
+    );
   } catch (error) {
     if (error instanceof AuthRequiredError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof SlugTakenError) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
     }
     const message = error instanceof Error ? error.message : "Could not create academy";
     return NextResponse.json({ error: message }, { status: 500 });

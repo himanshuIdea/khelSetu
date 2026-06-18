@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import {
   canAccessAcademyAdmin,
   canAccessCoachPortal,
@@ -11,9 +12,11 @@ import {
 } from "@/lib/auth/membership-access";
 import type { PortalKind } from "@/lib/auth/portal-login";
 import { buildPortalLoginUrl, isSafePortalNext } from "@/lib/auth/portal-login";
+import { getSessionTokenPayload } from "@/lib/auth/server";
 import type { AuthProfile } from "@/lib/auth/types";
 import { coachRoutes } from "@/lib/coach-nav";
 import { playerRoutes } from "@/lib/player-nav";
+import { getAuthProfile } from "@/lib/repositories/auth";
 import { resolveCoachForUser } from "@/lib/repositories/coaches";
 import { resolvePlayerForUser } from "@/lib/repositories/players";
 import { isStateAdmin, STATE_ROUTE_PREFIX } from "@/lib/rbac";
@@ -188,4 +191,35 @@ export function resolvePostAuthRedirect(profile: AuthProfile): string {
   }
 
   return resolveAdminPostAuthRedirect(profile);
+}
+
+export async function resolveAuthenticatedEntryRedirect(): Promise<string> {
+  const session = await getSessionTokenPayload();
+  if (!session?.sub) {
+    return "/auth/login";
+  }
+
+  const profile = await getAuthProfile(session.sub);
+  if (!profile) {
+    return "/auth/login";
+  }
+
+  return resolvePostAuthRedirect(profile);
+}
+
+export async function redirectIfAuthenticated(
+  portal: PortalKind,
+  next?: string | null
+): Promise<void> {
+  const session = await getSessionTokenPayload();
+  if (!session?.sub) {
+    return;
+  }
+
+  const profile = await getAuthProfile(session.sub);
+  if (!profile) {
+    return;
+  }
+
+  redirect(await resolvePostAuthRedirectForPortal(profile, portal, next ?? null));
 }

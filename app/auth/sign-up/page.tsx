@@ -1,10 +1,11 @@
-"use client";
-
 import { AuthShell } from "@/components/auth/AuthShell";
 import { UserSignUpForm } from "@/components/auth/UserSignUpForm";
 import { authConfig } from "@/lib/auth-config";
+import { redirectIfAuthenticated } from "@/lib/auth/redirect";
 
-export default function SignUpPage() {
+export default async function SignUpPage() {
+  await redirectIfAuthenticated("admin");
+
   const { login, signUp } = authConfig;
 
   return (

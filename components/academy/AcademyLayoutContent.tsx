@@ -14,8 +14,13 @@ type AcademyLayoutContentProps = {
 
 export async function AcademyLayoutContent({ academyId, children }: AcademyLayoutContentProps) {
   const userId = await getSessionUserId();
+  const academyMetaPromise = resolveAcademy(academyId);
+
   if (userId) {
     const profile = await getAuthProfile(userId);
+    if (profile && profile.needsAcademyOnboarding) {
+      redirect("/auth/onboarding");
+    }
     if (profile && isCoachOnlyMember(profile)) {
       redirect(coachRoutes.home);
     }
@@ -24,7 +29,7 @@ export async function AcademyLayoutContent({ academyId, children }: AcademyLayou
     }
   }
 
-  const academyMeta = await resolveAcademy(academyId);
+  const academyMeta = await academyMetaPromise;
 
   return (
     <AcademyLayoutClient academyId={academyId} academyMeta={academyMeta}>

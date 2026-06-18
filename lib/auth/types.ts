@@ -1,3 +1,4 @@
+import type { AcademyOnboardingRequestSummary } from "@/lib/academy-onboarding";
 import type { PlatformRole } from "@/lib/rbac";
 
 export type { PlatformRole };
@@ -27,4 +28,5 @@ export type AuthProfile = {
   mustChangePassword: boolean;
   academies: AuthAcademy[];
   needsAcademyOnboarding: boolean;
+  onboardingRequest: AcademyOnboardingRequestSummary | null;
 };

@@ -125,3 +125,12 @@ export function nisLevelLabel(level: string): { badge: "nis-level-1" | "nis-leve
       return { badge: "in-review", label: "In review" };
   }
 }
+
+export function formatVideoDuration(seconds: number | null | undefined): string {
+  if (seconds == null || seconds <= 0) {
+    return "0:00";
+  }
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}

@@ -5,7 +5,7 @@ import {
   AuthError,
   DuplicateAccountError,
   InvalidCredentialsError,
-  registerWithPassword,
+  registerWithIdentifier,
   registerWithPhone,
 } from "@/lib/repositories/auth";
 
@@ -16,6 +16,7 @@ loadEnv();
 type RegisterBody = {
   mode: "password" | "otp";
   fullName: string;
+  identifier?: string;
   email?: string;
   password?: string;
   phone?: string;
@@ -31,16 +32,17 @@ export async function POST(request: Request) {
 
   try {
     if (body.mode === "password") {
-      if (!body.email?.trim() || !body.password?.trim()) {
+      const identifier = (body.identifier ?? body.email)?.trim();
+      if (!identifier || !body.password?.trim()) {
         return NextResponse.json(
-          { error: "Email and password are required." },
+          { error: "Username, email, or phone and password are required." },
           { status: 400 }
         );
       }
 
-      const profile = await registerWithPassword({
+      const profile = await registerWithIdentifier({
         fullName: body.fullName,
-        email: body.email,
+        identifier,
         password: body.password,
       });
 
