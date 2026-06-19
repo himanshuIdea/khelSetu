@@ -47,6 +47,7 @@ export async function migrateLegacyAdminEmails(): Promise<number> {
 
   let migrated = 0;
   for (const user of legacyUsers) {
+    if (!user.email) continue;
     const newEmail = user.email.replace("admin+", "admin-");
     await db
       .update(users)

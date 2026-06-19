@@ -29,7 +29,7 @@ async function main() {
   const sql = postgres(url, { prepare: false, max: 1, connect_timeout: 15 });
 
   try {
-    const report: Record<string, unknown> = {
+    const report = {
       expected: {
         academies: TOTAL_ACADEMIES,
         districts: HARYANA_DISTRICTS.length,
@@ -40,7 +40,7 @@ async function main() {
         expectedTotalPlayers: expectedTotalPlayers(),
         sampleSlug: SEED_ACADEMY_SLUG,
       },
-      actual: {} as Record<string, number | string | null>,
+      actual: {} as Record<string, unknown>,
       perDistrict: [] as { district: string; count: number }[],
       issues: [] as string[],
       status: "unknown",

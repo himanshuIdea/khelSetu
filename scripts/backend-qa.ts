@@ -293,7 +293,7 @@ async function testNextJsApiRoutes() {
 }
 
 async function resolveAcademyIds(cookie: string | undefined): Promise<{
-  constantId: string;
+  constantId: string | null;
   sessionId: string | null;
   dbId: string | null;
 }> {
@@ -427,12 +427,17 @@ async function main() {
     }
   }
 
-  await testProtectedEndpoints(cookie, academyId);
-  await testProtectedEndpoints(undefined, academyId);
+  if (academyId) {
+    await testProtectedEndpoints(cookie, academyId);
+    await testProtectedEndpoints(undefined, academyId);
+    await testNextOnlyRoutes(cookie, academyId);
+    await testGatewayWriteWithoutAuth(academyId);
+  } else {
+    record("academy-id:resolution", "skip", { detail: "No academy id from db, session, or slug resolution" });
+  }
+
   await testStateAdminEndpoints();
   await testInvalidInputs();
-  await testNextOnlyRoutes(cookie, academyId);
-  await testGatewayWriteWithoutAuth(academyId);
   await testNextJsApiRoutes();
 
   const summary = {
