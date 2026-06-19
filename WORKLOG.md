@@ -301,17 +301,17 @@ Server api.* call    → gateway :4000       → microservice      → lib/repos
 
 | Area | Create | Read | Update | Delete | UI wired | API wired | Notes |
 |------|--------|------|--------|--------|----------|-----------|-------|
-| **Overview** | — | 🔲 | — | — | 🔲 | ❌ | `lib/state-mock-data` |
-| **Districts** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
+| **Overview** | — | ✅ | — | — | ✅ | ✅ | `state-aggregates.ts` |
+| **Districts** | — | ✅ | — | — | ✅ | ✅ | `state-districts.ts` |
 | **Nurseries** | ✅ register | ✅ | — | ✅ deregister | ✅ | ✅ | `state_nursery_registrations` + search/register flow |
-| **Athletes** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
-| **Verification** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
-| **Funds** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
-| **Scouting** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
-| **Reports** | — | 🔲 | — | — | 🔲 | ❌ | Mock |
+| **Athletes** | — | ✅ | — | — | ✅ | ✅ | `state-athletes.ts` |
+| **Verification** | — | ✅ | — | — | ✅ | ✅ | `listStateNurseries` + aggregates |
+| **Funds** | — | ✅ | — | — | ✅ | ✅ | `state-funds.ts` |
+| **Scouting** | — | ✅ | — | — | ✅ | ✅ | `state-scouting.ts` |
+| **Reports** | — | ✅ | — | — | ✅ | ✅ | `state-reports.ts` |
 
 **Auth:** JWT middleware requires `state_admin`  
-**Data:** State nurseries use `lib/repositories/state-nurseries.ts` + `/api/v1/state/nurseries`; other state pages still import `lib/state-mock-data`
+**Data:** All state routes use direct repository imports (`state-nurseries`, `state-aggregates`, `state-districts`, `state-athletes`, `state-scouting`, `state-funds`, `state-reports`). Mock data removed.
 
 ---
 
@@ -452,7 +452,7 @@ Priority order based on incomplete CRUD and user-facing stubs:
 6. **Gateway alignment** — Add mutation handlers to people/competitions services **or** stop proxying writes and document Next.js as sole mutation layer.
 7. ~~**Payroll actions**~~ — Done: run payroll, approve payslip, staff CRUD, player fees billing.
 8. ~~**Inventory writes** — Add item + issue/return gear against existing schema.~~ ✅ Done
-9. **State portal backend** — Replace `state-mock-data` with read repos when state-level schema is defined.
+9. ~~**State portal backend** — Replace `state-mock-data` with read repos~~ ✅ Done (state-aggregates + per-route repos)
 
 ---
 

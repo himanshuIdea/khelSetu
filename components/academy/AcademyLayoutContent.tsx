@@ -6,6 +6,7 @@ import { coachRoutes } from "@/lib/coach-nav";
 import { playerRoutes } from "@/lib/player-nav";
 import { getAuthProfile } from "@/lib/repositories/auth";
 import { resolveAcademy } from "@/lib/repositories/resolve-academy";
+import { getAcademyNurseryFlag } from "@/lib/repositories/state-nurseries";
 
 type AcademyLayoutContentProps = {
   academyId: string;
@@ -30,9 +31,14 @@ export async function AcademyLayoutContent({ academyId, children }: AcademyLayou
   }
 
   const academyMeta = await academyMetaPromise;
+  const nurseryFlag = await getAcademyNurseryFlag(academyId);
 
   return (
-    <AcademyLayoutClient academyId={academyId} academyMeta={academyMeta}>
+    <AcademyLayoutClient
+      academyId={academyId}
+      academyMeta={academyMeta}
+      nurseryFlag={nurseryFlag}
+    >
       {children}
     </AcademyLayoutClient>
   );

@@ -27,6 +27,8 @@ type AuthShellProps = {
   subcopy?: string;
   activeStep: number;
   progressPercent: number;
+  steps?: readonly string[];
+  showProgress?: boolean;
   children: React.ReactNode;
 };
 
@@ -35,6 +37,8 @@ export function AuthShell({
   subcopy = authConfig.login.subcopy,
   activeStep,
   progressPercent,
+  steps = authConfig.steps,
+  showProgress = true,
   children,
 }: AuthShellProps) {
   const { brand } = authConfig;
@@ -45,12 +49,13 @@ export function AuthShell({
         headline={headline}
         subcopy={subcopy}
         activeStep={activeStep}
+        steps={steps}
         className="hidden lg:flex w-[430px] shrink-0 px-[42px] py-[46px]"
         innerClassName="h-full"
         stepsClassName="mt-auto"
       />
 
-      <div className="flex-1 flex flex-col min-h-screen lg:min-h-0 px-6 py-10 sm:px-10 lg:px-14 lg:py-[46px]">
+      <div className="flex-1 flex flex-col min-h-screen lg:min-h-0 px-6 py-10 sm:px-10 lg:px-14 lg:py-[46px] min-w-0">
         <div className="lg:hidden flex items-center gap-3 mb-6 z-[1]">
           <div
             className="w-[42px] h-[42px] rounded-xl flex items-center justify-center shrink-0"
@@ -66,20 +71,40 @@ export function AuthShell({
           </div>
         </div>
 
-        <div className="lg:hidden mb-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted2 mb-1.5">
-            Step {activeStep + 1} of {authConfig.steps.length}
-          </p>
-          <p className="text-[13px] font-semibold text-ink">{authConfig.steps[activeStep]}</p>
-        </div>
+        {!showProgress ? (
+          <div className="lg:hidden mb-6 min-w-0">
+            <h2 className="text-[22px] font-bold leading-tight tracking-tight text-ink">
+              {Array.isArray(headline) ? (
+                headline.map((line, i) => (
+                  <span key={line}>
+                    {i > 0 && <br />}
+                    {line}
+                  </span>
+                ))
+              ) : (
+                headline
+              )}
+            </h2>
+            <p className="text-[13px] text-muted mt-2 leading-relaxed">{subcopy}</p>
+          </div>
+        ) : (
+          <div className="lg:hidden mb-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted2 mb-1.5">
+              Step {activeStep + 1} of {steps.length}
+            </p>
+            <p className="text-[13px] font-semibold text-ink">{steps[activeStep]}</p>
+          </div>
+        )}
 
-        <div className="h-[5px] bg-surface rounded mb-8 lg:mb-[34px] shrink-0 overflow-hidden">
-          <div
-            className="h-full rounded bg-brand transition-all duration-500 ease-out"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-        <div className="flex-1 flex flex-col">{children}</div>
+        {showProgress ? (
+          <div className="h-[5px] bg-surface rounded mb-8 lg:mb-[34px] shrink-0 overflow-hidden">
+            <div
+              className="h-full rounded bg-brand transition-all duration-500 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        ) : null}
+        <div className="flex-1 flex flex-col min-w-0">{children}</div>
       </div>
     </div>
   );

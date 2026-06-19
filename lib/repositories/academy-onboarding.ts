@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { and, desc, eq, gte, ne } from "drizzle-orm";
 import { academyMemberships, academyOnboardingRequests, users } from "@/db/schema";
 import {
@@ -302,9 +303,9 @@ export type StateOnboardingListFilters = {
   days?: number | "all";
 };
 
-export async function listStateOnboardingRequests(
+export const listStateOnboardingRequests = cache(async (
   filters: StateOnboardingListFilters = {}
-): Promise<StateOnboardingRequestListItem[]> {
+): Promise<StateOnboardingRequestListItem[]> => {
   const conditions = [ne(academyOnboardingRequests.status, "draft")];
 
   if (filters.status && filters.status !== "all") {
@@ -354,7 +355,7 @@ export async function listStateOnboardingRequests(
       statusVariant: onboardingStatusVariant(status),
     };
   });
-}
+});
 
 export async function getOnboardingDocumentKey(
   requestId: string,

@@ -1,17 +1,18 @@
 import { redirect } from "next/navigation";
+import { buildPortalLoginUrl } from "@/lib/auth/portal-login";
 import { getAuthProfile } from "@/lib/repositories/auth";
 import { getSessionUserId } from "@/lib/auth/server";
-import { canAccessStateRoutes } from "@/lib/rbac";
+import { canAccessStateRoutes, STATE_ROUTE_PREFIX } from "@/lib/rbac";
 
 export async function requireStateAccess() {
   const userId = await getSessionUserId();
   if (!userId) {
-    redirect("/auth/login");
+    redirect(buildPortalLoginUrl("state", STATE_ROUTE_PREFIX));
   }
 
   const profile = await getAuthProfile(userId);
   if (!profile || !canAccessStateRoutes(profile.platformRole)) {
-    redirect("/auth/login");
+    redirect(buildPortalLoginUrl("state", STATE_ROUTE_PREFIX));
   }
 
   return profile;

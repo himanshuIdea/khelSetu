@@ -1,9 +1,40 @@
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/** Compact count for state dashboards: 1420 → "1.4k", 124000 → "1.24 L". */
+export function formatCompactCount(count: number): string {
+  if (count >= 100000) {
+    const lakhs = count / 100000;
+    return `${lakhs % 1 === 0 ? lakhs.toFixed(0) : lakhs.toFixed(2)} L`;
+  }
+  if (count >= 1000) {
+    const thousands = count / 1000;
+    return `${thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(1)}k`;
+  }
+  return count.toLocaleString("en-IN");
+}
+
 export function formatPaise(paise: number): string {
   const rupees = paise / 100;
   if (rupees >= 100000) {
     return `₹${(rupees / 100000).toFixed(2)}L`;
+  }
+  return `₹${rupees.toLocaleString("en-IN")}`;
+}
+
+/** State funds dashboard — crore / lakh compact amounts (matches funds mockup). */
+export function formatStateFundAmount(paise: number): string {
+  if (paise <= 0) return "₹0";
+
+  const rupees = paise / 100;
+  if (rupees >= 1_000_000) {
+    const crore = rupees / 10_000_000;
+    const formatted = crore % 1 === 0 ? crore.toFixed(0) : crore.toFixed(1);
+    return `₹${formatted} Cr`;
+  }
+  if (rupees >= 100_000) {
+    const lakh = rupees / 100_000;
+    const formatted = lakh % 1 === 0 ? lakh.toFixed(0) : lakh.toFixed(1);
+    return `₹${formatted}L`;
   }
   return `₹${rupees.toLocaleString("en-IN")}`;
 }

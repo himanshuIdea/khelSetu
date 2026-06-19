@@ -1,20 +1,25 @@
-export type PortalKind = "player" | "coach" | "staff" | "admin";
+export type PortalKind = "player" | "coach" | "staff" | "admin" | "state";
 
 export const portalLoginRoutes: Record<PortalKind, string> = {
   player: "/auth/player/login",
   coach: "/auth/coach/login",
   staff: "/auth/staff/login",
   admin: "/auth/login",
+  state: "/auth/state/login",
 };
 
 const PORTAL_NEXT_PREFIXES: Record<PortalKind, string[]> = {
   player: ["/player/"],
   coach: ["/coach/"],
   staff: ["/academy/", "/staff/"],
-  admin: ["/academy/", "/state/"],
+  admin: ["/academy/"],
+  state: ["/state/"],
 };
 
 export function loginRouteForPathname(pathname: string): string {
+  if (pathname.startsWith("/state")) {
+    return portalLoginRoutes.state;
+  }
   if (pathname.startsWith("/player")) {
     return portalLoginRoutes.player;
   }
@@ -49,7 +54,7 @@ export function buildPortalLoginUrl(portal: PortalKind, next?: string): string {
 
 export function portalKindFromCredentialSegment(
   segment: "athletes" | "coaches" | "staff"
-): Exclude<PortalKind, "admin"> {
+): Exclude<PortalKind, "admin" | "state"> {
   switch (segment) {
     case "athletes":
       return "player";
@@ -61,6 +66,9 @@ export function portalKindFromCredentialSegment(
 }
 
 /** Absolute sign-in URL for credential handoff (client-safe when origin is known). */
-export function portalLoginAbsoluteUrl(portal: Exclude<PortalKind, "admin">, origin: string): string {
+export function portalLoginAbsoluteUrl(
+  portal: Exclude<PortalKind, "admin" | "state">,
+  origin: string
+): string {
   return `${origin.replace(/\/$/, "")}${portalLoginRoutes[portal]}`;
 }

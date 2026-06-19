@@ -37,7 +37,7 @@ export function StateShellClient({
   }
 
   return (
-    <div className="flex min-h-screen bg-surface">
+    <div className="flex h-dvh overflow-hidden bg-surface">
       <StateSidebar activeItem={activeItem} className="hidden lg:flex" />
 
       {menuOpen && (
@@ -57,7 +57,7 @@ export function StateShellClient({
         }`}
       />
 
-      <div className="flex flex-1 flex-col min-w-0 w-full">
+      <div className="flex flex-1 flex-col min-h-0 min-w-0 w-full overflow-hidden">
         <StateTopBar
           searchPlaceholder={searchPlaceholder}
           subtitle={topBarSubtitle}

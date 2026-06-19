@@ -299,6 +299,8 @@ export function AcademyTable({
   minWidth,
   columnWidths,
   columnClassNames,
+  scrollable = false,
+  maxHeightClass,
   className = "",
 }: {
   headers: string[];
@@ -306,39 +308,51 @@ export function AcademyTable({
   minWidth?: number;
   columnWidths?: string[];
   columnClassNames?: string[];
+  scrollable?: boolean;
+  maxHeightClass?: string;
   className?: string;
 }) {
   const useFixedLayout = columnWidths != null && columnWidths.length === headers.length;
 
+  const table = (
+    <table
+      className={`w-full border-collapse ${useFixedLayout ? "table-fixed" : "table-auto"}`}
+      style={minWidth ? { minWidth: `${minWidth}px` } : undefined}
+    >
+      {useFixedLayout && (
+        <colgroup>
+          {columnWidths.map((width, index) => (
+            <col key={`${headers[index]}-${width}`} style={{ width }} />
+          ))}
+        </colgroup>
+      )}
+      <thead className={scrollable ? "sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--color-line)]" : undefined}>
+        <tr>
+          {headers.map((h, index) => (
+            <th
+              key={`${h}-${index}`}
+              className={`text-left text-[10.5px] tracking-[0.6px] uppercase text-muted2 font-semibold px-2 sm:px-3.5 pb-[11px] whitespace-nowrap ${scrollable ? "pt-1.5 bg-card" : ""} ${columnClassNames?.[index] ?? ""}`}
+            >
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>{children}</tbody>
+    </table>
+  );
+
+  const scrollContainerClass = scrollable
+    ? `flex-1 min-h-0 overflow-y-auto overflow-x-auto overscroll-y-contain overscroll-x-contain max-w-full px-1 sm:px-1.5 pt-1.5 pb-1 [-webkit-overflow-scrolling:touch] ${maxHeightClass ?? ""}`
+    : "overflow-x-auto overscroll-x-contain max-w-full px-1 sm:px-1.5 pt-1.5 pb-1 [-webkit-overflow-scrolling:touch]";
+
+  const outerClass = scrollable
+    ? `min-w-0 w-full max-w-full bg-card border border-line rounded-(--radius) shadow-card overflow-hidden flex flex-col min-h-0 ${className}`
+    : `min-w-0 w-full max-w-full bg-card border border-line rounded-(--radius) shadow-card overflow-hidden ${className}`;
+
   return (
-    <div className={`min-w-0 w-full max-w-full bg-card border border-line rounded-(--radius) shadow-card overflow-hidden ${className}`}>
-      <div className="overflow-x-auto overscroll-x-contain max-w-full px-1 sm:px-1.5 pt-1.5 pb-1 [-webkit-overflow-scrolling:touch]">
-        <table
-          className={`w-full border-collapse ${useFixedLayout ? "table-fixed" : "table-auto"}`}
-          style={minWidth ? { minWidth: `${minWidth}px` } : undefined}
-        >
-          {useFixedLayout && (
-            <colgroup>
-              {columnWidths.map((width, index) => (
-                <col key={`${headers[index]}-${width}`} style={{ width }} />
-              ))}
-            </colgroup>
-          )}
-          <thead>
-            <tr>
-              {headers.map((h, index) => (
-                <th
-                  key={`${h}-${index}`}
-                  className={`text-left text-[10.5px] tracking-[0.6px] uppercase text-muted2 font-semibold px-2 sm:px-3.5 pb-[11px] whitespace-nowrap ${columnClassNames?.[index] ?? ""}`}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>{children}</tbody>
-        </table>
-      </div>
+    <div className={outerClass}>
+      <div className={scrollContainerClass}>{table}</div>
     </div>
   );
 }
@@ -386,18 +400,26 @@ export function TableCell({
 
 export function AcademyCardList({
   children,
+  scrollable = false,
   className = "",
 }: {
   children: React.ReactNode;
+  scrollable?: boolean;
   className?: string;
 }) {
-  return (
-    <div
-      className={`lg:hidden min-w-0 w-full max-w-full bg-card border border-line rounded-(--radius) shadow-card overflow-hidden divide-y divide-line2 ${className}`}
-    >
-      {children}
-    </div>
-  );
+  const baseClass = `lg:hidden min-w-0 w-full max-w-full bg-card border border-line rounded-(--radius) shadow-card overflow-hidden divide-y divide-line2 ${className}`;
+
+  if (scrollable) {
+    return (
+      <div className={`${baseClass} flex flex-1 flex-col min-h-0`}>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain divide-y divide-line2 [-webkit-overflow-scrolling:touch]">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
+  return <div className={baseClass}>{children}</div>;
 }
 
 export function AcademyCardListItem({

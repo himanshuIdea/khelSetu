@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import type { AcademyMeta } from "@/lib/repositories/types";
+import type { AcademyNurseryFlag } from "@/lib/state-nurseries";
 import { AcademySidebar, type AcademyNavItem } from "./AcademySidebar";
 import { AcademyTopBar } from "./AcademyTopBar";
+import { NurseryFlagBanner } from "./NurseryFlagBanner";
 
 type AcademyShellClientProps = {
   academyId: string;
   academyMeta: AcademyMeta;
   activeItem: AcademyNavItem;
   searchPlaceholder?: string;
+  nurseryFlag?: AcademyNurseryFlag | null;
   children: React.ReactNode;
 };
 
@@ -18,6 +21,7 @@ export function AcademyShellClient({
   academyMeta,
   activeItem,
   searchPlaceholder,
+  nurseryFlag = null,
   children,
 }: AcademyShellClientProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -73,6 +77,9 @@ export function AcademyShellClient({
             onMenuToggle={() => setMenuOpen((open) => !open)}
             menuOpen={menuOpen}
           />
+          {nurseryFlag ? (
+            <NurseryFlagBanner academyId={academyId} flag={nurseryFlag} />
+          ) : null}
           {children}
         </div>
       </div>

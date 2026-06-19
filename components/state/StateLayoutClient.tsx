@@ -6,7 +6,9 @@ import {
   statePageMeta,
   stateSearchPlaceholders,
 } from "@/lib/state-nav";
+import { StateSearchProvider } from "./StateSearchContext";
 import { StateShellClient } from "./StateShellClient";
+import { FundsHeaderFyBadge } from "./funds/FundsHeaderFyBadge";
 
 const topBarSubtitles: Partial<Record<ReturnType<typeof getActiveStateNavItem>, string>> = {
   scouting: "Talent scouting & athlete pipeline",
@@ -20,12 +22,7 @@ const topBarBadges: Partial<Record<ReturnType<typeof getActiveStateNavItem>, Rea
       Live
     </span>
   ),
-  funds: (
-    <span className="hidden sm:inline-flex items-center gap-[5px] text-[11px] font-semibold px-3 py-[7px] rounded-full bg-green-soft text-[#0E9B72]">
-      <span className="w-[7px] h-[7px] rounded-full bg-green" />
-      FY 2025-26
-    </span>
-  ),
+  funds: <FundsHeaderFyBadge />,
 };
 
 type StateLayoutClientProps = {
@@ -39,14 +36,16 @@ export function StateLayoutClient({ children }: StateLayoutClientProps) {
   const topBarSubtitle = topBarSubtitles[activeItem] ?? "State Sports Command Centre";
 
   return (
-    <StateShellClient
-      activeItem={activeItem}
-      searchPlaceholder={searchPlaceholder}
-      topBarSubtitle={topBarSubtitle}
-      topBarBadge={topBarBadges[activeItem]}
-    >
-      {children}
-    </StateShellClient>
+    <StateSearchProvider>
+      <StateShellClient
+        activeItem={activeItem}
+        searchPlaceholder={searchPlaceholder}
+        topBarSubtitle={topBarSubtitle}
+        topBarBadge={topBarBadges[activeItem]}
+      >
+        {children}
+      </StateShellClient>
+    </StateSearchProvider>
   );
 }
 

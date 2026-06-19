@@ -4,17 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AcademyTable,
-  EmptyState,
   FilterPills,
   PageHeader,
   Pill,
   TableCell,
   TableRow,
 } from "@/components/academy/shared";
+import { StateFilteredEmpty, StateSectionEmpty } from "@/components/state/StateEmptyStates";
 import { InlineSelect } from "@/components/academy/InlineSelect";
-import { CapIcon } from "@/components/academy/icons";
 import { AcademyOnboardingRequestDetailModal } from "@/components/state/AcademyOnboardingRequestDetailModal";
 import { HARYANA_DISTRICTS } from "@/lib/state-catalog";
+import { stateLayout } from "@/lib/state-layout";
 import {
   ONBOARDING_STATUS_LABELS,
   onboardingStatusVariant,
@@ -106,21 +106,22 @@ export function AcademyOnboardingRequestsWorkspace({
   }, [requests, statusFilter, typeFilter, districtFilter, timeFilter]);
 
   return (
-    <>
-      <PageHeader
-        title="Academy onboarding requests"
-        subtitle={`${requests.length} verification request${requests.length === 1 ? "" : "s"} from academy admins`}
-        action={
-          <Link
-            href="/state/nurseries"
-            className="inline-flex items-center justify-center gap-[7px] border border-line bg-card text-ink font-semibold text-[13px] py-[11px] px-4 rounded-[10px] w-full sm:w-auto shrink-0"
-          >
-            Back to nurseries
-          </Link>
-        }
-      />
+    <div className={stateLayout.listWorkspace}>
+      <div className={stateLayout.listChrome}>
+        <PageHeader
+          title="Academy onboarding requests"
+          subtitle={`${requests.length} verification request${requests.length === 1 ? "" : "s"} from academy admins`}
+          action={
+            <Link
+              href="/state/nurseries"
+              className="inline-flex items-center justify-center gap-[7px] border border-line bg-card text-ink font-semibold text-[13px] py-[11px] px-4 rounded-[10px] w-full sm:w-auto shrink-0"
+            >
+              Back to nurseries
+            </Link>
+          }
+        />
 
-      <FilterPills>
+        <FilterPills>
         <InlineSelect
           variant="pill"
           filterPill
@@ -164,41 +165,46 @@ export function AcademyOnboardingRequestsWorkspace({
           options={DISTRICT_OPTIONS}
         />
       </FilterPills>
+      </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState
-          icon={<CapIcon className="w-5 h-5" />}
-          title="No onboarding requests match these filters"
-          description="Try changing time, type, status, or district filters."
-        />
-      ) : (
-        <AcademyTable
-          headers={["Academy", "Admin", "District", "Type", "Submitted", "Status", ""]}
-          minWidth={760}
-        >
-          {filtered.map((request) => (
-            <TableRow key={request.id} onClick={() => setDetailId(request.id)}>
-              <TableCell>
-                <div className="font-semibold text-[13px] text-ink">{request.academyName}</div>
-              </TableCell>
-              <TableCell>{request.adminFullName}</TableCell>
-              <TableCell>{request.district}</TableCell>
-              <TableCell className="capitalize">{request.requestType}</TableCell>
-              <TableCell>
-                {request.submittedAt
-                  ? new Date(request.submittedAt).toLocaleDateString("en-IN")
-                  : "—"}
-              </TableCell>
-              <TableCell>
-                <Pill variant={pillVariant(request.statusVariant)}>{request.statusLabel}</Pill>
-              </TableCell>
-              <TableCell>
-                <span className="text-[11px] font-semibold text-brand">Review</span>
-              </TableCell>
-            </TableRow>
-          ))}
-        </AcademyTable>
-      )}
+      <div className={stateLayout.listScrollRegion}>
+        {requests.length === 0 ? (
+          <StateSectionEmpty screen="onboarding-requests" />
+        ) : filtered.length === 0 ? (
+          <StateFilteredEmpty
+            entity="onboarding requests"
+            description="Try changing time, type, status, or district filters."
+          />
+        ) : (
+          <AcademyTable
+            scrollable
+            headers={["Academy", "Admin", "District", "Type", "Submitted", "Status", ""]}
+            minWidth={760}
+          >
+            {filtered.map((request) => (
+              <TableRow key={request.id} onClick={() => setDetailId(request.id)}>
+                <TableCell>
+                  <div className="font-semibold text-[13px] text-ink">{request.academyName}</div>
+                </TableCell>
+                <TableCell>{request.adminFullName}</TableCell>
+                <TableCell>{request.district}</TableCell>
+                <TableCell className="capitalize">{request.requestType}</TableCell>
+                <TableCell>
+                  {request.submittedAt
+                    ? new Date(request.submittedAt).toLocaleDateString("en-IN")
+                    : "—"}
+                </TableCell>
+                <TableCell>
+                  <Pill variant={pillVariant(request.statusVariant)}>{request.statusLabel}</Pill>
+                </TableCell>
+                <TableCell>
+                  <span className="text-[11px] font-semibold text-brand">Review</span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </AcademyTable>
+        )}
+      </div>
 
       <AcademyOnboardingRequestDetailModal
         requestId={detailId}
@@ -206,6 +212,6 @@ export function AcademyOnboardingRequestsWorkspace({
         onClose={() => setDetailId(null)}
         onReviewed={handleReviewed}
       />
-    </>
+    </div>
   );
 }

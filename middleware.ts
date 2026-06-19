@@ -22,7 +22,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isStateRoute(pathname) && !canAccessRoute(pathname, session.platformRole)) {
-    return NextResponse.redirect(new URL("/auth/login", request.url));
+    return NextResponse.redirect(new URL("/auth/state/login", request.url));
   }
 
   if (

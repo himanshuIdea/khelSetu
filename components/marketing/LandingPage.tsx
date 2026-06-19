@@ -10,8 +10,9 @@ export function LandingPage() {
       headline={login.headline}
       subcopy={login.subcopy}
       activeStep={0}
+      glowVariant="landing"
       className="min-h-dvh"
-      innerClassName="px-6 py-10 sm:px-10 max-w-xl lg:max-w-2xl mx-auto w-full"
+      innerClassName="px-6 py-10 sm:px-10 max-w-xl mx-auto w-full lg:max-w-3xl lg:px-12 lg:py-16"
       stepsClassName="mt-10"
     >
       <div className="mt-10 flex flex-col sm:flex-row gap-3">

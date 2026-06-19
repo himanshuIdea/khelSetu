@@ -114,3 +114,37 @@ export async function apiPostFormData<T>(path: string, formData: FormData): Prom
 
   return response.json() as Promise<T>;
 }
+
+export async function apiPostBlob(
+  path: string,
+  body: unknown
+): Promise<{ blob: Blob; filename: string }> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${resolveApiRoot()}/api/v1${path}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      cache: "no-store",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+    });
+  } catch {
+    throw new ApiError(
+      "Cannot reach the API. Check your connection and try again.",
+      503
+    );
+  }
+
+  if (!response.ok) {
+    const parsed = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new ApiError(parsed.error ?? `API error ${response.status}`, response.status);
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match?.[1] ?? "shortlist-report";
+
+  return { blob, filename };
+}

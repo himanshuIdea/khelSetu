@@ -8,6 +8,9 @@ import {
   deregisterStateNursery,
   getStateNurseryDetail,
   getUnregisteredAcademyPreview,
+  flagStateNursery,
+  clearNurseryFlag,
+  approveStateNursery,
 } from "@/lib/repositories/state-nurseries";
 
 export const runtime = "nodejs";
@@ -49,6 +52,43 @@ export async function DELETE(_request: Request, context: RouteContext) {
     await deregisterStateNursery(academyId);
 
     return NextResponse.json({ ok: true });
+  } catch (error) {
+    return handleStateRouteError(error);
+  }
+}
+
+export async function PATCH(request: Request, context: RouteContext) {
+  try {
+    const auth = await assertStateAdminAccess();
+    if ("error" in auth) return auth.error;
+
+    const { academyId } = await context.params;
+    const body = (await request.json()) as {
+      action: "flag" | "clear_flag" | "approve";
+      note?: string;
+      guidelines?: string;
+    };
+
+    if (body.action === "approve") {
+      const nursery = await approveStateNursery(academyId, auth.userId);
+      return NextResponse.json({ nursery });
+    }
+
+    if (body.action === "flag") {
+      const nursery = await flagStateNursery(
+        academyId,
+        { note: body.note ?? "", guidelines: body.guidelines ?? "" },
+        auth.userId
+      );
+      return NextResponse.json({ nursery });
+    }
+
+    if (body.action === "clear_flag") {
+      const nursery = await clearNurseryFlag(academyId, auth.userId);
+      return NextResponse.json({ nursery });
+    }
+
+    return NextResponse.json({ error: "Invalid action." }, { status: 400 });
   } catch (error) {
     return handleStateRouteError(error);
   }

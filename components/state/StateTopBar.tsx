@@ -1,5 +1,8 @@
+"use client";
+
 import { BellIcon, MenuIcon, SearchIcon, ShieldIcon } from "@/components/academy/icons";
 import { Pill } from "@/components/academy/shared";
+import { useStateSearch } from "./StateSearchContext";
 
 type StateTopBarProps = {
   searchPlaceholder?: string;
@@ -8,6 +11,43 @@ type StateTopBarProps = {
   onMenuToggle?: () => void;
   menuOpen?: boolean;
 };
+
+function SearchField({
+  placeholder,
+  className = "",
+}: {
+  placeholder: string;
+  className?: string;
+}) {
+  const search = useStateSearch();
+
+  if (search?.enabled) {
+    return (
+      <div
+        className={`flex flex-1 items-center gap-[9px] bg-surface border border-line rounded-[11px] px-[13px] py-[9px] min-w-0 ${className}`}
+      >
+        <SearchIcon className="shrink-0 text-muted2" />
+        <input
+          type="search"
+          value={search.query}
+          onChange={(event) => search.setQuery(event.target.value)}
+          placeholder={placeholder}
+          className="flex-1 min-w-0 bg-transparent text-[13px] text-ink placeholder:text-muted2 outline-none"
+          aria-label={placeholder}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex items-center gap-[9px] bg-surface border border-line rounded-[11px] px-[13px] py-[9px] text-muted2 min-w-0 ${className}`}
+    >
+      <SearchIcon className="shrink-0" />
+      <span className="text-[13px] truncate">{placeholder}</span>
+    </div>
+  );
+}
 
 export function StateTopBar({
   searchPlaceholder = "Search nurseries, athletes, districts…",
@@ -43,9 +83,8 @@ export function StateTopBar({
           </div>
         </div>
 
-        <div className="hidden lg:flex flex-1 max-w-[420px] items-center gap-[9px] bg-surface border border-line rounded-[11px] px-[13px] py-[9px] text-muted2">
-          <SearchIcon />
-          <span className="text-[13px] truncate">{searchPlaceholder}</span>
+        <div className="hidden lg:flex flex-1 max-w-[420px] min-w-0">
+          <SearchField placeholder={searchPlaceholder} className="w-full" />
         </div>
 
         <div className="flex-1 lg:flex-none" />
@@ -80,10 +119,7 @@ export function StateTopBar({
       </div>
 
       <div className="lg:hidden px-4 pb-3 md:px-[26px]">
-        <div className="flex items-center gap-[9px] bg-surface border border-line rounded-[11px] px-[13px] py-[9px] text-muted2">
-          <SearchIcon />
-          <span className="text-[13px] truncate">{searchPlaceholder}</span>
-        </div>
+        <SearchField placeholder={searchPlaceholder} className="w-full" />
       </div>
     </header>
   );

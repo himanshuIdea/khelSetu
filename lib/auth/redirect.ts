@@ -19,7 +19,7 @@ import { playerRoutes } from "@/lib/player-nav";
 import { getAuthProfile } from "@/lib/repositories/auth";
 import { resolveCoachForUser } from "@/lib/repositories/coaches";
 import { resolvePlayerForUser } from "@/lib/repositories/players";
-import { isStateAdmin, STATE_ROUTE_PREFIX } from "@/lib/rbac";
+import { isStateAdmin, STATE_ROUTE_PREFIX, canAccessStateRoutes } from "@/lib/rbac";
 import { MEMBERSHIP_ROLES } from "@/lib/rbac/membership-roles";
 
 export function resolvePlayerPortalDenialRedirect(profile: AuthProfile): string {
@@ -73,6 +73,40 @@ export function resolveCoachPortalDenialRedirect(profile: AuthProfile): string {
   }
 
   return buildPortalLoginUrl("coach", coachRoutes.home);
+}
+
+export function resolveStatePortalDenialRedirect(profile: AuthProfile): string {
+  if (canAccessStateRoutes(profile.platformRole)) {
+    return STATE_ROUTE_PREFIX;
+  }
+
+  if (isStateAdmin(profile.platformRole)) {
+    return STATE_ROUTE_PREFIX;
+  }
+
+  if (canAccessAcademyAdmin(profile)) {
+    const staffAcademy =
+      profile.academies.find((academy) => academy.role !== MEMBERSHIP_ROLES.PLAYER) ??
+      profile.academies[0];
+    return `/academy/${staffAcademy.id}/dashboard`;
+  }
+
+  if (
+    isCoachOnlyMember(profile) ||
+    (hasCoachMembership(profile) && !hasPlayerMembership(profile))
+  ) {
+    return coachRoutes.home;
+  }
+
+  if (hasPlayerMembership(profile)) {
+    return playerRoutes.home;
+  }
+
+  if (profile.academies.length === 0) {
+    return "/auth/onboarding";
+  }
+
+  return buildPortalLoginUrl("admin");
 }
 
 function resolveAdminPostAuthRedirect(profile: AuthProfile): string {
@@ -180,6 +214,18 @@ export async function resolvePostAuthRedirectForPortal(
     }
 
     return defaultDest;
+  }
+
+  if (portal === "state") {
+    if (!canAccessStateRoutes(profile.platformRole)) {
+      return resolveStatePortalDenialRedirect(profile);
+    }
+
+    if (safeNext?.startsWith("/state")) {
+      return safeNext;
+    }
+
+    return STATE_ROUTE_PREFIX;
   }
 
   return resolveAdminPostAuthRedirect(profile);

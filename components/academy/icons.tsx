@@ -1,11 +1,23 @@
 type IconProps = { className?: string };
 
-function Svg({ className, children }: IconProps & { children: React.ReactNode }) {
+const SIZE_CLASS_PATTERN = /\b(w-|h-|size-)/;
+
+function mergeIconClass(defaultClass: string, className?: string) {
+  if (!className) return defaultClass;
+  if (SIZE_CLASS_PATTERN.test(className)) return className;
+  return `${defaultClass} ${className}`;
+}
+
+function Svg({
+  className,
+  defaultClass,
+  children,
+}: IconProps & { defaultClass: string; children: React.ReactNode }) {
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      className={className}
+      className={mergeIconClass(defaultClass, className)}
       aria-hidden="true"
     >
       {children}
@@ -13,9 +25,9 @@ function Svg({ className, children }: IconProps & { children: React.ReactNode })
   );
 }
 
-export function BoltIcon({ className = "w-5 h-5" }: IconProps) {
+export function BoltIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-5 h-5" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -27,9 +39,9 @@ export function BoltIcon({ className = "w-5 h-5" }: IconProps) {
   );
 }
 
-export function GridIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
+export function GridIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[18px] h-[18px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -39,9 +51,9 @@ export function GridIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
   );
 }
 
-export function UsersIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
+export function UsersIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[18px] h-[18px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -53,9 +65,9 @@ export function UsersIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
   );
 }
 
-export function CapIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
+export function CapIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[18px] h-[18px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -67,9 +79,9 @@ export function CapIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
   );
 }
 
-export function FlagIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
+export function FlagIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[18px] h-[18px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -81,9 +93,9 @@ export function FlagIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
   );
 }
 
-export function TrophyIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
+export function TrophyIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[18px] h-[18px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -95,9 +107,9 @@ export function TrophyIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
   );
 }
 
-export function CalendarIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
+export function CalendarIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[18px] h-[18px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -109,9 +121,9 @@ export function CalendarIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
   );
 }
 
-export function BoxIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
+export function BoxIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[18px] h-[18px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -123,9 +135,9 @@ export function BoxIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
   );
 }
 
-export function CashIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
+export function CashIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[18px] h-[18px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -137,9 +149,9 @@ export function CashIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
   );
 }
 
-export function SearchIcon({ className = "w-4 h-4" }: IconProps) {
+export function SearchIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-4 h-4" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.9"
@@ -151,9 +163,9 @@ export function SearchIcon({ className = "w-4 h-4" }: IconProps) {
   );
 }
 
-export function BellIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
+export function BellIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[18px] h-[18px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -165,9 +177,9 @@ export function BellIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
   );
 }
 
-export function PlusIcon({ className = "w-4 h-4" }: IconProps) {
+export function PlusIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-4 h-4" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="2"
@@ -178,9 +190,9 @@ export function PlusIcon({ className = "w-4 h-4" }: IconProps) {
   );
 }
 
-export function VideoIcon({ className = "w-[15px] h-[15px]" }: IconProps) {
+export function VideoIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[15px] h-[15px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -192,9 +204,9 @@ export function VideoIcon({ className = "w-[15px] h-[15px]" }: IconProps) {
   );
 }
 
-export function StarIcon({ className = "w-[13px] h-[13px]" }: IconProps) {
+export function StarIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[13px] h-[13px]" className={className}>
       <path
         fill="currentColor"
         d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
@@ -203,9 +215,9 @@ export function StarIcon({ className = "w-[13px] h-[13px]" }: IconProps) {
   );
 }
 
-export function ShieldIcon({ className = "w-[11px] h-[11px]" }: IconProps) {
+export function ShieldIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[11px] h-[11px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -217,9 +229,9 @@ export function ShieldIcon({ className = "w-[11px] h-[11px]" }: IconProps) {
   );
 }
 
-export function CheckIcon({ className = "w-[11px] h-[11px]" }: IconProps) {
+export function CheckIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[11px] h-[11px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="2.2"
@@ -231,9 +243,9 @@ export function CheckIcon({ className = "w-[11px] h-[11px]" }: IconProps) {
   );
 }
 
-export function CopyIcon({ className = "w-4 h-4" }: IconProps) {
+export function CopyIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-4 h-4" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="2"
@@ -252,9 +264,9 @@ export function CopyIcon({ className = "w-4 h-4" }: IconProps) {
   );
 }
 
-export function UpIcon({ className = "w-[13px] h-[13px]" }: IconProps) {
+export function UpIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[13px] h-[13px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="2"
@@ -266,9 +278,9 @@ export function UpIcon({ className = "w-[13px] h-[13px]" }: IconProps) {
   );
 }
 
-export function DotsIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
+export function DotsIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[18px] h-[18px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="2"
@@ -279,9 +291,9 @@ export function DotsIcon({ className = "w-[18px] h-[18px]" }: IconProps) {
   );
 }
 
-export function PinIcon({ className = "w-3 h-3" }: IconProps) {
+export function PinIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-3 h-3" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -293,9 +305,9 @@ export function PinIcon({ className = "w-3 h-3" }: IconProps) {
   );
 }
 
-export function ClockIcon({ className = "w-5 h-5" }: IconProps) {
+export function ClockIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-5 h-5" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -307,9 +319,9 @@ export function ClockIcon({ className = "w-5 h-5" }: IconProps) {
   );
 }
 
-export function MenuIcon({ className = "w-5 h-5" }: IconProps) {
+export function MenuIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-5 h-5" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -320,9 +332,9 @@ export function MenuIcon({ className = "w-5 h-5" }: IconProps) {
   );
 }
 
-export function PencilIcon({ className = "w-[16px] h-[16px]" }: IconProps) {
+export function PencilIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[16px] h-[16px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -334,9 +346,9 @@ export function PencilIcon({ className = "w-[16px] h-[16px]" }: IconProps) {
   );
 }
 
-export function TrashIcon({ className = "w-[16px] h-[16px]" }: IconProps) {
+export function TrashIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-[16px] h-[16px]" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -348,9 +360,9 @@ export function TrashIcon({ className = "w-[16px] h-[16px]" }: IconProps) {
   );
 }
 
-export function CloseIcon({ className = "w-5 h-5" }: IconProps) {
+export function CloseIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-5 h-5" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"
@@ -361,9 +373,9 @@ export function CloseIcon({ className = "w-5 h-5" }: IconProps) {
   );
 }
 
-export function ChartIcon({ className = "w-5 h-5" }: IconProps) {
+export function ChartIcon({ className }: IconProps) {
   return (
-    <Svg className={className}>
+    <Svg defaultClass="w-5 h-5" className={className}>
       <path
         stroke="currentColor"
         strokeWidth="1.7"

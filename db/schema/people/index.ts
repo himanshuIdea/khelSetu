@@ -16,6 +16,14 @@ import { primaryId, timestamps } from "../_shared";
 export const peopleSchema = pgSchema("people");
 
 export const playerStatusEnum = pgEnum("player_status", ["active", "on_hold", "inactive"]);
+export const scoutingStatusEnum = pgEnum("scouting_status", [
+  "khelo_india",
+  "shortlisted_for_nationals",
+  "shortlisted_for_states",
+  "in_trials",
+  "not_selected",
+  "watchlist",
+]);
 export const nisLevelEnum = pgEnum("nis_level", ["nis_level_1", "nis_level_2", "in_review"]);
 export const employmentTypeEnum = pgEnum("employment_type", ["full_time", "part_time"]);
 
@@ -76,6 +84,8 @@ export const players = peopleSchema.table(
     monthlyFeePaise: integer("monthly_fee_paise"),
     notes: text("notes"),
     joinedAt: timestamp("joined_at", { withTimezone: true }),
+    scoutingStatus: scoutingStatusEnum("scouting_status"),
+    scoutingStatusSetAt: timestamp("scouting_status_set_at", { withTimezone: true }),
     ...timestamps,
   },
   (table) => [

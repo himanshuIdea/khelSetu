@@ -18,8 +18,8 @@ function resolvePoolMax(): number {
     const parsed = Number(configured);
     if (!Number.isNaN(parsed) && parsed > 0) return parsed;
   }
-  // Serverless: reuse one connection per warm instance; override via DATABASE_POOL_MAX.
-  return process.env.NODE_ENV === "production" ? 1 : 2;
+  // Local dev runs many parallel state aggregates; serverless stays at 1.
+  return process.env.NODE_ENV === "production" ? 1 : 10;
 }
 
 function createClient() {

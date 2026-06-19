@@ -1,13 +1,5 @@
-import { PageBody } from "@/components/academy/shared";
-import { AcademyOnboardingRequestsWorkspace } from "@/components/state/AcademyOnboardingRequestsWorkspace";
-import { listStateOnboardingRequests } from "@/lib/repositories/academy-onboarding";
+import { redirect } from "next/navigation";
 
-export default async function AcademyOnboardingRequestsPage() {
-  const requests = await listStateOnboardingRequests();
-
-  return (
-    <PageBody>
-      <AcademyOnboardingRequestsWorkspace requests={requests} />
-    </PageBody>
-  );
+export default function AcademyOnboardingRequestsRedirectPage() {
+  redirect("/state/verification");
 }

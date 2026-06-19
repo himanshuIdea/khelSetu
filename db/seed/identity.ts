@@ -83,12 +83,16 @@ export async function seedIdentityUsers() {
   if (stateAdmin) {
     await upsertSeedUser(stateAdmin);
     console.log(`Seeded state admin: ${stateAdmin.email}`);
+  } else {
+    throw new Error(
+      "Bulk seed requires STATE_ADMIN_EMAIL and STATE_ADMIN_PASSWORD in .env."
+    );
   }
 
   const academyAdmin = getAcademyAdminSeedUser();
   if (academyAdmin) {
     await upsertSeedUser(academyAdmin);
-    console.log(`Seeded academy admin: ${academyAdmin.email}`);
+    console.log(`Seeded legacy academy admin: ${academyAdmin.email}`);
   }
 
   return { stateAdmin, academyAdmin };

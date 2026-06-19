@@ -7,13 +7,22 @@ import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthField } from "@/components/auth/AuthField";
 import { AuthModeToggle } from "@/components/auth/AuthModeToggle";
 import { AuthContinueButton } from "@/components/auth/AuthButton";
-import { authConfig, type AuthMode } from "@/lib/auth-config";
+import { PortalLoginCrossLinks } from "@/components/auth/PortalLoginCrossLinks";
+import { authConfig, type AuthMode, type CuratedPortalId } from "@/lib/auth-config";
 import type { PortalKind } from "@/lib/auth/portal-login";
 import { api, ApiError } from "@/lib/api";
 
 type PortalLoginFormProps = {
   portal: PortalKind;
 };
+
+function curatedPortalId(portal: PortalKind): CuratedPortalId | null {
+  if (portal === "admin") return "admin";
+  if (portal === "state") return "state";
+  if (portal === "coach") return "coach";
+  if (portal === "player") return "player";
+  return null;
+}
 
 export function PortalLoginForm({ portal }: PortalLoginFormProps) {
   const router = useRouter();
@@ -24,8 +33,14 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
     if (portal === "admin") {
       return authConfig.login;
     }
+    if (portal === "state") {
+      return authConfig.portalLogin.state;
+    }
     return authConfig.portalLogin[portal];
   }, [portal]);
+
+  const sidePanel = copy.sidePanel;
+  const crossLinkPortal = curatedPortalId(portal);
 
   const passwordOnly = portal === "player";
   const [mode, setMode] = useState<AuthMode>("password");
@@ -88,10 +103,12 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
     <AuthShell
       headline={copy.headline}
       subcopy={copy.subcopy}
-      activeStep={copy.activeStep}
-      progressPercent={copy.progressPercent}
+      activeStep={sidePanel.activeStep}
+      progressPercent={sidePanel.progressPercent}
+      steps={sidePanel.steps}
+      showProgress={sidePanel.showProgress}
     >
-      <form onSubmit={handleSubmit} className="flex flex-col flex-1 max-w-lg">
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 max-w-lg min-w-0">
         <h3 className="text-xl sm:text-[23px] font-bold text-ink tracking-tight">
           {copy.title}
         </h3>
@@ -161,7 +178,7 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
           )
         )}
 
-        <div className="mt-auto flex flex-col gap-6 pt-8">
+        <div className="mt-auto flex flex-col gap-6 pt-8 min-w-0">
           <div className="flex justify-end">
             <AuthContinueButton
               type="submit"
@@ -178,6 +195,18 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
               </Link>
             </p>
           )}
+          {portal === "admin" && "staffSignInPrompt" in copy && (
+            <p className="text-[13px] text-muted text-center sm:text-left">
+              {copy.staffSignInPrompt}{" "}
+              <Link
+                href={copy.staffSignInHref}
+                className="font-semibold text-brand hover:underline"
+              >
+                {copy.staffSignInLabel}
+              </Link>
+            </p>
+          )}
+          {crossLinkPortal ? <PortalLoginCrossLinks current={crossLinkPortal} /> : null}
         </div>
       </form>
     </AuthShell>

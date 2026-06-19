@@ -120,6 +120,55 @@
       "when": 1781244404408,
       "tag": "0016_academy_onboarding_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1781244404508,
+      "tag": "0017_state_portal_query_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1781244404608,
+      "tag": "0018_nursery_flag_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1781244404708,
+      "tag": "0019_player_scouting_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1781244404808,
+      "tag": "0020_state_fund_disbursement",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1781244404908,
+      "tag": "0021_fund_amounts_bigint",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1781244405008,
+      "tag": "0022_state_fiscal_year_total_allocation",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1781244405108,
+      "tag": "0023_zero_state_funds_mock_data",
+      "breakpoints": true
     }
   ]
 }

@@ -1,18 +1,19 @@
-import { and, eq, ilike, inArray, isNotNull, isNull, notInArray, sql } from "drizzle-orm";
+import { cache } from "react";
+import { and, eq, ilike, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   academies,
   academyMemberships,
   academyOnboardingRequests,
-  academySports,
   players,
-  sports,
   stateNurseryRegistrations,
   users,
 } from "@/db/schema";
 import {
   buildNurseryDetailLine,
   nurseryStatusToPill,
+  type AcademyNurseryFlag,
+  type NurseryFlagResponseStatus,
   type NurseryVerificationStatus,
   type StateNurseryDetail,
   type StateNurseryFilters,
@@ -20,99 +21,13 @@ import {
   type StateNurserySearchResult,
 } from "@/lib/state-nurseries";
 import { formatDate } from "@/lib/format";
-
-async function getPrimarySportByAcademy(academyIds: string[]) {
-  if (academyIds.length === 0) return new Map<string, string>();
-
-  const rows = await db
-    .select({
-      academyId: academySports.academyId,
-      sportName: sports.name,
-    })
-    .from(academySports)
-    .innerJoin(sports, eq(academySports.sportId, sports.id))
-    .where(inArray(academySports.academyId, academyIds))
-    .orderBy(academySports.academyId, sports.name);
-
-  const map = new Map<string, string>();
-  for (const row of rows) {
-    if (!map.has(row.academyId)) {
-      map.set(row.academyId, row.sportName);
-    }
-  }
-  return map;
-}
-
-async function getSportsByAcademy(academyId: string) {
-  const rows = await db
-    .select({ sportName: sports.name })
-    .from(academySports)
-    .innerJoin(sports, eq(academySports.sportId, sports.id))
-    .where(eq(academySports.academyId, academyId))
-    .orderBy(sports.name);
-
-  return rows.map((row) => row.sportName);
-}
-
-async function getAthleteCountByAcademy(academyIds: string[]) {
-  if (academyIds.length === 0) return new Map<string, number>();
-
-  const rows = await db
-    .select({
-      academyId: players.academyId,
-      count: sql<number>`count(*)`,
-    })
-    .from(players)
-    .where(
-      and(
-        inArray(players.academyId, academyIds),
-        inArray(players.status, ["active", "on_hold"])
-      )
-    )
-    .groupBy(players.academyId);
-
-  return new Map(rows.map((row) => [row.academyId, Number(row.count)]));
-}
-
-async function getNurseryVerificationByAcademy(): Promise<
-  Map<string, NurseryVerificationStatus>
-> {
-  const registrationRows = await db
-    .select({
-      academyId: stateNurseryRegistrations.academyId,
-      verificationStatus: stateNurseryRegistrations.verificationStatus,
-    })
-    .from(stateNurseryRegistrations);
-
-  const map = new Map<string, NurseryVerificationStatus>(
-    registrationRows.map((row) => [
-      row.academyId,
-      row.verificationStatus as NurseryVerificationStatus,
-    ])
-  );
-
-  const approvedRows = await db
-    .select({ academyId: academyOnboardingRequests.academyId })
-    .from(academyOnboardingRequests)
-    .where(
-      and(
-        eq(academyOnboardingRequests.status, "approved"),
-        isNotNull(academyOnboardingRequests.academyId)
-      )
-    );
-
-  for (const row of approvedRows) {
-    if (row.academyId && !map.has(row.academyId)) {
-      map.set(row.academyId, "verified");
-    }
-  }
-
-  return map;
-}
-
-async function getListedNurseryAcademyIds(): Promise<string[]> {
-  return [...(await getNurseryVerificationByAcademy()).keys()];
-}
+import {
+  getAthleteCountByAcademy,
+  getListedNurseryAcademyIds,
+  getPrimarySportByAcademy,
+  getSportsByAcademy,
+  getStateNurseryContext,
+} from "./state-nursery-helpers";
 
 function applyListFilters(
   items: StateNurseryListItem[],
@@ -138,11 +53,10 @@ function applyListFilters(
   });
 }
 
-export async function listStateNurseries(
+export const listStateNurseries = cache(async (
   filters?: StateNurseryFilters
-): Promise<StateNurseryListItem[]> {
-  const verificationByAcademy = await getNurseryVerificationByAcademy();
-  const academyIds = [...verificationByAcademy.keys()];
+): Promise<StateNurseryListItem[]> => {
+  const { verificationByAcademy, academyIds } = await getStateNurseryContext();
   if (academyIds.length === 0) return [];
 
   const rows = await db
@@ -185,7 +99,7 @@ export async function listStateNurseries(
   });
 
   return applyListFilters(items, filters);
-}
+});
 
 export async function listStateNurseryFilterOptions() {
   const nurseries = await listStateNurseries();
@@ -240,7 +154,7 @@ export async function searchUnregisteredAcademies(
 export async function getStateNurseryDetail(
   academyId: string
 ): Promise<StateNurseryDetail | null> {
-  const verificationByAcademy = await getNurseryVerificationByAcademy();
+  const { verificationByAcademy } = await getStateNurseryContext();
   const verificationStatus = verificationByAcademy.get(academyId);
   if (!verificationStatus) return null;
 
@@ -260,7 +174,15 @@ export async function getStateNurseryDetail(
 
   const [registration, onboardingReview] = await Promise.all([
     db
-      .select({ registeredAt: stateNurseryRegistrations.createdAt })
+      .select({
+        registeredAt: stateNurseryRegistrations.createdAt,
+        flagNote: stateNurseryRegistrations.flagNote,
+        flagGuidelines: stateNurseryRegistrations.flagGuidelines,
+        flaggedAt: stateNurseryRegistrations.flaggedAt,
+        flagResponseStatus: stateNurseryRegistrations.flagResponseStatus,
+        flagResponseNote: stateNurseryRegistrations.flagResponseNote,
+        flagResponseAt: stateNurseryRegistrations.flagResponseAt,
+      })
       .from(stateNurseryRegistrations)
       .where(eq(stateNurseryRegistrations.academyId, academyId))
       .limit(1),
@@ -278,6 +200,7 @@ export async function getStateNurseryDetail(
 
   const registeredAt =
     registration[0]?.registeredAt ?? onboardingReview[0]?.reviewedAt ?? null;
+  const reg = registration[0];
 
   const [sportsList, athleteCounts, adminRow] = await Promise.all([
     getSportsByAcademy(academyId),
@@ -323,6 +246,12 @@ export async function getStateNurseryDetail(
           avatarInitials: admin.avatarInitials,
         }
       : null,
+    flagNote: reg?.flagNote ?? null,
+    flagGuidelines: reg?.flagGuidelines ?? null,
+    flaggedAt: reg?.flaggedAt?.toISOString() ?? null,
+    flagResponseStatus: (reg?.flagResponseStatus ?? "none") as NurseryFlagResponseStatus,
+    flagResponseNote: reg?.flagResponseNote ?? null,
+    flagResponseAt: reg?.flagResponseAt?.toISOString() ?? null,
   };
 }
 
@@ -390,6 +319,12 @@ export async function getUnregisteredAcademyPreview(
           avatarInitials: admin.avatarInitials,
         }
       : null,
+    flagNote: null,
+    flagGuidelines: null,
+    flaggedAt: null,
+    flagResponseStatus: "none",
+    flagResponseNote: null,
+    flagResponseAt: null,
   };
 }
 
@@ -399,12 +334,20 @@ export async function ensureStateNurseryRegistered(
   verificationStatus: NurseryVerificationStatus = "verified"
 ) {
   const [existing] = await db
-    .select({ id: stateNurseryRegistrations.id })
+    .select({ id: stateNurseryRegistrations.id, verificationStatus: stateNurseryRegistrations.verificationStatus })
     .from(stateNurseryRegistrations)
     .where(eq(stateNurseryRegistrations.academyId, academyId))
     .limit(1);
 
-  if (existing) return;
+  if (existing) {
+    if (existing.verificationStatus !== verificationStatus) {
+      await db
+        .update(stateNurseryRegistrations)
+        .set({ verificationStatus, updatedAt: new Date() })
+        .where(eq(stateNurseryRegistrations.id, existing.id));
+    }
+    return;
+  }
 
   await db.insert(stateNurseryRegistrations).values({
     academyId,
@@ -450,4 +393,209 @@ export async function deregisterStateNursery(academyId: string) {
   if (deleted.length === 0) {
     throw new Error("Nursery registration not found.");
   }
+}
+
+export async function approveStateNursery(
+  academyId: string,
+  _reviewerUserId: string
+): Promise<StateNurseryDetail> {
+  const detail = await getStateNurseryDetail(academyId);
+  if (!detail) {
+    throw new Error("Nursery not found.");
+  }
+
+  if (detail.verificationStatus !== "pending") {
+    throw new Error("Only pending nurseries can be approved.");
+  }
+
+  const [existing] = await db
+    .select({ id: stateNurseryRegistrations.id })
+    .from(stateNurseryRegistrations)
+    .where(eq(stateNurseryRegistrations.academyId, academyId))
+    .limit(1);
+
+  if (!existing) {
+    throw new Error("Nursery registration not found.");
+  }
+
+  const now = new Date();
+  await db
+    .update(stateNurseryRegistrations)
+    .set({
+      verificationStatus: "verified",
+      updatedAt: now,
+    })
+    .where(eq(stateNurseryRegistrations.id, existing.id));
+
+  const updated = await getStateNurseryDetail(academyId);
+  if (!updated) {
+    throw new Error("Could not load updated nursery.");
+  }
+  return updated;
+}
+
+export async function flagStateNursery(
+  academyId: string,
+  input: { note: string; guidelines: string },
+  reviewerUserId: string
+): Promise<StateNurseryDetail> {
+  const note = input.note.trim();
+  const guidelines = input.guidelines.trim();
+  if (!note || !guidelines) {
+    throw new Error("Flag note and guidelines are required.");
+  }
+
+  const detail = await getStateNurseryDetail(academyId);
+  if (!detail) {
+    throw new Error("Nursery not found.");
+  }
+
+  const now = new Date();
+  const [existing] = await db
+    .select({ id: stateNurseryRegistrations.id })
+    .from(stateNurseryRegistrations)
+    .where(eq(stateNurseryRegistrations.academyId, academyId))
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(stateNurseryRegistrations)
+      .set({
+        verificationStatus: "flagged",
+        flagNote: note,
+        flagGuidelines: guidelines,
+        flaggedAt: now,
+        flaggedByUserId: reviewerUserId,
+        flagResponseStatus: "none",
+        flagResponseNote: null,
+        flagResponseAt: null,
+        updatedAt: now,
+      })
+      .where(eq(stateNurseryRegistrations.id, existing.id));
+  } else {
+    await db.insert(stateNurseryRegistrations).values({
+      academyId,
+      registeredByUserId: reviewerUserId,
+      verificationStatus: "flagged",
+      flagNote: note,
+      flagGuidelines: guidelines,
+      flaggedAt: now,
+      flaggedByUserId: reviewerUserId,
+      flagResponseStatus: "none",
+    });
+  }
+
+  const updated = await getStateNurseryDetail(academyId);
+  if (!updated) {
+    throw new Error("Could not load updated nursery.");
+  }
+  return updated;
+}
+
+export async function clearNurseryFlag(
+  academyId: string,
+  _reviewerUserId: string
+): Promise<StateNurseryDetail> {
+  const [existing] = await db
+    .select({ id: stateNurseryRegistrations.id })
+    .from(stateNurseryRegistrations)
+    .where(eq(stateNurseryRegistrations.academyId, academyId))
+    .limit(1);
+
+  if (!existing) {
+    throw new Error("Nursery registration not found.");
+  }
+
+  const now = new Date();
+  await db
+    .update(stateNurseryRegistrations)
+    .set({
+      verificationStatus: "verified",
+      flagNote: null,
+      flagGuidelines: null,
+      flaggedAt: null,
+      flaggedByUserId: null,
+      flagResponseStatus: "none",
+      flagResponseNote: null,
+      flagResponseAt: null,
+      updatedAt: now,
+    })
+    .where(eq(stateNurseryRegistrations.id, existing.id));
+
+  const updated = await getStateNurseryDetail(academyId);
+  if (!updated) {
+    throw new Error("Could not load updated nursery.");
+  }
+  return updated;
+}
+
+export async function getAcademyNurseryFlag(academyId: string): Promise<AcademyNurseryFlag | null> {
+  const [row] = await db
+    .select({
+      academyId: stateNurseryRegistrations.academyId,
+      verificationStatus: stateNurseryRegistrations.verificationStatus,
+      flagNote: stateNurseryRegistrations.flagNote,
+      flagGuidelines: stateNurseryRegistrations.flagGuidelines,
+      flaggedAt: stateNurseryRegistrations.flaggedAt,
+      flagResponseStatus: stateNurseryRegistrations.flagResponseStatus,
+      flagResponseNote: stateNurseryRegistrations.flagResponseNote,
+      flagResponseAt: stateNurseryRegistrations.flagResponseAt,
+    })
+    .from(stateNurseryRegistrations)
+    .where(eq(stateNurseryRegistrations.academyId, academyId))
+    .limit(1);
+
+  if (!row || row.verificationStatus !== "flagged" || !row.flagNote || !row.flagGuidelines) {
+    return null;
+  }
+
+  return {
+    academyId: row.academyId,
+    flagNote: row.flagNote,
+    flagGuidelines: row.flagGuidelines,
+    flaggedAt: row.flaggedAt?.toISOString() ?? new Date().toISOString(),
+    flagResponseStatus: row.flagResponseStatus as NurseryFlagResponseStatus,
+    flagResponseNote: row.flagResponseNote,
+    flagResponseAt: row.flagResponseAt?.toISOString() ?? null,
+  };
+}
+
+export async function respondToNurseryFlag(
+  academyId: string,
+  input: { action: "addressed" | "request_review"; note?: string }
+): Promise<AcademyNurseryFlag> {
+  const [row] = await db
+    .select({ id: stateNurseryRegistrations.id })
+    .from(stateNurseryRegistrations)
+    .where(
+      and(
+        eq(stateNurseryRegistrations.academyId, academyId),
+        eq(stateNurseryRegistrations.verificationStatus, "flagged")
+      )
+    )
+    .limit(1);
+
+  if (!row) {
+    throw new Error("No active flag found for this nursery.");
+  }
+
+  const now = new Date();
+  const responseStatus: NurseryFlagResponseStatus =
+    input.action === "addressed" ? "addressed" : "review_requested";
+
+  await db
+    .update(stateNurseryRegistrations)
+    .set({
+      flagResponseStatus: responseStatus,
+      flagResponseNote: input.note?.trim() || null,
+      flagResponseAt: now,
+      updatedAt: now,
+    })
+    .where(eq(stateNurseryRegistrations.id, row.id));
+
+  const flag = await getAcademyNurseryFlag(academyId);
+  if (!flag) {
+    throw new Error("Could not load flag after response.");
+  }
+  return flag;
 }

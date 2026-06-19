@@ -3,7 +3,7 @@
  * Outputs JSON results to stdout; does not log secrets.
  */
 import { loadEnv } from "@/lib/load-env";
-import { SEED_ACADEMY_ID, SEED_ACADEMY_SLUG, resolveSeedAcademyId } from "@/lib/seed-constants";
+import { SEED_ACADEMY_SLUG, resolveSeedAcademyId } from "@/lib/seed-constants";
 import { gatewayUrl } from "@/services/shared/config";
 import { servicePorts } from "@/services/shared/config";
 
@@ -96,15 +96,20 @@ async function testPublicEndpoints() {
   }
 
   try {
-    const { response, durationMs } = await timedFetch(
-      `${gatewayUrl}/api/v1/academies/${SEED_ACADEMY_ID}/meta`
-    );
+    const dbId = await resolveSeedAcademyId();
+    if (!dbId) {
+      record("meta:requires-auth", "skip", { detail: "seed academy not in DB" });
+    } else {
+      const { response, durationMs } = await timedFetch(
+        `${gatewayUrl}/api/v1/academies/${dbId}/meta`
+      );
     const isAuthError = response.status === 401 || response.status === 403;
     record("meta:requires-auth", isAuthError ? "pass" : "fail", {
       httpStatus: response.status,
       detail: isAuthError ? "rejects unauthenticated" : await response.text().catch(() => ""),
       durationMs,
     });
+    }
   } catch (e) {
     record("meta:requires-auth", "fail", {
       detail: e instanceof Error ? e.message : String(e),
@@ -113,11 +118,14 @@ async function testPublicEndpoints() {
 }
 
 async function loginAndGetCookie(baseUrl: string, label: string): Promise<string | undefined> {
-  const email = process.env.SEED_ACADEMY_ADMIN_EMAIL?.trim();
-  const password = process.env.SEED_ACADEMY_ADMIN_PASSWORD?.trim();
+  const bulkDomain = process.env.BULK_ADMIN_EMAIL_DOMAIN?.trim() || "haryana-sports.in";
+  const email =
+    process.env.BULK_ADMIN_EMAIL?.trim() ||
+    `admin-${SEED_ACADEMY_SLUG}@${bulkDomain}`;
+  const password = process.env.BULK_ADMIN_PASSWORD?.trim();
 
   if (!email || !password) {
-    record(`auth:login:${label}`, "skip", { detail: "SEED_ACADEMY_ADMIN_* not set" });
+    record(`auth:login:${label}`, "skip", { detail: "BULK_ADMIN_PASSWORD not set" });
     return undefined;
   }
 
@@ -306,7 +314,7 @@ async function resolveAcademyIds(cookie: string | undefined): Promise<{
 
   const dbId = await resolveSeedAcademyId().catch(() => null);
 
-  return { constantId: SEED_ACADEMY_ID, sessionId, dbId };
+  return { constantId: dbId, sessionId, dbId };
 }
 
 async function testStateAdminEndpoints() {

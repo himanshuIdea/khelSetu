@@ -1,11 +1,13 @@
-import { sportLegend } from "@/lib/state-mock-data";
+import type { SportLegendItem } from "@/lib/state-portal";
 
 const segmentColors = ["#FF6B2C", "#2F6BFF", "#7C5CFC", "#12B886", "#9AA4B8"];
 
-export function SportLegend() {
+export function SportLegend({ items }: { items: SportLegendItem[] }) {
+  if (items.length === 0) return null;
+
   return (
     <div className="flex flex-wrap gap-3 mb-3.5">
-      {sportLegend.map((s) => (
+      {items.map((s) => (
         <span key={s.label} className="inline-flex items-center gap-1.5 text-[11.5px] text-muted">
           <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ background: s.color }} />
           {s.label}

@@ -1,16 +1,59 @@
 export type AuthMode = "password" | "otp";
 
+export type AuthSidePanelConfig = {
+  steps: readonly string[];
+  showProgress: boolean;
+  activeStep: number;
+  progressPercent: number;
+};
+
+export type CuratedPortalId = "state" | "admin" | "coach" | "player";
+
+export const ONBOARDING_STEPS = [
+  "Account & verification",
+  "Academy profile & branding",
+  "Add coaches & batches",
+  "Invite your players",
+] as const;
+
+export const STATE_PORTAL_STEPS = [
+  "District overview",
+  "Nursery verification",
+  "Athlete scouting",
+  "Funds & reports",
+] as const;
+
+export const COACH_PORTAL_STEPS = [
+  "Review submissions",
+  "Post drills",
+  "Mark attendance",
+  "Build teams",
+] as const;
+
+export const PLAYER_PORTAL_STEPS = [
+  "Watch drills",
+  "Submit your form",
+  "Track progress",
+  "Stay connected",
+] as const;
+
+export const portalCrossLinks: ReadonlyArray<{
+  id: CuratedPortalId;
+  label: string;
+  href: string;
+}> = [
+  { id: "state", label: "State department", href: "/auth/state/login" },
+  { id: "admin", label: "Academy admin", href: "/auth/login" },
+  { id: "coach", label: "Coach", href: "/auth/coach/login" },
+  { id: "player", label: "Athlete", href: "/auth/player/login" },
+];
+
 export const authConfig = {
   brand: {
     name: "Khel",
     accentWord: "Setu",
   },
-  steps: [
-    "Account & verification",
-    "Academy profile & branding",
-    "Add coaches & batches",
-    "Invite your players",
-  ],
+  steps: ONBOARDING_STEPS,
   signUp: {
     activeStep: 0,
     progressPercent: 25,
@@ -46,10 +89,19 @@ export const authConfig = {
       "A fully branded web portal and mobile app for your academy — set up in four simple steps. No code, no IT team needed.",
     activeStep: 0,
     progressPercent: 25,
+    sidePanel: {
+      steps: ONBOARDING_STEPS,
+      showProgress: true,
+      activeStep: 0,
+      progressPercent: 25,
+    },
     title: "Sign in",
-    subtitle: "Welcome back. Sign in to manage your academy or state dashboard.",
+    subtitle: "Welcome back. Sign in to manage your academy dashboard.",
     signUpPrompt: "New to Khel Setu?",
     signUpLabel: "Create your account",
+    staffSignInPrompt: "Support staff?",
+    staffSignInLabel: "Sign in here",
+    staffSignInHref: "/auth/staff/login",
     modes: {
       password: {
         label: "Password",
@@ -70,11 +122,50 @@ export const authConfig = {
     continueLabel: "Continue",
   },
   portalLogin: {
+    state: {
+      headline: ["Oversee sports", "across the state."],
+      subcopy:
+        "Monitor districts, verify nurseries, scout talent, and track funds from one state dashboard.",
+      activeStep: 4,
+      progressPercent: 0,
+      sidePanel: {
+        steps: STATE_PORTAL_STEPS,
+        showProgress: false,
+        activeStep: 4,
+        progressPercent: 0,
+      },
+      title: "State dashboard sign in",
+      subtitle: "Welcome back. Sign in with your state department credentials.",
+      modes: {
+        password: {
+          label: "Password",
+          identifierLabel: "Email or username",
+          identifierPlaceholder: "you@haryanasports.gov.in",
+          passwordLabel: "Password",
+          passwordPlaceholder: "Enter your password",
+          forgotPasswordLabel: "Forgot password?",
+        },
+        otp: {
+          label: "OTP",
+          phoneLabel: "Phone number",
+          phonePlaceholder: "+91 98765 43210",
+          otpLabel: "OTP",
+          otpPlaceholder: "Enter 6-digit OTP",
+        },
+      },
+      continueLabel: "Continue",
+    },
     player: {
       headline: ["Sign in to your", "athlete app."],
       subcopy: "Use the username and password your academy admin shared with you.",
-      activeStep: 0,
-      progressPercent: 25,
+      activeStep: 4,
+      progressPercent: 0,
+      sidePanel: {
+        steps: PLAYER_PORTAL_STEPS,
+        showProgress: false,
+        activeStep: 4,
+        progressPercent: 0,
+      },
       title: "Athlete sign in",
       subtitle: "Enter your username and temporary or chosen password to continue.",
       signUpPrompt: "Academy admin?",
@@ -95,8 +186,14 @@ export const authConfig = {
     coach: {
       headline: ["Sign in as", "coach."],
       subcopy: "View your assignments, players, attendance, and teams.",
-      activeStep: 0,
-      progressPercent: 25,
+      activeStep: 4,
+      progressPercent: 0,
+      sidePanel: {
+        steps: COACH_PORTAL_STEPS,
+        showProgress: false,
+        activeStep: 4,
+        progressPercent: 0,
+      },
       title: "Coach sign in",
       subtitle: "Welcome back. Sign in to open your coach portal.",
       signUpPrompt: "Academy admin?",
@@ -124,8 +221,14 @@ export const authConfig = {
     staff: {
       headline: ["Sign in as", "support staff."],
       subcopy: "Access academy operations, attendance, and roster tools.",
-      activeStep: 0,
-      progressPercent: 25,
+      activeStep: 4,
+      progressPercent: 0,
+      sidePanel: {
+        steps: COACH_PORTAL_STEPS,
+        showProgress: false,
+        activeStep: 4,
+        progressPercent: 0,
+      },
       title: "Staff sign in",
       subtitle: "Welcome back. Sign in to open your staff dashboard.",
       signUpPrompt: "Academy admin?",
@@ -208,7 +311,7 @@ export const authConfig = {
       },
       brandedLink: {
         label: "Your branded link",
-        defaultValue: "dronacharya",
+        defaultValue: "ambala-1",
         suffix: ".khelsetu.in",
         hint: "3–40 characters. Lowercase letters, numbers, and hyphens only. Must start and end with a letter or number.",
       },

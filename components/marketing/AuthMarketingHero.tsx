@@ -84,10 +84,27 @@ export function AuthStepList({
 const HERO_GRADIENT =
   "linear-gradient(165deg, #0E1B33 0%, #16264A 60%, #1E335C 100%)";
 
+const GLOW_GRADIENT =
+  "radial-gradient(circle, rgba(255,107,44,0.32), transparent 70%)";
+
+function AuthGlow({ className, style }: { className?: string; style: React.CSSProperties }) {
+  return (
+    <div
+      className={`absolute rounded-full pointer-events-none ${className ?? ""}`}
+      style={{
+        background: GLOW_GRADIENT,
+        ...style,
+      }}
+    />
+  );
+}
+
 type AuthMarketingHeroProps = {
   headline?: string | readonly string[];
   subcopy?: string;
   activeStep: number;
+  steps?: readonly string[];
+  glowVariant?: "auth" | "landing";
   className?: string;
   innerClassName?: string;
   stepsClassName?: string;
@@ -98,6 +115,8 @@ export function AuthMarketingHero({
   headline = authConfig.login.headline,
   subcopy = authConfig.login.subcopy,
   activeStep,
+  steps,
+  glowVariant = "auth",
   className = "",
   innerClassName = "",
   stepsClassName = "mt-auto",
@@ -110,15 +129,23 @@ export function AuthMarketingHero({
       className={`relative overflow-hidden text-white flex flex-col ${className}`}
       style={{ background: HERO_GRADIENT }}
     >
-      <div
-        className="absolute w-[360px] h-[360px] rounded-full pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(255,107,44,0.32), transparent 70%)",
-          right: -120,
-          top: -90,
-        }}
-      />
+      {glowVariant === "landing" ? (
+        <>
+          <AuthGlow
+            className="w-[360px] h-[360px] lg:hidden"
+            style={{ right: -120, top: -90 }}
+          />
+          <AuthGlow
+            className="hidden lg:block w-[480px] h-[480px]"
+            style={{ right: "10%", top: "-4%" }}
+          />
+        </>
+      ) : (
+        <AuthGlow
+          className="w-[360px] h-[360px]"
+          style={{ right: -120, top: -90 }}
+        />
+      )}
       <div className={`flex flex-col flex-1 z-[1] ${innerClassName}`}>
         <div className="flex items-center gap-3 mb-[46px]">
           <div
@@ -147,7 +174,7 @@ export function AuthMarketingHero({
           )}
         </h2>
         <p className="text-sm text-[#A9B5D1] mt-3.5 leading-relaxed">{subcopy}</p>
-        <AuthStepList activeStep={activeStep} className={stepsClassName} />
+        <AuthStepList activeStep={activeStep} steps={steps} className={stepsClassName} />
         {children}
       </div>
     </div>

@@ -1,5 +1,7 @@
 export type NurseryVerificationStatus = "verified" | "pending" | "flagged";
 
+export type NurseryFlagResponseStatus = "none" | "addressed" | "review_requested";
+
 export type NurseryPillVariant = "green" | "amber" | "red";
 
 export type StateNurseryFilters = {
@@ -54,6 +56,30 @@ export type StateNurseryDetail = {
   statusLabel: string;
   registeredAt: string;
   admin: StateNurseryAdmin | null;
+  flagNote: string | null;
+  flagGuidelines: string | null;
+  flaggedAt: string | null;
+  flagResponseStatus: NurseryFlagResponseStatus;
+  flagResponseNote: string | null;
+  flagResponseAt: string | null;
+};
+
+export type AcademyNurseryFlag = {
+  academyId: string;
+  flagNote: string;
+  flagGuidelines: string;
+  flaggedAt: string;
+  flagResponseStatus: NurseryFlagResponseStatus;
+  flagResponseNote: string | null;
+  flagResponseAt: string | null;
+};
+
+export const FLAG_RESPONSE_LABELS: Record<
+  Exclude<NurseryFlagResponseStatus, "none">,
+  string
+> = {
+  addressed: "Marked as addressed",
+  review_requested: "Review requested",
 };
 
 export function nurseryStatusToPill(status: NurseryVerificationStatus): {

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function AcademyIndex() {
   const academy = await getAcademyBySlug(SEED_ACADEMY_SLUG);
   if (!academy) {
-    redirect("/login");
+    redirect("/auth/login");
   }
   redirect(`/academy/${academy.id}/dashboard`);
 }

@@ -17,6 +17,11 @@
     "db:seed": "tsx db/seed/index.ts",
     "db:setup": "pnpm db:migrate && pnpm db:seed",
     "db:check": "tsx scripts/check-db.ts",
+    "db:seed:check": "tsx scripts/check-db.ts",
+    "db:reset-state-funds": "tsx scripts/reset-state-funds.ts",
+    "db:refresh-names": "tsx scripts/refresh-academy-names.ts",
+    "db:refresh-players": "tsx scripts/refresh-player-rosters.ts",
+    "db:refresh-coaches": "tsx scripts/refresh-coach-rosters.ts",
     "qa:backend": "tsx scripts/backend-qa.ts"
   },
   "dependencies": {
@@ -24,9 +29,11 @@
     "@hono/node-server": "^2.0.4",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
+    "exceljs": "^4.4.0",
     "hono": "^4.12.25",
     "jose": "^6.2.3",
     "next": "16.2.9",
+    "pdfkit": "^0.19.1",
     "postgres": "^3.4.9",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -35,6 +42,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^20",
+    "@types/pdfkit": "^0.17.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "concurrently": "^10.0.3",

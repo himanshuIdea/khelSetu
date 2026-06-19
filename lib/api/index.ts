@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPatch, apiPost, apiPostFormData, apiPut } from "./http";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPostBlob, apiPostFormData, apiPut } from "./http";
 import type { AuthAcademy, AuthProfile, PlatformRole } from "@/lib/auth/types";
 import type {
   AssignCoachPayload,
@@ -32,11 +32,13 @@ import type {
   StateOnboardingRequestListItem,
 } from "@/lib/academy-onboarding";
 import type {
+  AcademyNurseryFlag,
   StateNurseryDetail,
   StateNurseryFilters,
   StateNurseryListItem,
   StateNurserySearchResult,
 } from "@/lib/state-nurseries";
+import type { StateFundsDashboard, StateFundSchemeDetail } from "@/lib/state-portal";
 import type {
   ScheduleSettingsPayload,
   SlotPayload,
@@ -109,7 +111,7 @@ export const api = {
       password?: string;
       phone?: string;
       otp?: string;
-      portal?: "player" | "coach" | "staff" | "admin";
+      portal?: "player" | "coach" | "staff" | "admin" | "state";
       next?: string;
     }) => apiPost<AuthSessionResponse>("/auth/login", body),
     changePassword: (body: { currentPassword: string; newPassword: string }) =>
@@ -126,6 +128,18 @@ export const api = {
       ),
     create: (payload: OnboardingPayload) =>
       apiPost<OnboardingResult>("/academies/onboarding", payload),
+    nurseryFlag: {
+      get: (academyId: string) =>
+        apiGet<{ flag: AcademyNurseryFlag | null }>(`/academies/${academyId}/nursery-flag`),
+      respond: (
+        academyId: string,
+        body: { action: "addressed" | "request_review"; note?: string }
+      ) =>
+        apiPost<{ flag: AcademyNurseryFlag }>(
+          `/academies/${academyId}/nursery-flag/respond`,
+          body
+        ),
+    },
   },
 
   onboarding: {
@@ -670,6 +684,19 @@ export const api = {
       register: (academyId: string) =>
         apiPost<{ ok: boolean }>("/state/nurseries", { academyId }),
       deregister: (academyId: string) => apiDelete(`/state/nurseries/${academyId}`),
+      flag: (academyId: string, body: { note: string; guidelines: string }) =>
+        apiPatch<{ nursery: StateNurseryDetail }>(`/state/nurseries/${academyId}`, {
+          action: "flag",
+          ...body,
+        }),
+      clearFlag: (academyId: string) =>
+        apiPatch<{ nursery: StateNurseryDetail }>(`/state/nurseries/${academyId}`, {
+          action: "clear_flag",
+        }),
+      approve: (academyId: string) =>
+        apiPatch<{ nursery: StateNurseryDetail }>(`/state/nurseries/${academyId}`, {
+          action: "approve",
+        }),
     },
     onboardingRequests: {
       list: (filters?: {
@@ -712,6 +739,47 @@ export const api = {
         ),
       documentUrl: (requestId: string, type: OnboardingDocumentType) =>
         `/api/v1/state/nurseries/requests/${requestId}/documents/${type}`,
+    },
+    scouting: {
+      updateStatus: (playerId: string, status: string | null) =>
+        apiPatch<{ ok: boolean; playerId: string; status: string | null }>(
+          `/state/scouting/players/${playerId}`,
+          { status }
+        ),
+      bulkUpdateStatus: (playerIds: string[], status: string) =>
+        apiPatch<{ ok: boolean; updated: number; status: string }>(
+          "/state/scouting/players/bulk",
+          { playerIds, status }
+        ),
+      downloadShortlistReport: (format: "xlsx" | "pdf") =>
+        apiPostBlob("/state/scouting/shortlist-report", { format }),
+    },
+    funds: {
+      dashboard: () => apiGet<{ dashboard: StateFundsDashboard }>("/state/funds"),
+      updateFyAllocation: (totalAllocatedAmountPaise: number) =>
+        apiPatch<{ ok: boolean }>("/state/funds/fy/allocation", {
+          totalAllocatedAmountPaise,
+        }),
+      schemeDetail: (slug: string) =>
+        apiGet<{ detail: StateFundSchemeDetail }>(`/state/funds/schemes/${slug}`),
+      updateAllocation: (slug: string, allocatedAmountPaise: number) =>
+        apiPatch<{ ok: boolean }>(`/state/funds/schemes/${slug}/allocation`, {
+          allocatedAmountPaise,
+        }),
+      createDisbursement: (
+        slug: string,
+        body: {
+          beneficiaryId: string;
+          amountPaise: number;
+          status: "pending" | "paid";
+          dueDate?: string | null;
+          referenceNote?: string;
+        }
+      ) => apiPost<{ ok: boolean }>(`/state/funds/schemes/${slug}/disbursements`, body),
+      releasePending: (schemeSlug?: string) =>
+        apiPost<{ ok: boolean; released: number }>("/state/funds/release", {
+          schemeSlug,
+        }),
     },
   },
 };
