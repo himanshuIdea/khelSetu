@@ -21,7 +21,9 @@ import {
   type PlayerFilters,
   type PlayerFormOptions,
 } from "@/lib/players";
+import { matchesStateTextSearch } from "@/lib/state-search";
 import type { Player } from "@/lib/repositories/types";
+import { useAcademyPageSearch } from "@/components/academy/AcademySearchContext";
 
 type FilterOption<T extends string> = {
   value: T;
@@ -41,7 +43,7 @@ type PlayersListSectionProps = {
   players: Player[];
   formOptions: PlayerFormOptions;
   selectedPlayerId?: string | null;
-  onSelectPlayer?: (playerId: string) => void;
+  onSelectPlayer?: (playerId: string | null) => void;
 };
 
 const TABLE_HEADERS = ["Player", "Sport · Batch", "Fees", "Attendance", "Status"] as const;
@@ -257,11 +259,22 @@ export function PlayersListSection({
   const filterOptions = useMemo(() => buildPlayerFilterOptions(formOptions), [formOptions]);
   const [filters, setFilters] = useState<PlayerFilters>(DEFAULT_PLAYER_FILTERS);
   const [openFilterMenu, setOpenFilterMenu] = useState<FilterMenuKey | null>(null);
+  const searchQuery = useAcademyPageSearch();
 
-  const filteredPlayers = useMemo(
-    () => filterPlayers(players, filters),
-    [players, filters]
-  );
+  const filteredPlayers = useMemo(() => {
+    const pillFiltered = filterPlayers(players, filters);
+    if (!searchQuery.trim()) return pillFiltered;
+    return pillFiltered.filter((player) =>
+      matchesStateTextSearch(searchQuery, [player.name, player.id, player.sport, player.batch])
+    );
+  }, [players, filters, searchQuery]);
+
+  useEffect(() => {
+    if (!selectedPlayerId || !onSelectPlayer) return;
+    if (!filteredPlayers.some((player) => player.id === selectedPlayerId)) {
+      onSelectPlayer(null);
+    }
+  }, [filteredPlayers, onSelectPlayer, selectedPlayerId]);
 
   const activeSport = filterOptions.sports.find((option) => option.value === filters.sport);
   const activeBatch = filterOptions.batches.find((option) => option.value === filters.batch);
@@ -320,8 +333,16 @@ export function PlayersListSection({
         <EmptyState
           compact
           className="w-full min-w-0"
-          title="No players match these filters"
-          description="Try a different sport, batch, fee status or player status."
+          title={
+            searchQuery.trim()
+              ? "No players match your search"
+              : "No players match these filters"
+          }
+          description={
+            searchQuery.trim()
+              ? "Try a different search term."
+              : "Try a different sport, batch, fee status or player status."
+          }
         />
       ) : (
         <>

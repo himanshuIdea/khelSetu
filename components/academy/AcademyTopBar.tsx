@@ -1,17 +1,59 @@
+"use client";
+
 import { AdminAvatarMenu } from "./AdminAvatarMenu";
+import { useAcademySearch } from "./AcademySearchContext";
 import { BellIcon, MenuIcon, SearchIcon } from "./icons";
 import type { AcademyMeta } from "@/lib/repositories/types";
 
 type AcademyTopBarProps = {
   academyMeta: AcademyMeta;
   searchPlaceholder?: string;
+  searchHidden?: boolean;
   onMenuToggle?: () => void;
   menuOpen?: boolean;
 };
 
+function SearchField({
+  placeholder,
+  className = "",
+}: {
+  placeholder: string;
+  className?: string;
+}) {
+  const search = useAcademySearch();
+
+  if (search?.enabled) {
+    return (
+      <div
+        className={`flex flex-1 items-center gap-[9px] bg-surface border border-line rounded-[11px] px-[13px] py-[9px] min-w-0 ${className}`}
+      >
+        <SearchIcon className="shrink-0 text-muted2" />
+        <input
+          type="search"
+          value={search.query}
+          onChange={(event) => search.setQuery(event.target.value)}
+          placeholder={placeholder}
+          className="flex-1 min-w-0 bg-transparent text-[13px] text-ink placeholder:text-muted2 outline-none"
+          aria-label={placeholder}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex items-center gap-[9px] bg-surface border border-line rounded-[11px] px-[13px] py-[9px] text-muted2 min-w-0 ${className}`}
+    >
+      <SearchIcon className="shrink-0" />
+      <span className="text-[13px] truncate">{placeholder}</span>
+    </div>
+  );
+}
+
 export function AcademyTopBar({
   academyMeta,
   searchPlaceholder = "Search players, coaches, teams…",
+  searchHidden = false,
   onMenuToggle,
   menuOpen,
 }: AcademyTopBarProps) {
@@ -40,35 +82,33 @@ export function AcademyTopBar({
           </div>
         </div>
 
-        <div className="hidden lg:flex flex-1 max-w-[420px] items-center gap-[9px] bg-surface border border-line rounded-[11px] px-[13px] py-[9px] text-muted2">
-          <SearchIcon />
-          <span className="text-[13px] truncate">{searchPlaceholder}</span>
-        </div>
+        {!searchHidden && (
+          <div className="hidden lg:flex flex-1 max-w-[420px] min-w-0">
+            <SearchField placeholder={searchPlaceholder} className="w-full" />
+          </div>
+        )}
 
         <div className="flex-1 lg:flex-none" />
 
-        
-        <div className="flex gap-3 lg:flex-none" >
-        <button
-          type="button"
-          className="relative w-[38px] h-[38px] rounded-[10px] bg-surface border border-line flex items-center justify-center text-muted shrink-0"
-          aria-label="Notifications"
-        >
-          <BellIcon />
-          <span className="absolute top-2 right-[9px] w-[7px] h-[7px] rounded-full bg-brand border-2 border-card" />
-        </button>
+        <div className="flex gap-3 lg:flex-none">
+          <button
+            type="button"
+            className="relative w-[38px] h-[38px] rounded-[10px] bg-surface border border-line flex items-center justify-center text-muted shrink-0"
+            aria-label="Notifications"
+          >
+            <BellIcon />
+            <span className="absolute top-2 right-[9px] w-[7px] h-[7px] rounded-full bg-brand border-2 border-card" />
+          </button>
 
-        <AdminAvatarMenu initials={academyMeta.adminInitials} />
-        </div>
-
-      </div>
-
-      <div className="lg:hidden px-4 pb-3 md:px-[26px]">
-        <div className="flex items-center gap-[9px] bg-surface border border-line rounded-[11px] px-[13px] py-[9px] text-muted2">
-          <SearchIcon />
-          <span className="text-[13px] truncate">{searchPlaceholder}</span>
+          <AdminAvatarMenu initials={academyMeta.adminInitials} />
         </div>
       </div>
+
+      {!searchHidden && (
+        <div className="lg:hidden px-4 pb-3 md:px-[26px]">
+          <SearchField placeholder={searchPlaceholder} className="w-full" />
+        </div>
+      )}
     </header>
   );
 }

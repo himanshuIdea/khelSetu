@@ -8,7 +8,11 @@ export default async function StateLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireStateAccess();
+  const profile = await requireStateAccess();
 
-  return <StateLayoutClient>{children}</StateLayoutClient>;
+  return (
+    <StateLayoutClient adminMeta={{ fullName: profile.fullName || "Sports Dept." }}>
+      {children}
+    </StateLayoutClient>
+  );
 }

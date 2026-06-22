@@ -1,7 +1,26 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import { InlineRow } from "@/components/academy/InlineFormFields";
+
+const PANEL_GAP = 6;
+const PANEL_WIDTH = 280;
+const PANEL_ESTIMATED_HEIGHT = 320;
+
+type PanelPosition = {
+  top: number;
+  left: number;
+  width: number;
+};
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
 const MONTHS = [
@@ -112,6 +131,8 @@ type InlineDatePickerProps = {
   maxDate?: string;
   layout?: "inline" | "stacked";
   tone?: "light" | "dark";
+  /** Tailwind z-index class for the portaled panel (default `z-[60]`). Use `z-[70]` inside nested modals. */
+  panelZIndexClass?: string;
 };
 
 export function InlineDatePicker({
@@ -124,16 +145,42 @@ export function InlineDatePicker({
   maxDate,
   layout = "inline",
   tone = "light",
+  panelZIndexClass = "z-[60]",
 }: InlineDatePickerProps) {
   const generatedId = useId();
   const triggerId = id ?? generatedId;
   const panelId = `${triggerId}-panel`;
-  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const monthListRef = useRef<HTMLDivElement>(null);
   const yearListRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [pickerView, setPickerView] = useState<PickerView>("calendar");
+  const [position, setPosition] = useState<PanelPosition>({ top: 0, left: 0, width: PANEL_WIDTH });
   const [viewMonth, setViewMonth] = useState(() => parseIsoDate(value) ?? new Date());
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    const panel = panelRef.current;
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const panelHeight = panel?.offsetHeight ?? PANEL_ESTIMATED_HEIGHT;
+    const panelWidth = Math.max(PANEL_WIDTH, rect.width);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpward = spaceBelow < panelHeight + PANEL_GAP;
+
+    setPosition({
+      top: openUpward ? rect.top - panelHeight - PANEL_GAP : rect.bottom + PANEL_GAP,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - panelWidth - 8)),
+      width: panelWidth,
+    });
+  }, []);
 
   const maxDateValue = useMemo(() => (maxDate ? parseIsoDate(maxDate) : null), [maxDate]);
   const selectedDate = useMemo(() => parseIsoDate(value), [value]);
@@ -166,10 +213,12 @@ export function InlineDatePicker({
       return;
     }
 
+    updatePosition();
+
     function handlePointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -185,12 +234,21 @@ export function InlineDatePicker({
 
     document.addEventListener("mousedown", handlePointerDown);
     window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
 
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [open, pickerView]);
+  }, [open, pickerView, updatePosition]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+  }, [open, pickerView, updatePosition]);
 
   useEffect(() => {
     if (!open || pickerView !== "month") return;
@@ -265,17 +323,20 @@ export function InlineDatePicker({
         } ${!value ? "text-muted2" : ""}`
   }`;
 
-  const panelPositionClassName = isStacked
-    ? "top-full mt-1.5"
-    : "bottom-full mb-1.5";
-
   const pickerPanel =
     open && !disabled ? (
           <div
+            ref={panelRef}
             id={panelId}
             role="dialog"
             aria-label="Choose date"
-            className={`absolute z-30 left-0 right-0 sm:left-auto sm:right-0 sm:w-[280px] ${panelPositionClassName} bg-white border border-line rounded-[11px] shadow-card p-3`}
+            style={{
+              position: "fixed",
+              top: position.top,
+              left: position.left,
+              width: position.width,
+            }}
+            className={`${panelZIndexClass} bg-white border border-line rounded-[11px] shadow-card p-3`}
           >
             {pickerView === "calendar" && (
               <>
@@ -451,6 +512,7 @@ export function InlineDatePicker({
 
   const triggerButton = (
     <button
+      ref={triggerRef}
       id={triggerId}
       type="button"
       disabled={disabled}
@@ -465,6 +527,8 @@ export function InlineDatePicker({
     </button>
   );
 
+  const portaledPanel = mounted && pickerPanel ? createPortal(pickerPanel, document.body) : null;
+
   if (isStacked) {
     return (
       <div className="min-w-0">
@@ -476,20 +540,16 @@ export function InlineDatePicker({
         >
           {label}
         </label>
-        <div ref={rootRef} className="relative">
-          {triggerButton}
-          {pickerPanel}
-        </div>
+        {triggerButton}
+        {portaledPanel}
       </div>
     );
   }
 
   return (
     <InlineRow label={label} htmlFor={triggerId}>
-      <div ref={rootRef} className="relative">
-        {triggerButton}
-        {pickerPanel}
-      </div>
+      {triggerButton}
+      {portaledPanel}
     </InlineRow>
   );
 }

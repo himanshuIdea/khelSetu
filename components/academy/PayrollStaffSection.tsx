@@ -27,6 +27,7 @@ import {
   TableRow,
 } from "@/components/academy/shared";
 import type { StaffMember } from "@/lib/repositories/types";
+import { matchesStateTextSearch } from "@/lib/state-search";
 
 type PayrollStaffSectionProps = {
   academyId: string;
@@ -39,6 +40,7 @@ type PayrollStaffSectionProps = {
     icon: "users" | "cash" | "cap" | "clock";
   }[];
   staffMembers: StaffMember[];
+  searchQuery?: string;
 };
 
 const payrollIcons = {
@@ -53,6 +55,7 @@ export function PayrollStaffSection({
   monthLabel,
   payrollStats,
   staffMembers,
+  searchQuery = "",
 }: PayrollStaffSectionProps) {
   const [manageOpen, setManageOpen] = useState(false);
   const [editStaffId, setEditStaffId] = useState<string | null>(null);
@@ -65,6 +68,13 @@ export function PayrollStaffSection({
     () => staffMembers.filter((member) => member.canApprove && member.payslipId),
     [staffMembers]
   );
+
+  const filteredStaffMembers = useMemo(() => {
+    if (!searchQuery.trim()) return staffMembers;
+    return staffMembers.filter((member) =>
+      matchesStateTextSearch(searchQuery, [member.name, member.role, member.type, member.status])
+    );
+  }, [staffMembers, searchQuery]);
 
   const allPendingSelected =
     pendingStaff.length > 0 && pendingStaff.every((member) => selectedIds.has(member.staffId));
@@ -178,10 +188,17 @@ export function PayrollStaffSection({
           title="No staff on payroll"
           description="Add coaches and support staff to track attendance, salaries and monthly disbursements."
         />
+      ) : filteredStaffMembers.length === 0 ? (
+        <EmptyState
+          compact
+          icon={<UsersIcon className="w-5 h-5" />}
+          title="No staff match your search"
+          description="Try a different search term."
+        />
       ) : (
         <>
           <AcademyCardList className="lg:hidden mb-4">
-            {staffMembers.map((member) => (
+            {filteredStaffMembers.map((member) => (
               <AcademyCardListItem key={member.staffId}>
                 <div className="flex items-start gap-3 min-w-0">
                   {member.canApprove ? (
@@ -247,7 +264,7 @@ export function PayrollStaffSection({
             columnWidths={["4%", "20%", "18%", "10%", "12%", "14%", "10%", "12%"]}
             minWidth={900}
           >
-            {staffMembers.map((member) => (
+            {filteredStaffMembers.map((member) => (
               <TableRow key={member.staffId}>
                 <TableCell>
                   {member.canApprove ? (

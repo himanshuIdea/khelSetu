@@ -8,8 +8,10 @@ import { type NurseryFlagResponseStatus } from "@/lib/state-nurseries";
 import {
   NURSERY_SORT_PRIORITY,
   ONBOARDING_SORT_PRIORITY,
+  REVIEW_REQUESTED_SORT_PRIORITY,
   onboardingInitials,
   onboardingStatusVariant,
+  isReviewRequestedQueueItem,
   type VerificationQueueItem,
   type VerificationQueueNurseryItem,
   type VerificationQueueOnboardingItem,
@@ -25,6 +27,8 @@ export {
   verificationQueueStatusLabel,
   verificationQueueStatusVariant,
   isPendingReviewQueueItem,
+  isReviewRequestedQueueItem,
+  needsStateReviewAction,
 } from "@/lib/state-verification-queue";
 
 async function getAdminNamesByAcademy(academyIds: string[]): Promise<Map<string, string>> {
@@ -101,7 +105,8 @@ export const listVerificationQueue = cache(async (): Promise<VerificationQueueIt
     .map((request) => {
       const status = request.status;
       const submittedAt = request.submittedAt;
-      return {
+      const requestType = request.requestType;
+      const item: VerificationQueueOnboardingItem = {
         kind: "onboarding" as const,
         id: request.id,
         name: request.academyName,
@@ -111,6 +116,7 @@ export const listVerificationQueue = cache(async (): Promise<VerificationQueueIt
         district: request.district,
         queueTypeLabel: "Onboarding" as const,
         athleteCount: null,
+        requestType,
         status,
         statusLabel: request.statusLabel,
         statusVariant: onboardingStatusVariant(status),
@@ -118,6 +124,10 @@ export const listVerificationQueue = cache(async (): Promise<VerificationQueueIt
         sortPriority: ONBOARDING_SORT_PRIORITY[status],
         sortDate: submittedAt ? new Date(submittedAt).getTime() : 0,
       };
+      if (isReviewRequestedQueueItem(item)) {
+        item.sortPriority = REVIEW_REQUESTED_SORT_PRIORITY;
+      }
+      return item;
     });
 
   const nurseryItems: VerificationQueueNurseryItem[] = nurseries.map((nursery) => {

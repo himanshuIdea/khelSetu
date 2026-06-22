@@ -19,6 +19,7 @@ import {
 } from "@/components/academy/shared";
 import { api } from "@/lib/api";
 import type { PlayerFeeBillingRow } from "@/lib/repositories/types";
+import { matchesStateTextSearch } from "@/lib/state-search";
 
 type PlayerFeesSectionProps = {
   academyId: string;
@@ -34,6 +35,7 @@ type PlayerFeesSectionProps = {
     sports: { id: string; name: string }[];
     batches: { id: string; name: string; sportId: string }[];
   };
+  searchQuery?: string;
 };
 
 const feeIcons = {
@@ -48,6 +50,7 @@ export function PlayerFeesSection({
   feeStats,
   billingRows: initialRows,
   formOptions,
+  searchQuery = "",
 }: PlayerFeesSectionProps) {
   const router = useRouter();
   const [sportId, setSportId] = useState("");
@@ -114,6 +117,19 @@ export function PlayerFeesSection({
   const payableRows = rows.filter(
     (row) => row.status === "due" || row.status === "partial" || row.status === "overdue"
   );
+
+  const filteredRows = useMemo(() => {
+    if (!searchQuery.trim()) return rows;
+    return rows.filter((row) =>
+      matchesStateTextSearch(searchQuery, [
+        row.playerName,
+        row.sportBatch,
+        row.period,
+        row.statusLabel,
+        row.amountLabel,
+      ])
+    );
+  }, [rows, searchQuery]);
 
   const selectedPayable = payableRows.filter((row) => selectedIds.has(row.id));
 
@@ -242,10 +258,17 @@ export function PlayerFeesSection({
           title="No fee invoices"
           description="Generate monthly invoices for active players or adjust filters."
         />
+      ) : filteredRows.length === 0 ? (
+        <EmptyState
+          compact
+          icon={<CashIcon className="w-5 h-5" />}
+          title="No invoices match your search"
+          description="Try a different search term."
+        />
       ) : (
         <>
           <AcademyCardList className="lg:hidden mb-4">
-            {rows.map((row) => {
+            {filteredRows.map((row) => {
               const canPay =
                 row.status === "due" || row.status === "partial" || row.status === "overdue";
               return (
@@ -294,7 +317,7 @@ export function PlayerFeesSection({
             columnWidths={["4%", "20%", "22%", "12%", "14%", "12%", "16%"]}
             minWidth={820}
           >
-            {rows.map((row) => {
+            {filteredRows.map((row) => {
               const canPay =
                 row.status === "due" || row.status === "partial" || row.status === "overdue";
               return (

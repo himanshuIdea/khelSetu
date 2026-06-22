@@ -1,6 +1,6 @@
 import type { SportLegendItem } from "@/lib/state-portal";
 
-const segmentColors = ["#FF6B2C", "#2F6BFF", "#7C5CFC", "#12B886", "#9AA4B8"];
+const segmentColorFallback = "#9AA4B8";
 
 export function SportLegend({ items }: { items: SportLegendItem[] }) {
   if (items.length === 0) return null;
@@ -20,24 +20,32 @@ export function SportLegend({ items }: { items: SportLegendItem[] }) {
 export function StackedBarRow({
   label,
   total,
-  widthPercent,
   segments,
+  colors,
 }: {
   label: string;
   total: string;
-  widthPercent: number;
   segments: number[];
+  colors: string[];
 }) {
   return (
     <div className="flex items-center gap-2.5 mb-2.5 last:mb-0">
-      <span className="text-[12px] font-medium text-text w-[72px] shrink-0">{label}</span>
+      <span
+        className="text-[12px] font-medium text-text w-[92px] shrink-0 truncate"
+        title={label}
+      >
+        {label}
+      </span>
       <div className="flex-1 h-[18px] bg-line2 rounded-md overflow-hidden">
-        <div className="flex h-full" style={{ width: `${widthPercent}%` }}>
+        <div className="flex h-full w-full">
           {segments.map((pct, i) => (
             <span
               key={i}
               className="h-full"
-              style={{ width: `${pct}%`, background: segmentColors[i] }}
+              style={{
+                width: `${pct}%`,
+                background: colors[i] ?? segmentColorFallback,
+              }}
             />
           ))}
         </div>

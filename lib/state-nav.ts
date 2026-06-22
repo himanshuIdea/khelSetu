@@ -2,7 +2,6 @@ import type { StateNavItem } from "@/components/state/StateSidebar";
 import type { StateSummary } from "@/lib/state-portal";
 
 export const stateSearchPlaceholders: Partial<Record<StateNavItem, string>> = {
-  overview: "Search nurseries, athletes, districts…",
   nurseries: "Search sports nurseries…",
   athletes: "Search athletes…",
   scouting: "Search athletes by name, sport, district…",
@@ -46,7 +45,7 @@ export const statePageMeta: Record<
   },
   reports: {
     title: "Reports",
-    actionLabel: "Generate report",
+    actionLabel: "Generate reports",
   },
 };
 

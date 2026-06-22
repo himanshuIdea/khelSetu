@@ -1,1 +1,1 @@
-export { StateTablePageLoading as default } from "@/components/state/StateRouteLoading";
+export { StateReportsLoading as default } from "@/components/state/StateRouteLoading";

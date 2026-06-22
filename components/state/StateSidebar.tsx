@@ -11,6 +11,7 @@ import {
   ShieldIcon,
   UsersIcon,
 } from "@/components/academy/icons";
+import { StateAdminMenu, type StateAdminMeta } from "./StateAdminMenu";
 
 export type StateNavItem =
   | "overview"
@@ -31,6 +32,7 @@ type NavEntry = {
 
 type StateSidebarProps = {
   activeItem: StateNavItem;
+  adminMeta: StateAdminMeta;
   onNavigate?: () => void;
   className?: string;
 };
@@ -68,6 +70,7 @@ function NavLink({
 
 export function StateSidebar({
   activeItem,
+  adminMeta,
   onNavigate,
   className = "",
 }: StateSidebarProps) {
@@ -140,15 +143,7 @@ export function StateSidebar({
         ))}
       </nav>
 
-      <div className="mt-auto flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5">
-        <div className="w-[34px] h-[34px] rounded-[9px] bg-green flex items-center justify-center shrink-0">
-          <ShieldIcon className="w-[18px] h-[18px] text-white" />
-        </div>
-        <div>
-          <div className="text-[12.5px] font-semibold text-white">Sports Dept.</div>
-          <div className="text-[11px] text-[#8c97b3]">State Administrator</div>
-        </div>
-      </div>
+      <StateAdminMenu adminMeta={adminMeta} onLoggedOut={onNavigate} />
     </aside>
   );
 }

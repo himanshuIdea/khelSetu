@@ -106,11 +106,14 @@ export async function createDisbursement(input: CreateDisbursementInput) {
 
 export async function releasePendingDisbursements(options: {
   schemeSlug?: string;
+  disbursementId?: string;
   paidByUserId: string;
 }) {
   const conditions = [eq(stateFundDisbursements.status, "pending")];
 
-  if (options.schemeSlug) {
+  if (options.disbursementId) {
+    conditions.push(eq(stateFundDisbursements.id, options.disbursementId));
+  } else if (options.schemeSlug) {
     const scheme = await getSchemeBySlug(options.schemeSlug);
     if (!scheme) throw new Error("Scheme not found.");
     conditions.push(eq(stateFundDisbursements.schemeId, scheme.id));

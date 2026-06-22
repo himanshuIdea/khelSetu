@@ -229,3 +229,19 @@ export const stateFundDisbursements = platformSchema.table(
     index("state_fund_disbursements_academy_idx").on(table.academyId),
   ]
 );
+
+/** State portal analytics exports (district, funds, talent, verification, full-state). */
+export const stateReportExports = platformSchema.table(
+  "state_report_exports",
+  {
+    id: primaryId(),
+    reportType: text("report_type").notNull(),
+    format: text("format").notNull(),
+    generatedByUserId: uuid("generated_by_user_id").references(() => users.id),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("state_report_exports_type_idx").on(table.reportType),
+    index("state_report_exports_generated_at_idx").on(table.generatedAt),
+  ]
+);

@@ -4,13 +4,15 @@ import { useState } from "react";
 import { CreateTournamentModal } from "@/components/academy/CreateTournamentModal";
 import { PlusIcon } from "@/components/academy/icons";
 import { PageHeader } from "@/components/academy/shared";
-import type { CreateTournamentFormValues } from "@/lib/tournaments-demo";
+
+type SportOption = { id: string; name: string };
 
 type TournamentsPageHeaderProps = {
-  onCreate: (values: CreateTournamentFormValues) => void;
+  academyId: string;
+  sports: SportOption[];
 };
 
-export function TournamentsPageHeader({ onCreate }: TournamentsPageHeaderProps) {
+export function TournamentsPageHeader({ academyId, sports }: TournamentsPageHeaderProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
@@ -31,9 +33,10 @@ export function TournamentsPageHeader({ onCreate }: TournamentsPageHeaderProps) 
       />
 
       <CreateTournamentModal
+        academyId={academyId}
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onCreate={onCreate}
+        sports={sports}
       />
     </>
   );

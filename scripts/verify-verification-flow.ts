@@ -3,7 +3,12 @@
  * Run: pnpm tsx scripts/verify-verification-flow.ts
  */
 import { loadEnv } from "@/lib/load-env";
-import { listStateOnboardingRequests } from "@/lib/repositories/academy-onboarding";
+import {
+  getOnboardingRequestById,
+  listStateOnboardingRequests,
+  reviewOnboardingRequest,
+  submitOnboardingRequest,
+} from "@/lib/repositories/academy-onboarding";
 import {
   clearNurseryFlag,
   flagStateNursery,
@@ -14,6 +19,12 @@ import {
 } from "@/lib/repositories/state-nurseries";
 import { listVerificationQueue } from "@/lib/repositories/state-verification";
 import { getVerificationBreakdown } from "@/lib/repositories/state-aggregates";
+import {
+  verificationQueueStatusLabel,
+  verificationQueueStatusVariant,
+  isPendingReviewQueueItem,
+  isReviewRequestedQueueItem,
+} from "@/lib/state-verification-queue";
 import { getStateAdminUserId } from "@/db/seed/bulk/admin-credentials";
 
 loadEnv();
@@ -104,6 +115,14 @@ async function main() {
     (r) => r.kind === "nursery" && r.academyId === testAcademyId
   );
   assert(queueRow?.kind === "nursery" && queueRow.flagResponseStatus === "review_requested", "queue shows review_requested");
+  assert(
+    queueRow?.kind === "nursery" && verificationQueueStatusLabel(queueRow) === "Review requested",
+    "queue label shows Review requested"
+  );
+  assert(
+    queueRow?.kind === "nursery" && verificationQueueStatusVariant(queueRow) === "amber",
+    "queue variant amber for review_requested"
+  );
 
   await clearNurseryFlag(testAcademyId, stateAdminId);
 
@@ -113,6 +132,129 @@ async function main() {
   assert(await getAcademyNurseryFlag(testAcademyId) === null, "banner flag hidden after clear");
   console.log("   OK\n");
 
+  console.log("4b. addressed response queue label");
+  await flagStateNursery(
+    testAcademyId,
+    { note: "QA addressed flag", guidelines: "Resolve and mark as addressed." },
+    stateAdminId
+  );
+
+  await respondToNurseryFlag(testAcademyId, {
+    action: "addressed",
+    note: "QA fixed the issue.",
+  });
+
+  const queueAddressed = await listVerificationQueue();
+  const addressedRow = queueAddressed.find(
+    (r) => r.kind === "nursery" && r.academyId === testAcademyId
+  );
+  assert(
+    addressedRow?.kind === "nursery" && addressedRow.flagResponseStatus === "addressed",
+    "queue shows addressed"
+  );
+  assert(
+    addressedRow?.kind === "nursery" && verificationQueueStatusLabel(addressedRow) === "Marked addressed",
+    "queue label shows Marked addressed"
+  );
+  assert(
+    addressedRow?.kind === "nursery" && verificationQueueStatusVariant(addressedRow) === "amber",
+    "queue variant amber for addressed"
+  );
+
+  await clearNurseryFlag(testAcademyId, stateAdminId);
+  assert(await getAcademyNurseryFlag(testAcademyId) === null, "banner flag hidden after addressed clear");
+  console.log("   OK\n");
+
+  console.log("5. onboarding resubmission → Review requested queue label");
+
+  const initialOnboardingItem = {
+    kind: "onboarding" as const,
+    id: "qa-initial",
+    name: "QA Initial Academy",
+    initials: "QA",
+    color: "#FF6B2C",
+    adminFullName: "QA Admin",
+    district: "Gurugram",
+    queueTypeLabel: "Onboarding" as const,
+    athleteCount: null,
+    requestType: "initial" as const,
+    status: "submitted" as const,
+    statusLabel: "Submitted",
+    statusVariant: "amber" as const,
+    submittedAt: new Date().toISOString(),
+    sortPriority: 0,
+    sortDate: Date.now(),
+  };
+  const resubmittedOnboardingItem = {
+    ...initialOnboardingItem,
+    id: "qa-resubmission",
+    requestType: "resubmission" as const,
+  };
+
+  assert(
+    verificationQueueStatusLabel(initialOnboardingItem) === "Pending review",
+    "initial submitted onboarding shows Pending review"
+  );
+  assert(
+    !isReviewRequestedQueueItem(initialOnboardingItem),
+    "initial submitted onboarding is not review requested"
+  );
+  assert(
+    isPendingReviewQueueItem(initialOnboardingItem),
+    "initial submitted onboarding is pending review"
+  );
+  assert(
+    verificationQueueStatusLabel(resubmittedOnboardingItem) === "Review requested",
+    "resubmitted onboarding shows Review requested"
+  );
+  assert(
+    verificationQueueStatusVariant(resubmittedOnboardingItem) === "amber",
+    "resubmitted onboarding variant amber"
+  );
+  assert(
+    isReviewRequestedQueueItem(resubmittedOnboardingItem),
+    "resubmitted onboarding matches review_requested filter helper"
+  );
+  assert(
+    !isPendingReviewQueueItem(resubmittedOnboardingItem),
+    "resubmitted onboarding excluded from pending review filter"
+  );
+
+  const submittedOnboarding = onboarding.find(
+    (r) => r.status === "submitted" || r.status === "under_review"
+  );
+  if (!submittedOnboarding) {
+    console.log("   helper checks OK · DB round-trip skipped (no submitted onboarding in seed)\n");
+  } else {
+    const onboardingDetail = await getOnboardingRequestById(submittedOnboarding.id);
+    assert(onboardingDetail, "onboarding detail found");
+
+    await reviewOnboardingRequest({
+      requestId: submittedOnboarding.id,
+      reviewerUserId: stateAdminId,
+      action: "needs_action",
+      reviewNotes: "QA — please fix KYC details.",
+      requiredActions: ["aadhar_number"],
+    });
+
+    await submitOnboardingRequest(onboardingDetail!.userId);
+
+    const queueResubmitted = await listVerificationQueue();
+    const resubmittedRow = queueResubmitted.find(
+      (r) => r.kind === "onboarding" && r.id === submittedOnboarding.id
+    );
+    assert(
+      resubmittedRow?.kind === "onboarding" && resubmittedRow.requestType === "resubmission",
+      "queue shows resubmission requestType"
+    );
+    assert(
+      resubmittedRow?.kind === "onboarding" &&
+        verificationQueueStatusLabel(resubmittedRow) === "Review requested",
+      "resubmitted onboarding label shows Review requested"
+    );
+    console.log("   helper + DB round-trip OK\n");
+  }
+
   console.log("=== All verification flow checks passed ===\n");
 
   // HTTP layer (optional — requires dev server on :3000)
@@ -121,11 +263,11 @@ async function main() {
     const email = process.env.STATE_ADMIN_EMAIL;
     const password = process.env.STATE_ADMIN_PASSWORD;
     if (!email || !password) {
-      console.log("5. HTTP API — skipped (STATE_ADMIN_EMAIL/PASSWORD not set)");
+      console.log("6. HTTP API — skipped (STATE_ADMIN_EMAIL/PASSWORD not set)");
       process.exit(0);
     }
 
-    console.log("5. HTTP API (auth + PATCH flag/clear)");
+    console.log("6. HTTP API (auth + PATCH flag/clear)");
     const loginRes = await fetch(`${baseUrl}/api/v1/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -166,7 +308,7 @@ async function main() {
     console.log("   login, PATCH flag/clear, requests→verification redirect OK\n");
     console.log("=== HTTP verification passed ===");
   } catch (httpErr) {
-    console.log(`5. HTTP API — skipped or failed (${httpErr instanceof Error ? httpErr.message : httpErr})`);
+    console.log(`6. HTTP API — skipped or failed (${httpErr instanceof Error ? httpErr.message : httpErr})`);
     console.log("   (Ensure dev server is running on :3000 for HTTP checks)");
   }
 

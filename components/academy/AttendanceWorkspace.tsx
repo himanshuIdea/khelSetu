@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAcademyPageSearch } from "@/components/academy/AcademySearchContext";
 import { CalendarIcon, CheckIcon } from "@/components/academy/icons";
 import { InlineDatePicker } from "@/components/academy/InlineDatePicker";
 import { InlineSelect } from "@/components/academy/InlineSelect";
@@ -24,6 +25,7 @@ import {
   type AttendanceMarkStatus,
   type BatchAttendanceHistoryEntry,
 } from "@/lib/attendance";
+import { matchesStateTextSearch } from "@/lib/state-search";
 import { StaffAttendanceSection } from "@/components/academy/StaffAttendanceSection";
 import type { AttendanceSession } from "@/lib/repositories/types";
 
@@ -113,6 +115,35 @@ export function AttendanceWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AttendanceTab>("athletes");
+  const searchQuery = useAcademyPageSearch();
+
+  const filteredRoster = useMemo(() => {
+    if (!markSession) return [];
+    if (!searchQuery.trim()) return markSession.roster;
+    return markSession.roster.filter((entry) =>
+      matchesStateTextSearch(searchQuery, [entry.name])
+    );
+  }, [markSession, searchQuery]);
+
+  const filteredHistory = useMemo(() => {
+    if (!searchQuery.trim()) return history;
+    return history.filter((row) =>
+      matchesStateTextSearch(searchQuery, [row.dateLabel, row.status, row.rate])
+    );
+  }, [history, searchQuery]);
+
+  const filteredSessions = useMemo(() => {
+    if (!searchQuery.trim()) return sessions;
+    return sessions.filter((session) =>
+      matchesStateTextSearch(searchQuery, [
+        session.batch,
+        session.sport,
+        session.coach,
+        session.time,
+        session.status,
+      ])
+    );
+  }, [sessions, searchQuery]);
 
   const sportOptions = useMemo(
     () => formOptions.sports.map((sport) => ({ value: sport.id, label: sport.name })),
@@ -290,7 +321,7 @@ export function AttendanceWorkspace({
       )}
 
       {!coachMode && activeTab === "staff" ? (
-        <StaffAttendanceSection academyId={academyId} />
+        <StaffAttendanceSection academyId={academyId} searchQuery={searchQuery} />
       ) : null}
 
       {coachMode || activeTab === "athletes" ? (
@@ -435,10 +466,20 @@ export function AttendanceWorkspace({
         />
       )}
 
-      {hasSports && hasBatches && markSession && markSession.roster.length > 0 && (
+      {hasSports && hasBatches && markSession && markSession.roster.length > 0 && filteredRoster.length === 0 && (
+        <EmptyState
+          compact
+          icon={<CalendarIcon className="w-5 h-5" />}
+          title="No players match your search"
+          description="Try a different search term."
+          className="mb-4"
+        />
+      )}
+
+      {hasSports && hasBatches && markSession && markSession.roster.length > 0 && filteredRoster.length > 0 && (
         <div className="min-w-0 w-full mb-4">
           <AcademyCardList>
-            {markSession.roster.map((entry) => {
+            {filteredRoster.map((entry) => {
               const status = localStatus[entry.playerId] ?? null;
               const wasMarked = entry.status != null;
               return (
@@ -477,7 +518,7 @@ export function AttendanceWorkspace({
             columnWidths={["38%", "18%", "44%"]}
             minWidth={640}
           >
-              {markSession.roster.map((entry) => {
+              {filteredRoster.map((entry) => {
                 const status = localStatus[entry.playerId] ?? null;
                 return (
                   <TableRow key={entry.playerId}>
@@ -525,18 +566,26 @@ export function AttendanceWorkspace({
           />
           {loadingHistory ? (
             <div className="mt-3 text-[12.5px] text-muted">Loading history…</div>
-          ) : history.length === 0 ? (
+          ) : filteredHistory.length === 0 ? (
             <EmptyState
               compact
               className="mt-3"
               icon={<CalendarIcon className="w-5 h-5" />}
-              title="No attendance history yet"
-              description="Marked sessions for this batch will appear here with present and absent counts."
+              title={
+                searchQuery.trim() && history.length > 0
+                  ? "No history matches your search"
+                  : "No attendance history yet"
+              }
+              description={
+                searchQuery.trim() && history.length > 0
+                  ? "Try a different search term."
+                  : "Marked sessions for this batch will appear here with present and absent counts."
+              }
             />
           ) : (
             <>
               <AcademyCardList className="mt-3 lg:hidden">
-                {history.map((row) => (
+                {filteredHistory.map((row) => (
                   <AcademyCardListItem key={row.sessionId}>
                     <div className="flex items-start justify-between gap-3 min-w-0">
                       <div className="min-w-0">
@@ -562,7 +611,7 @@ export function AttendanceWorkspace({
                 columnWidths={["28%", "14%", "14%", "12%", "14%", "18%"]}
                 minWidth={600}
               >
-                  {history.map((row) => (
+                  {filteredHistory.map((row) => (
                     <TableRow key={row.sessionId}>
                       <TableCell>
                         <b>{row.dateLabel}</b>
@@ -589,18 +638,26 @@ export function AttendanceWorkspace({
       {!coachMode && (
       <div className="min-w-0 w-full">
         <SectionTitle title="Recent sessions" subtitle="All batches — tap a row to jump to marking." />
-        {sessions.length === 0 ? (
+        {filteredSessions.length === 0 ? (
           <EmptyState
             compact
             className="mt-3"
             icon={<CalendarIcon className="w-5 h-5" />}
-            title="No sessions yet"
-            description="Marked or scheduled sessions will show up here across all sports and batches."
+            title={
+              searchQuery.trim() && sessions.length > 0
+                ? "No sessions match your search"
+                : "No sessions yet"
+            }
+            description={
+              searchQuery.trim() && sessions.length > 0
+                ? "Try a different search term."
+                : "Marked or scheduled sessions will show up here across all sports and batches."
+            }
           />
         ) : (
           <>
             <AcademyCardList className="mt-3 lg:hidden">
-              {sessions.map((session) => (
+              {filteredSessions.map((session) => (
                 <AcademyCardListItem
                   key={session.id}
                   onClick={() => jumpToSession(session)}
@@ -630,7 +687,7 @@ export function AttendanceWorkspace({
               columnWidths={["18%", "14%", "20%", "14%", "14%", "10%", "10%"]}
               minWidth={720}
             >
-                {sessions.map((session) => (
+                {filteredSessions.map((session) => (
                   <TableRow key={session.id} onClick={() => jumpToSession(session)}>
                     <TableCell>
                       <b>{session.batch}</b>

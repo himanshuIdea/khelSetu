@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { AcademyMeta } from "@/lib/repositories/types";
 import type { AcademyNurseryFlag } from "@/lib/state-nurseries";
+import { api } from "@/lib/api";
 import { AcademySidebar, type AcademyNavItem } from "./AcademySidebar";
 import { AcademyTopBar } from "./AcademyTopBar";
 import { NurseryFlagBanner } from "./NurseryFlagBanner";
@@ -12,6 +13,7 @@ type AcademyShellClientProps = {
   academyMeta: AcademyMeta;
   activeItem: AcademyNavItem;
   searchPlaceholder?: string;
+  searchHidden?: boolean;
   nurseryFlag?: AcademyNurseryFlag | null;
   children: React.ReactNode;
 };
@@ -21,10 +23,45 @@ export function AcademyShellClient({
   academyMeta,
   activeItem,
   searchPlaceholder,
+  searchHidden = false,
   nurseryFlag = null,
   children,
 }: AcademyShellClientProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [liveFlag, setLiveFlag] = useState<AcademyNurseryFlag | null>(nurseryFlag);
+
+  useEffect(() => {
+    setLiveFlag(nurseryFlag);
+  }, [nurseryFlag]);
+
+  useEffect(() => {
+    async function refreshFlag() {
+      try {
+        const { flag } = await api.academy.nurseryFlag.get(academyId);
+        setLiveFlag(flag);
+      } catch {
+        // Keep current banner state on auth or network errors.
+      }
+    }
+
+    function onFocus() {
+      void refreshFlag();
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void refreshFlag();
+      }
+    }
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [academyId]);
 
   useEffect(() => {
     if (menuOpen) {
@@ -74,11 +111,12 @@ export function AcademyShellClient({
           <AcademyTopBar
             academyMeta={academyMeta}
             searchPlaceholder={searchPlaceholder}
+            searchHidden={searchHidden}
             onMenuToggle={() => setMenuOpen((open) => !open)}
             menuOpen={menuOpen}
           />
-          {nurseryFlag ? (
-            <NurseryFlagBanner academyId={academyId} flag={nurseryFlag} />
+          {liveFlag ? (
+            <NurseryFlagBanner academyId={academyId} flag={liveFlag} />
           ) : null}
           {children}
         </div>

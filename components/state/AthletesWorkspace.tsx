@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/academy/shared";
 import { StateFilteredEmpty, StateListEmpty } from "@/components/state/StateEmptyStates";
+import { useStatePageSearch } from "@/components/state/StateSearchContext";
 import { InlineSelect } from "@/components/academy/InlineSelect";
 import {
   parseAthleteRating,
@@ -20,6 +21,7 @@ import { HARYANA_DISTRICTS, HARYANA_FEATURED_SPORTS } from "@/lib/state-catalog"
 import { stateLayout } from "@/lib/state-layout";
 import { statePageMeta } from "@/lib/state-nav";
 import type { StateAthleteListItem } from "@/lib/state-portal";
+import { matchesStateTextSearch } from "@/lib/state-search";
 import { formatSportWeightLine } from "@/lib/format";
 
 type AthletesWorkspaceProps = {
@@ -41,19 +43,31 @@ const SPORT_OPTIONS = [
 const DEFAULT_MIN_RATING = 7;
 
 export function AthletesWorkspace({ athletes }: AthletesWorkspaceProps) {
+  const searchQuery = useStatePageSearch();
   const [districtFilter, setDistrictFilter] = useState("all");
   const [sportFilter, setSportFilter] = useState("all");
   const [minRating, setMinRating] = useState(DEFAULT_MIN_RATING);
 
   const filtered = useMemo(() => {
     return athletes.filter((a) => {
+      if (
+        !matchesStateTextSearch(searchQuery, [
+          a.name,
+          a.sport,
+          a.district,
+          a.detail,
+          a.rating,
+        ])
+      ) {
+        return false;
+      }
       if (districtFilter !== "all" && a.district !== districtFilter) return false;
       if (sportFilter !== "all" && !a.sport.startsWith(sportFilter)) return false;
       const rating = parseAthleteRating(a.rating);
       if (rating != null && rating < minRating) return false;
       return true;
     });
-  }, [athletes, districtFilter, sportFilter, minRating]);
+  }, [athletes, searchQuery, districtFilter, sportFilter, minRating]);
 
   const subtitle =
     athletes.length > 0
@@ -105,7 +119,7 @@ export function AthletesWorkspace({ athletes }: AthletesWorkspaceProps) {
         {filtered.length === 0 ? (
           <StateFilteredEmpty
             entity="athletes"
-            description="Try lowering the rating threshold or changing district or sport filters."
+            description="Try changing filters or your search term."
           />
         ) : (
           <AcademyTable

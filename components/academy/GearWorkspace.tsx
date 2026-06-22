@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAcademyPageSearch } from "@/components/academy/AcademySearchContext";
 import { AddItemModal } from "@/components/academy/AddItemModal";
 import { DeleteItemDialog } from "@/components/academy/DeleteItemDialog";
 import { EditItemModal } from "@/components/academy/EditItemModal";
@@ -36,6 +37,7 @@ import { api, ApiError } from "@/lib/api";
 import { getBatchLabel } from "@/lib/batches";
 import type { GearFormOptions, OpenGearIssue } from "@/lib/inventory";
 import type { GearMovementFeedItem, InventoryItem } from "@/lib/repositories/types";
+import { matchesStateTextSearch } from "@/lib/state-search";
 
 type GearWorkspaceProps = {
   academyId: string;
@@ -103,6 +105,19 @@ export function GearWorkspace({
 
   const [listItems, setListItems] = useState(inventoryItems);
   const [issues, setIssues] = useState(openIssues);
+  const searchQuery = useAcademyPageSearch();
+
+  const filteredListItems = useMemo(() => {
+    if (!searchQuery.trim()) return listItems;
+    return listItems.filter((item) =>
+      matchesStateTextSearch(searchQuery, [
+        item.name,
+        item.category,
+        item.condition,
+        item.status,
+      ])
+    );
+  }, [listItems, searchQuery]);
 
   useEffect(() => {
     setListItems(inventoryItems);
@@ -256,6 +271,13 @@ export function GearWorkspace({
               title="No gear in inventory"
               description="Add kits and equipment to track stock, issue items to players and monitor returns."
             />
+          ) : filteredListItems.length === 0 ? (
+            <EmptyState
+              compact
+              icon={<BoxIcon className="w-5 h-5" />}
+              title="No items match your search"
+              description="Try a different search term."
+            />
           ) : (
             <div className="min-w-0 w-full">
               <AcademyTable
@@ -267,7 +289,7 @@ export function GearWorkspace({
                 )}
                 className="hidden lg:block min-w-0 w-full"
               >
-                {listItems.map((item) => (
+                {filteredListItems.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className={`${GEAR_TABLE_CELL} ${GEAR_TABLE_COLUMN_CLASSES[0]}`}>
                       <div className="font-semibold text-[12px] xl:text-[13px] text-ink truncate">
@@ -321,7 +343,7 @@ export function GearWorkspace({
               </AcademyTable>
 
               <AcademyCardList className="lg:hidden mt-1">
-                {listItems.map((item) => (
+                {filteredListItems.map((item) => (
                   <AcademyCardListItem key={item.id} className="px-3 py-2.5">
                     <div className="flex items-start gap-1.5 min-w-0">
                       <div className="flex-1 min-w-0">

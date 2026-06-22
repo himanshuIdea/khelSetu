@@ -166,6 +166,24 @@ export async function bulkUpdatePlayerScoutingStatus(
   return scopedIds.length;
 }
 
+export const countShortlistReportRows = cache(async (): Promise<number> => {
+  const { academyIds } = await getStateNurseryContext();
+  if (academyIds.length === 0) return 0;
+
+  const [row] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(players)
+    .innerJoin(academies, eq(players.academyId, academies.id))
+    .where(
+      and(
+        nurseryPlayerConditions(academyIds),
+        inArray(players.scoutingStatus, SHORTLIST_REPORT_STATUSES)
+      )
+    );
+
+  return Number(row?.count ?? 0);
+});
+
 export const getStateScoutingDashboard = cache(async (): Promise<StateScoutingDashboard> => {
   const { academyIds } = await getStateNurseryContext();
 
@@ -194,19 +212,7 @@ export const getStateScoutingDashboard = cache(async (): Promise<StateScoutingDa
     countByStatus(academyIds, "in_trials"),
     countByStatus(academyIds, "shortlisted_for_states"),
     countByStatus(academyIds, "shortlisted_for_nationals"),
-    (async () => {
-      const [row] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(players)
-        .innerJoin(academies, eq(players.academyId, academies.id))
-        .where(
-          and(
-            nurseryPlayerConditions(academyIds),
-            inArray(players.scoutingStatus, SHORTLIST_REPORT_STATUSES)
-          )
-        );
-      return Number(row?.count ?? 0);
-    })(),
+    countShortlistReportRows(),
   ]);
 
   const pipelineBase = identified || 1;

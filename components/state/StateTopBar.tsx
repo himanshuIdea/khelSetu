@@ -6,6 +6,7 @@ import { useStateSearch } from "./StateSearchContext";
 
 type StateTopBarProps = {
   searchPlaceholder?: string;
+  searchHidden?: boolean;
   subtitle?: string;
   badge?: React.ReactNode;
   onMenuToggle?: () => void;
@@ -51,6 +52,7 @@ function SearchField({
 
 export function StateTopBar({
   searchPlaceholder = "Search nurseries, athletes, districts…",
+  searchHidden = false,
   subtitle = "State Sports Command Centre",
   badge,
   onMenuToggle,
@@ -83,44 +85,40 @@ export function StateTopBar({
           </div>
         </div>
 
-        <div className="hidden lg:flex flex-1 max-w-[420px] min-w-0">
-          <SearchField placeholder={searchPlaceholder} className="w-full" />
-        </div>
-
-        <div className="flex-1 lg:flex-none" />
-
-        {badge ?? (
-          <Pill variant="green" className="hidden sm:inline-flex px-3 py-[7px]">
-            <span className="w-[7px] h-[7px] rounded-full bg-green" />
-            Live · all 22 districts
-          </Pill>
+        {!searchHidden && (
+          <div className="hidden lg:flex flex-1 max-w-[420px] min-w-0">
+            <SearchField placeholder={searchPlaceholder} className="w-full" />
+          </div>
         )}
 
-        <button
-          type="button"
-          className="lg:hidden w-[38px] h-[38px] rounded-[10px] bg-surface border border-line flex items-center justify-center text-muted shrink-0"
-          aria-label="Search"
-        >
-          <SearchIcon />
-        </button>
+        <div className="flex items-center gap-3 ml-auto shrink-0">
+          {badge ?? (
+            <Pill variant="green" className="hidden sm:inline-flex px-3 py-[7px]">
+              <span className="w-[7px] h-[7px] rounded-full bg-green" />
+              Live · all 22 districts
+            </Pill>
+          )}
 
-        <button
-          type="button"
-          className="relative w-[38px] h-[38px] rounded-[10px] bg-surface border border-line flex items-center justify-center text-muted shrink-0"
-          aria-label="Notifications"
-        >
-          <BellIcon />
-          <span className="absolute top-2 right-[9px] w-[7px] h-[7px] rounded-full bg-brand border-2 border-card" />
-        </button>
+          <button
+            type="button"
+            className="relative w-[38px] h-[38px] rounded-[10px] bg-surface border border-line flex items-center justify-center text-muted shrink-0"
+            aria-label="Notifications"
+          >
+            <BellIcon />
+            <span className="absolute top-2 right-[9px] w-[7px] h-[7px] rounded-full bg-brand border-2 border-card" />
+          </button>
 
-        <div className="w-[38px] h-[38px] rounded-[10px] bg-linear-to-br from-[#0E9B72] to-green flex items-center justify-center shrink-0">
-          <ShieldIcon className="w-[18px] h-[18px] text-white" />
+          <div className="w-[38px] h-[38px] rounded-[10px] bg-linear-to-br from-[#0E9B72] to-green flex items-center justify-center shrink-0">
+            <ShieldIcon className="w-[18px] h-[18px] text-white" />
+          </div>
         </div>
       </div>
 
-      <div className="lg:hidden px-4 pb-3 md:px-[26px]">
-        <SearchField placeholder={searchPlaceholder} className="w-full" />
-      </div>
+      {!searchHidden && (
+        <div className="lg:hidden px-4 pb-3 md:px-[26px]">
+          <SearchField placeholder={searchPlaceholder} className="w-full" />
+        </div>
+      )}
     </header>
   );
 }

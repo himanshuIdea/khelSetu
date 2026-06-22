@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CashIcon, UpIcon } from "@/components/academy/icons";
 import {
@@ -14,9 +14,11 @@ import {
 } from "@/components/academy/shared";
 import { SimpleConfirmDialog } from "@/components/academy/UnassignConfirmDialog";
 import { StateSectionEmpty } from "@/components/state/StateEmptyStates";
+import { useStatePageSearch } from "@/components/state/StateSearchContext";
 import { EditAllocationModal } from "@/components/state/funds/EditAllocationModal";
 import { api, ApiError } from "@/lib/api";
 import { statePageMeta } from "@/lib/state-nav";
+import { matchesStateTextSearch } from "@/lib/state-search";
 import type { StateFundScheme, StateFundsDashboard } from "@/lib/state-portal";
 
 type FundsWorkspaceProps = {
@@ -33,6 +35,7 @@ function utilColor(scheme: StateFundScheme): string {
 
 export function FundsWorkspace({ dashboard: initialDashboard }: FundsWorkspaceProps) {
   const router = useRouter();
+  const searchQuery = useStatePageSearch();
   const [dashboard, setDashboard] = useState(initialDashboard);
   const [editScheme, setEditScheme] = useState<StateFundScheme | null>(null);
   const [releaseOpen, setReleaseOpen] = useState(false);
@@ -40,6 +43,13 @@ export function FundsWorkspace({ dashboard: initialDashboard }: FundsWorkspacePr
   const [error, setError] = useState<string | null>(null);
 
   const hasSchemes = dashboard.schemes.length > 0;
+  const filteredSchemes = useMemo(
+    () =>
+      dashboard.schemes.filter((scheme) =>
+        matchesStateTextSearch(searchQuery, [scheme.name, scheme.detail])
+      ),
+    [dashboard.schemes, searchQuery]
+  );
   const hasDisbursements =
     dashboard.beneficiariesPaid > 0 ||
     dashboard.pendingApproval > 0 ||
@@ -143,6 +153,11 @@ export function FundsWorkspace({ dashboard: initialDashboard }: FundsWorkspacePr
           )}
         </div>
         {hasSchemes ? (
+          filteredSchemes.length === 0 ? (
+            <div className="py-8 text-center text-[13px] text-muted">
+              No schemes match your search. Try a different term.
+            </div>
+          ) : (
           <table className="w-full border-collapse min-w-[560px]">
             <thead>
               <tr>
@@ -159,7 +174,7 @@ export function FundsWorkspace({ dashboard: initialDashboard }: FundsWorkspacePr
               </tr>
             </thead>
             <tbody>
-              {dashboard.schemes.map((scheme) => (
+              {filteredSchemes.map((scheme) => (
                 <TableRow
                   key={scheme.slug}
                   onClick={() => router.push(`/state/funds/${scheme.slug}`)}
@@ -200,6 +215,7 @@ export function FundsWorkspace({ dashboard: initialDashboard }: FundsWorkspacePr
               ))}
             </tbody>
           </table>
+          )
         ) : (
           <StateSectionEmpty screen="funds-schemes" />
         )}

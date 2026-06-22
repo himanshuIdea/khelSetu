@@ -211,15 +211,12 @@ export const getDistrictAthleteSportBreakdown = cache(
 
     if (topDistricts.length === 0) return [];
 
-    const maxCount = topDistricts[0]![1];
-
     return topDistricts.map(([district, totalCount]) => {
       const sportCounts = sportCountsByDistrict.get(district) ?? new Map<string, number>();
       return {
         district,
         total: formatCompactCount(totalCount),
         totalCount,
-        widthPercent: Math.round((totalCount / maxCount) * 100),
         segments: buildSportSegments(sportCounts, topSports),
       };
     });

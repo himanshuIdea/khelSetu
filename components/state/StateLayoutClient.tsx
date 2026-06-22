@@ -1,14 +1,16 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import {
   getActiveStateNavItem,
   statePageMeta,
   stateSearchPlaceholders,
 } from "@/lib/state-nav";
-import { StateSearchProvider } from "./StateSearchContext";
+import { StateSearchProvider, useStateSearch } from "./StateSearchContext";
 import { StateShellClient } from "./StateShellClient";
 import { FundsHeaderFyBadge } from "./funds/FundsHeaderFyBadge";
+import type { StateAdminMeta } from "./StateAdminMenu";
 
 const topBarSubtitles: Partial<Record<ReturnType<typeof getActiveStateNavItem>, string>> = {
   scouting: "Talent scouting & athlete pipeline",
@@ -26,25 +28,40 @@ const topBarBadges: Partial<Record<ReturnType<typeof getActiveStateNavItem>, Rea
 };
 
 type StateLayoutClientProps = {
+  adminMeta: StateAdminMeta;
   children: React.ReactNode;
 };
 
-export function StateLayoutClient({ children }: StateLayoutClientProps) {
+function StateLayoutInner({ adminMeta, children }: StateLayoutClientProps) {
   const pathname = usePathname();
+  const search = useStateSearch();
   const activeItem = getActiveStateNavItem(pathname);
   const searchPlaceholder = stateSearchPlaceholders[activeItem];
   const topBarSubtitle = topBarSubtitles[activeItem] ?? "State Sports Command Centre";
+  const searchHidden = activeItem === "overview";
+
+  useEffect(() => {
+    search?.setQuery("");
+  }, [pathname, search?.setQuery]);
 
   return (
+    <StateShellClient
+      activeItem={activeItem}
+      adminMeta={adminMeta}
+      searchPlaceholder={searchPlaceholder}
+      searchHidden={searchHidden}
+      topBarSubtitle={topBarSubtitle}
+      topBarBadge={topBarBadges[activeItem]}
+    >
+      {children}
+    </StateShellClient>
+  );
+}
+
+export function StateLayoutClient({ adminMeta, children }: StateLayoutClientProps) {
+  return (
     <StateSearchProvider>
-      <StateShellClient
-        activeItem={activeItem}
-        searchPlaceholder={searchPlaceholder}
-        topBarSubtitle={topBarSubtitle}
-        topBarBadge={topBarBadges[activeItem]}
-      >
-        {children}
-      </StateShellClient>
+      <StateLayoutInner adminMeta={adminMeta}>{children}</StateLayoutInner>
     </StateSearchProvider>
   );
 }

@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // pdfkit reads standard fonts from node_modules at runtime via __dirname
+  serverExternalPackages: ["pdfkit"],
 };
 
 export default nextConfig;

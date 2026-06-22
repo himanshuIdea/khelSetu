@@ -19,7 +19,7 @@ export default async function PlayersPage({ params }: PlayersPageProps) {
   const onHoldCount = players.filter((player) => player.status === "On hold").length;
 
   return (
-    <PageBody className="lg:pr-0">
+    <PageBody>
       <PlayersWorkspace academyId={id} players={players} formOptions={formOptions}>
         <PlayersPageHeader
           academyId={id}

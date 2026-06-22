@@ -67,6 +67,24 @@ export function StateTablePageLoading() {
   );
 }
 
+export function StateReportsLoading() {
+  return (
+    <PageBody>
+      <PageHeaderSkeleton />
+      <StatGridSkeleton />
+      <div className="bg-card border border-line rounded-(--radius) px-5 py-4 mt-4 animate-pulse">
+        <div className="h-4 w-32 bg-line rounded-md" />
+        <div className="h-3 w-48 bg-line rounded-md mt-2" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-3">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="h-[88px] border border-line2 rounded-(--radius)" />
+          ))}
+        </div>
+      </div>
+    </PageBody>
+  );
+}
+
 export function StateDistrictsLoading() {
   return (
     <PageBody>

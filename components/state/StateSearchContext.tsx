@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -46,8 +47,14 @@ export function useStateSearch() {
   return useContext(StateSearchContext);
 }
 
-export function useStateSearchRegistration() {
+/** Registers this page for top-bar search and returns the current query. */
+export function useStatePageSearch(): string {
   const ctx = useStateSearch();
 
-  return ctx;
+  useEffect(() => {
+    if (!ctx) return;
+    return ctx.register();
+  }, [ctx]);
+
+  return ctx?.query ?? "";
 }

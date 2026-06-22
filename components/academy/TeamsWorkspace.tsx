@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useAcademyPageSearch } from "@/components/academy/AcademySearchContext";
 import { AddTeamMembersModal } from "@/components/academy/AddTeamMembersModal";
 import { ChangeCaptainDialog } from "@/components/academy/ChangeCaptainDialog";
 import { InlineSelect } from "@/components/academy/InlineSelect";
@@ -21,6 +22,7 @@ import {
   Pill,
 } from "@/components/academy/shared";
 import { api, ApiError } from "@/lib/api";
+import { matchesStateTextSearch } from "@/lib/state-search";
 import type { TeamFormOptions, TeamMemberFormOptions } from "@/lib/teams";
 import type {
   OtherTeam,
@@ -109,6 +111,21 @@ export function TeamsWorkspace({
   const [pendingCaptainChange, setPendingCaptainChange] = useState<PendingCaptainChange | null>(
     null
   );
+  const searchQuery = useAcademyPageSearch();
+
+  const filteredTeamMembers = useMemo(() => {
+    if (!searchQuery.trim()) return teamMembers;
+    return teamMembers.filter((member) =>
+      matchesStateTextSearch(searchQuery, [member.name, member.weight, member.role])
+    );
+  }, [teamMembers, searchQuery]);
+
+  const filteredOtherTeams = useMemo(() => {
+    if (!searchQuery.trim()) return otherTeams;
+    return otherTeams.filter((team) =>
+      matchesStateTextSearch(searchQuery, [team.name, team.meta])
+    );
+  }, [otherTeams, searchQuery]);
 
   useEffect(() => {
     setIsEditing(false);
@@ -347,6 +364,14 @@ export function TeamsWorkspace({
               formOptions={memberFormOptions}
             />
           </>
+        ) : filteredTeamMembers.length === 0 ? (
+          <EmptyState
+            compact
+            className="w-full min-w-0"
+            icon={<FlagIcon className="w-5 h-5" />}
+            title="No members match your search"
+            description="Try a different search term."
+          />
         ) : (
           <>
             {isEditing && (
@@ -381,7 +406,7 @@ export function TeamsWorkspace({
             )}
 
             <AcademyTable headers={tableHeaders} minWidth={isEditing ? 620 : 560}>
-              {teamMembers.map((m) => (
+              {filteredTeamMembers.map((m) => (
                 <TableRow key={m.playerId}>
                   <TableCell>
                     <div className="flex items-center gap-[11px]">
@@ -480,22 +505,30 @@ export function TeamsWorkspace({
       <SidePanel className={`flex flex-col gap-3.5 ${isPending ? "opacity-60" : ""}`}>
         <div className="bg-card border border-line rounded-(--radius) shadow-card p-4">
           <SectionTitle title="Other teams" />
-          {otherTeams.length === 0 ? (
+          {filteredOtherTeams.length === 0 ? (
             <EmptyState
               compact
               className="border-none shadow-none bg-surface/60 mt-2"
               icon={<FlagIcon className="w-5 h-5" />}
-              title="No other teams"
-              description="Create additional squads for different sports, weight classes or tournaments."
+              title={
+                searchQuery.trim() && otherTeams.length > 0
+                  ? "No teams match your search"
+                  : "No other teams"
+              }
+              description={
+                searchQuery.trim() && otherTeams.length > 0
+                  ? "Try a different search term."
+                  : "Create additional squads for different sports, weight classes or tournaments."
+              }
             />
           ) : (
-            otherTeams.map((t, i) => (
+            filteredOtherTeams.map((t, i) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => handleTeamSwitch(t.id)}
                 className={`w-full text-left flex gap-[11px] items-center py-2.5 cursor-pointer rounded-[8px] -mx-1 px-1 transition-colors hover:bg-surface/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 ${
-                  i < otherTeams.length - 1 ? "border-b border-line2" : ""
+                  i < filteredOtherTeams.length - 1 ? "border-b border-line2" : ""
                 }`}
               >
                 <Avatar initials={t.initials} color={t.color} className="rounded-[10px]" />

@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/academy/shared";
 import { StateFilteredEmpty, StateSectionEmpty } from "@/components/state/StateEmptyStates";
+import { useStatePageSearch } from "@/components/state/StateSearchContext";
 import { InlineSelect } from "@/components/academy/InlineSelect";
 import { AddNurseryModal } from "@/components/state/AddNurseryModal";
 import { NurseryDetailModal } from "@/components/state/NurseryDetailModal";
@@ -21,6 +22,7 @@ import {
   type NurseryVerificationStatus,
   type StateNurseryListItem,
 } from "@/lib/state-nurseries";
+import { matchesStateTextSearch } from "@/lib/state-search";
 
 type NurseriesWorkspaceProps = {
   nurseries: StateNurseryListItem[];
@@ -51,6 +53,7 @@ const STATUS_FILTER_OPTIONS = STATUS_OPTIONS.map((option) => ({
 }));
 
 export function NurseriesWorkspace({ nurseries }: NurseriesWorkspaceProps) {
+  const searchQuery = useStatePageSearch();
   const [districtFilter, setDistrictFilter] = useState("all");
   const [sportFilter, setSportFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<NurseryVerificationStatus | "all">("all");
@@ -64,12 +67,23 @@ export function NurseriesWorkspace({ nurseries }: NurseriesWorkspaceProps) {
 
   const filteredNurseries = useMemo(() => {
     return nurseries.filter((nursery) => {
+      if (
+        !matchesStateTextSearch(searchQuery, [
+          nursery.name,
+          nursery.district,
+          nursery.sportLabel,
+          nursery.statusLabel,
+          nursery.detail,
+        ])
+      ) {
+        return false;
+      }
       if (districtFilter !== "all" && nursery.district !== districtFilter) return false;
       if (sportFilter !== "all" && nursery.sportLabel !== sportFilter) return false;
       if (statusFilter !== "all" && nursery.verificationStatus !== statusFilter) return false;
       return true;
     });
-  }, [nurseries, districtFilter, sportFilter, statusFilter]);
+  }, [nurseries, searchQuery, districtFilter, sportFilter, statusFilter]);
 
   const subtitle = `${nurseries.length} active nurseries across ${districtCount} district${districtCount === 1 ? "" : "s"}`;
 
@@ -142,7 +156,7 @@ export function NurseriesWorkspace({ nurseries }: NurseriesWorkspaceProps) {
           </div>
         ) : filteredNurseries.length === 0 ? (
           <div className="bg-card border border-line rounded-(--radius) overflow-hidden min-w-0">
-            <StateFilteredEmpty entity="nurseries" description="Try changing district, sport, or status filters." />
+            <StateFilteredEmpty entity="nurseries" description="Try changing filters or your search term." />
           </div>
         ) : (
           <AcademyTable

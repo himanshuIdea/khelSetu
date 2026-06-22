@@ -227,6 +227,29 @@ export function SectionTitle({
   );
 }
 
+export function ScrollableListPanel({
+  header,
+  children,
+  className = "",
+}: {
+  header?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex flex-col flex-1 min-h-0 min-w-0 bg-card border border-line rounded-(--radius) overflow-hidden ${className}`}
+    >
+      {header && (
+        <div className="shrink-0 px-[18px] pt-4 pb-3 bg-card border-b border-line">
+          {header}
+        </div>
+      )}
+      <div className="flex flex-1 min-h-0 flex-col min-w-0">{children}</div>
+    </div>
+  );
+}
+
 export function EmptyState({
   icon,
   title,
@@ -313,10 +336,13 @@ export function AcademyTable({
   className?: string;
 }) {
   const useFixedLayout = columnWidths != null && columnWidths.length === headers.length;
+  const stickyHeaderCellClass = scrollable
+    ? "sticky top-0 z-20 bg-card shadow-[0_1px_0_0_var(--color-line)]"
+    : "";
 
   const table = (
     <table
-      className={`w-full border-collapse ${useFixedLayout ? "table-fixed" : "table-auto"}`}
+      className={`w-full ${scrollable ? "border-separate border-spacing-0" : "border-collapse"} ${useFixedLayout ? "table-fixed" : "table-auto"}`}
       style={minWidth ? { minWidth: `${minWidth}px` } : undefined}
     >
       {useFixedLayout && (
@@ -326,12 +352,12 @@ export function AcademyTable({
           ))}
         </colgroup>
       )}
-      <thead className={scrollable ? "sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--color-line)]" : undefined}>
+      <thead>
         <tr>
           {headers.map((h, index) => (
             <th
               key={`${h}-${index}`}
-              className={`text-left text-[10.5px] tracking-[0.6px] uppercase text-muted2 font-semibold px-2 sm:px-3.5 pb-[11px] whitespace-nowrap ${scrollable ? "pt-1.5 bg-card" : ""} ${columnClassNames?.[index] ?? ""}`}
+              className={`text-left text-[10.5px] tracking-[0.6px] uppercase text-muted2 font-semibold px-2 sm:px-3.5 pb-[11px] whitespace-nowrap ${stickyHeaderCellClass} ${columnClassNames?.[index] ?? ""}`}
             >
               {h}
             </th>
@@ -343,11 +369,11 @@ export function AcademyTable({
   );
 
   const scrollContainerClass = scrollable
-    ? `flex-1 min-h-0 overflow-y-auto overflow-x-auto overscroll-y-contain overscroll-x-contain max-w-full px-1 sm:px-1.5 pt-1.5 pb-1 [-webkit-overflow-scrolling:touch] ${maxHeightClass ?? ""}`
+    ? `flex-1 min-h-0 overflow-y-auto overflow-x-auto overscroll-y-contain overscroll-x-contain max-w-full px-1 sm:px-1.5 pb-1 [-webkit-overflow-scrolling:touch] ${maxHeightClass ?? ""}`
     : "overflow-x-auto overscroll-x-contain max-w-full px-1 sm:px-1.5 pt-1.5 pb-1 [-webkit-overflow-scrolling:touch]";
 
   const outerClass = scrollable
-    ? `min-w-0 w-full max-w-full bg-card border border-line rounded-(--radius) shadow-card overflow-hidden flex flex-col min-h-0 ${className}`
+    ? `min-w-0 w-full max-w-full flex-1 bg-card border border-line rounded-(--radius) shadow-card overflow-hidden flex flex-col min-h-0 ${className}`
     : `min-w-0 w-full max-w-full bg-card border border-line rounded-(--radius) shadow-card overflow-hidden ${className}`;
 
   return (

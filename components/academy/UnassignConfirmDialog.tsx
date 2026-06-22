@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { AffectedPlayer, BatchPrimaryPromotion, UnassignPayload } from "@/lib/coaches";
 
 export type UnassignConfirmState = {
@@ -109,6 +110,9 @@ type SimpleConfirmDialogProps = {
   title: string;
   description: string;
   isSubmitting: boolean;
+  confirmLabel?: string;
+  submittingLabel?: string;
+  error?: string | null;
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -118,9 +122,28 @@ export function SimpleConfirmDialog({
   title,
   description,
   isSubmitting,
+  confirmLabel = "Confirm",
+  submittingLabel = "Removing…",
+  error = null,
   onCancel,
   onConfirm,
 }: SimpleConfirmDialogProps) {
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isSubmitting) onCancel();
+    }
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, isSubmitting, onCancel]);
+
   if (!open) return null;
 
   return (
@@ -135,10 +158,19 @@ export function SimpleConfirmDialog({
       <div
         role="alertdialog"
         aria-modal="true"
+        aria-labelledby="simple-confirm-title"
         className="relative w-full max-w-sm bg-white rounded-(--radius) shadow-card border border-line px-6 py-6"
       >
-        <h3 className="text-lg font-bold text-ink">{title}</h3>
+        <h3 id="simple-confirm-title" className="text-lg font-bold text-ink">
+          {title}
+        </h3>
         <p className="text-[13px] text-muted mt-1.5">{description}</p>
+
+        {error ? (
+          <p className="text-[13px] font-medium text-red mt-3" role="alert">
+            {error}
+          </p>
+        ) : null}
 
         <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-5">
           <button
@@ -155,7 +187,7 @@ export function SimpleConfirmDialog({
             disabled={isSubmitting}
             className="inline-flex items-center justify-center bg-red text-white font-semibold text-[13px] py-[11px] px-4 rounded-[10px] disabled:opacity-50"
           >
-            {isSubmitting ? "Removing…" : "Confirm"}
+            {isSubmitting ? submittingLabel : confirmLabel}
           </button>
         </div>
       </div>

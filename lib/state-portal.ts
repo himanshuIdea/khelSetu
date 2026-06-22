@@ -27,7 +27,6 @@ export type DistrictSportBar = {
   district: string;
   total: string;
   totalCount: number;
-  widthPercent: number;
   segments: number[];
 };
 

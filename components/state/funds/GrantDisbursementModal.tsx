@@ -61,7 +61,7 @@ export function GrantDisbursementModal({
         beneficiaryId,
         amountPaise: Math.round(parsed * 100),
         status: status as "paid" | "pending",
-        dueDate: dueDate || null,
+        dueDate: status === "pending" ? dueDate || null : null,
         referenceNote: note.trim() || undefined,
       });
       await onGranted();
@@ -105,17 +105,22 @@ export function GrantDisbursementModal({
             <InlineSelect
               value={status}
               options={STATUS_OPTIONS}
-              onChange={setStatus}
+              onChange={(nextStatus) => {
+                setStatus(nextStatus);
+                if (nextStatus !== "pending") setDueDate("");
+              }}
               placeholder="Select status"
             />
           </div>
 
-          <AuthField
-            label="Due date"
-            type="date"
-            value={dueDate}
-            onChange={(event) => setDueDate(event.target.value)}
-          />
+          {status === "pending" && (
+            <AuthField
+              label="Due date"
+              type="date"
+              value={dueDate}
+              onChange={(event) => setDueDate(event.target.value)}
+            />
+          )}
 
           <AuthField
             label="Reference note (optional)"

@@ -1,6 +1,7 @@
 import {
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgSchema,
   text,
@@ -30,6 +31,19 @@ export const tournamentStatusEnum = pgEnum("tournament_status", [
 export const matchStatusEnum = pgEnum("match_status", ["scheduled", "live", "completed"]);
 export const fixtureStatusEnum = pgEnum("fixture_status", ["scheduled", "completed", "cancelled"]);
 export const medalTypeEnum = pgEnum("medal_type", ["gold", "silver", "bronze"]);
+export const participationScopeEnum = pgEnum("participation_scope", [
+  "intra_academy",
+  "inter_academy",
+]);
+export const competitionFormatEnum = pgEnum("competition_format", [
+  "knockout",
+  "double_elimination",
+  "round_robin",
+  "pool_knockout",
+  "heats",
+  "trial",
+]);
+export const ageDivisionEnum = pgEnum("age_division", ["sub_junior", "junior", "senior"]);
 
 export const teams = competitionsSchema.table("teams", {
   id: primaryId(),
@@ -110,10 +124,76 @@ export const tournaments = competitionsSchema.table("tournaments", {
     .notNull()
     .references(() => sports.id),
   weightClass: text("weight_class"),
+  participationScope: participationScopeEnum("participation_scope")
+    .notNull()
+    .default("intra_academy"),
+  competitionFormat: competitionFormatEnum("competition_format")
+    .notNull()
+    .default("knockout"),
+  ageDivision: ageDivisionEnum("age_division").notNull().default("senior"),
+  description: text("description"),
   participantAcademies: integer("participant_academies"),
   participantAthletes: integer("participant_athletes"),
   ...timestamps,
 });
+
+export const tournamentPools = competitionsSchema.table("tournament_pools", {
+  id: primaryId(),
+  tournamentId: uuid("tournament_id")
+    .notNull()
+    .references(() => tournaments.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...timestamps,
+});
+
+export const tournamentParticipants = competitionsSchema.table(
+  "tournament_participants",
+  {
+    id: primaryId(),
+    tournamentId: uuid("tournament_id")
+      .notNull()
+      .references(() => tournaments.id, { onDelete: "cascade" }),
+    playerId: uuid("player_id")
+      .notNull()
+      .references(() => players.id),
+    academyId: uuid("academy_id")
+      .notNull()
+      .references(() => academies.id),
+    seedOrder: integer("seed_order"),
+    poolId: uuid("pool_id").references(() => tournamentPools.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("tournament_participants_tournament_player_idx").on(
+      table.tournamentId,
+      table.playerId
+    ),
+  ]
+);
+
+export const tournamentStandings = competitionsSchema.table(
+  "tournament_standings",
+  {
+    id: primaryId(),
+    poolId: uuid("pool_id")
+      .notNull()
+      .references(() => tournamentPools.id, { onDelete: "cascade" }),
+    playerId: uuid("player_id")
+      .notNull()
+      .references(() => players.id),
+    played: integer("played").notNull().default(0),
+    won: integer("won").notNull().default(0),
+    lost: integer("lost").notNull().default(0),
+    points: integer("points").notNull().default(0),
+    rank: integer("rank"),
+    resultValue: numeric("result_value", { precision: 10, scale: 3 }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("tournament_standings_pool_player_idx").on(table.poolId, table.playerId),
+  ]
+);
 
 export const tournamentMatches = competitionsSchema.table("tournament_matches", {
   id: primaryId(),
@@ -122,6 +202,7 @@ export const tournamentMatches = competitionsSchema.table("tournament_matches", 
     .references(() => tournaments.id),
   round: text("round").notNull(),
   bracketPosition: integer("bracket_position").notNull(),
+  matchLabel: text("match_label"),
   matLabel: text("mat_label"),
   scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
   playerAId: uuid("player_a_id").references(() => players.id),
@@ -132,6 +213,11 @@ export const tournamentMatches = competitionsSchema.table("tournament_matches", 
   scoreB: integer("score_b"),
   winnerPlayerId: uuid("winner_player_id").references(() => players.id),
   nextMatchId: uuid("next_match_id"),
+  loserNextMatchId: uuid("loser_next_match_id"),
+  poolId: uuid("pool_id").references(() => tournamentPools.id, { onDelete: "set null" }),
+  heatNumber: integer("heat_number"),
+  laneNumber: integer("lane_number"),
+  groupLabel: text("group_label"),
   medalType: medalTypeEnum("medal_type"),
   status: matchStatusEnum("status").notNull().default("scheduled"),
   ...timestamps,

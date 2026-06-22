@@ -145,8 +145,8 @@ export default async function StateOverviewPage() {
                   key={row.district}
                   label={row.district}
                   total={row.total}
-                  widthPercent={row.widthPercent}
                   segments={row.segments}
+                  colors={sportLegend.map((s) => s.color)}
                 />
               ))}
             </>

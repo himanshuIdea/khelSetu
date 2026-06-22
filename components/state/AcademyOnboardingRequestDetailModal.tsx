@@ -173,152 +173,158 @@ export function AcademyOnboardingRequestDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="onboarding-request-title"
-        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-card border border-line rounded-2xl shadow-xl p-6 z-10"
+        className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-card border border-line rounded-2xl shadow-xl z-10 overflow-hidden"
         onClick={(event) => event.stopPropagation()}
       >
         {loading ? (
-          <p className="text-[13px] text-muted">Loading request…</p>
+          <p className="text-[13px] text-muted p-6">Loading request…</p>
         ) : request ? (
-          <div className="space-y-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 id="onboarding-request-title" className="text-lg font-bold text-ink">
-                {request.academyName}
-              </h2>
-              <Pill variant={onboardingStatusVariant(request.status)}>
-                {ONBOARDING_STATUS_LABELS[request.status]}
-              </Pill>
-            </div>
+          <>
+            <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 id="onboarding-request-title" className="text-lg font-bold text-ink">
+                  {request.academyName}
+                </h2>
+                <Pill variant={onboardingStatusVariant(request.status)}>
+                  {ONBOARDING_STATUS_LABELS[request.status]}
+                </Pill>
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
-              <div>
-                <div className="text-muted text-[11px] uppercase font-semibold">Admin</div>
-                <div className="text-ink font-medium">{request.adminFullName}</div>
-              </div>
-              <div>
-                <div className="text-muted text-[11px] uppercase font-semibold">District</div>
-                <div className="text-ink font-medium">{request.district}</div>
-              </div>
-              <div>
-                <div className="text-muted text-[11px] uppercase font-semibold">Branded link</div>
-                <div className="text-ink font-medium">{request.slug}.khelsetu.in</div>
-              </div>
-              <div>
-                <div className="text-muted text-[11px] uppercase font-semibold">Sports</div>
-                <div className="text-ink font-medium">{request.sports.join(", ")}</div>
-              </div>
-              <div>
-                <div className="text-muted text-[11px] uppercase font-semibold">Aadhaar</div>
-                <div className="text-ink font-medium font-mono">{request.aadharNumber}</div>
-              </div>
-              <div>
-                <div className="text-muted text-[11px] uppercase font-semibold">PAN</div>
-                <div className="text-ink font-medium font-mono">{request.panNumber}</div>
-              </div>
-              <div className="sm:col-span-2">
-                <div className="text-muted text-[11px] uppercase font-semibold">GSTIN</div>
-                <div className="text-ink font-medium font-mono">{request.gstNumber}</div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {(["aadhar", "pan", "gst"] as const).map((type) => (
-                <a
-                  key={type}
-                  href={api.state.onboardingRequests.documentUrl(request.id, type)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center min-h-[40px] px-3 py-2 rounded-[10px] border border-line bg-surface text-[12px] font-semibold text-brand"
-                >
-                  View {type.toUpperCase()} document
-                </a>
-              ))}
-            </div>
-
-            {finalized ? (
-              <div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-muted">
-                This request is {ONBOARDING_STATUS_LABELS[request.status].toLowerCase()} and can no
-                longer be changed.
-                {request.reviewNotes ? (
-                  <p className="mt-2 text-ink whitespace-pre-wrap">{request.reviewNotes}</p>
-                ) : null}
-              </div>
-            ) : (
-              <>
-                <AuthField
-                  label="Review notes"
-                  placeholder="Notes for the academy admin"
-                  value={reviewNotes}
-                  onChange={(e) => setReviewNotes(e.target.value)}
-                />
-
-                <div className="space-y-3">
-                  <div className="text-[12px] font-semibold text-ink">
-                    Required actions (select before requesting changes)
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {ONBOARDING_REQUIRED_ACTIONS.map((action) => (
-                      <label
-                        key={action}
-                        className="flex items-center gap-2 text-[12.5px] text-text cursor-pointer min-h-[36px]"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedActions.includes(action)}
-                          onChange={() => toggleAction(action)}
-                        />
-                        {ACTION_LABELS[action] ?? action}
-                      </label>
-                    ))}
-                  </div>
-
-                  {error ? (
-                    <p className="text-[13px] text-red" role="alert">
-                      {error}
-                    </p>
-                  ) : null}
-
-                  {success ? (
-                    <p className="text-[13px] text-[#0E9B72] font-medium" role="status">
-                      {success}
-                    </p>
-                  ) : null}
-
-                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                    <button
-                      type="button"
-                      disabled={Boolean(submitting)}
-                      onClick={() => void handleReview("approve")}
-                      className="flex-1 min-h-[44px] rounded-[10px] bg-brand text-white text-[13px] font-semibold disabled:opacity-50"
-                    >
-                      {submitting === "approve" ? "Approving…" : "Approve"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={Boolean(submitting)}
-                      onClick={() => void handleReview("needs_action")}
-                      className="flex-1 min-h-[44px] rounded-[10px] border border-line bg-card text-[13px] font-semibold disabled:opacity-50"
-                    >
-                      {submitting === "needs_action" ? "Saving…" : "Request changes"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={Boolean(submitting)}
-                      onClick={() => void handleReview("reject")}
-                      className="flex-1 min-h-[44px] rounded-[10px] border border-[#F6D4D4] bg-[#FEF2F2] text-red text-[13px] font-semibold disabled:opacity-50"
-                    >
-                      {submitting === "reject" ? "Rejecting…" : "Reject"}
-                    </button>
-                  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
+                <div>
+                  <div className="text-muted text-[11px] uppercase font-semibold">Admin</div>
+                  <div className="text-ink font-medium">{request.adminFullName}</div>
                 </div>
-              </>
+                <div>
+                  <div className="text-muted text-[11px] uppercase font-semibold">District</div>
+                  <div className="text-ink font-medium">{request.district}</div>
+                </div>
+                <div>
+                  <div className="text-muted text-[11px] uppercase font-semibold">Branded link</div>
+                  <div className="text-ink font-medium">{request.slug}.khelsetu.in</div>
+                </div>
+                <div>
+                  <div className="text-muted text-[11px] uppercase font-semibold">Sports</div>
+                  <div className="text-ink font-medium">{request.sports.join(", ")}</div>
+                </div>
+                <div>
+                  <div className="text-muted text-[11px] uppercase font-semibold">Aadhaar</div>
+                  <div className="text-ink font-medium font-mono">{request.aadharNumber}</div>
+                </div>
+                <div>
+                  <div className="text-muted text-[11px] uppercase font-semibold">PAN</div>
+                  <div className="text-ink font-medium font-mono">{request.panNumber}</div>
+                </div>
+                <div className="sm:col-span-2">
+                  <div className="text-muted text-[11px] uppercase font-semibold">GSTIN</div>
+                  <div className="text-ink font-medium font-mono">{request.gstNumber}</div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {(["aadhar", "pan", "gst"] as const).map((type) => (
+                  <a
+                    key={type}
+                    href={api.state.onboardingRequests.documentUrl(request.id, type)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center min-h-[40px] px-3 py-2 rounded-[10px] border border-line bg-surface text-[12px] font-semibold text-brand"
+                  >
+                    View {type.toUpperCase()} document
+                  </a>
+                ))}
+              </div>
+
+              {finalized ? (
+                <div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-muted">
+                  This request is {ONBOARDING_STATUS_LABELS[request.status].toLowerCase()} and can no
+                  longer be changed.
+                  {request.reviewNotes ? (
+                    <p className="mt-2 text-ink whitespace-pre-wrap">{request.reviewNotes}</p>
+                  ) : null}
+                </div>
+              ) : (
+                <>
+                  <AuthField
+                    label="Review notes"
+                    placeholder="Notes for the academy admin"
+                    value={reviewNotes}
+                    onChange={(e) => setReviewNotes(e.target.value)}
+                  />
+
+                  <div className="space-y-3">
+                    <div className="text-[12px] font-semibold text-ink">
+                      Required actions (select before requesting changes)
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ONBOARDING_REQUIRED_ACTIONS.map((action) => (
+                        <label
+                          key={action}
+                          className="flex items-center gap-2 text-[12.5px] text-text cursor-pointer min-h-[36px]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedActions.includes(action)}
+                            onChange={() => toggleAction(action)}
+                          />
+                          {ACTION_LABELS[action] ?? action}
+                        </label>
+                      ))}
+                    </div>
+
+                    {error ? (
+                      <p className="text-[13px] text-red" role="alert">
+                        {error}
+                      </p>
+                    ) : null}
+
+                    {success ? (
+                      <p className="text-[13px] text-[#0E9B72] font-medium" role="status">
+                        {success}
+                      </p>
+                    ) : null}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {!finalized && (
+              <div className="shrink-0 border-t border-line bg-card p-4 sm:px-6">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    disabled={Boolean(submitting)}
+                    onClick={() => void handleReview("approve")}
+                    className="flex-1 min-h-[44px] rounded-[10px] bg-brand text-white text-[13px] font-semibold disabled:opacity-50"
+                  >
+                    {submitting === "approve" ? "Approving…" : "Approve"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={Boolean(submitting)}
+                    onClick={() => void handleReview("needs_action")}
+                    className="flex-1 min-h-[44px] rounded-[10px] border border-line bg-card text-[13px] font-semibold disabled:opacity-50"
+                  >
+                    {submitting === "needs_action" ? "Saving…" : "Request changes"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={Boolean(submitting)}
+                    onClick={() => void handleReview("reject")}
+                    className="flex-1 min-h-[44px] rounded-[10px] border border-[#F6D4D4] bg-[#FEF2F2] text-red text-[13px] font-semibold disabled:opacity-50"
+                  >
+                    {submitting === "reject" ? "Rejecting…" : "Reject"}
+                  </button>
+                </div>
+              </div>
             )}
-          </div>
+          </>
         ) : (
-          <p className="text-[13px] text-muted">Request not found.</p>
+          <p className="text-[13px] text-muted p-6">Request not found.</p>
         )}
 
         {error && !request ? (
-          <p className="mt-4 text-[13px] text-red" role="alert">
+          <p className="px-6 pb-6 text-[13px] text-red" role="alert">
             {error}
           </p>
         ) : null}

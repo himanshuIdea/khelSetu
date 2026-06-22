@@ -15,9 +15,13 @@ export async function POST(request: Request) {
     const auth = await assertStateAdminAccess();
     if ("error" in auth) return auth.error;
 
-    const body = (await request.json().catch(() => ({}))) as { schemeSlug?: string };
+    const body = (await request.json().catch(() => ({}))) as {
+      schemeSlug?: string;
+      disbursementId?: string;
+    };
     const result = await releasePendingDisbursements({
       schemeSlug: body.schemeSlug,
+      disbursementId: body.disbursementId,
       paidByUserId: auth.userId,
     });
 

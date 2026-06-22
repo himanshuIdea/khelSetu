@@ -23,7 +23,7 @@ export function PlayerSidePanelSkeleton() {
   return (
     <SidePanel>
       <div
-        className={`${PLAYER_SIDE_PANEL_SURFACE_CLASS} bg-card border border-line lg:border-r-0 rounded-(--radius) lg:rounded-l-(--radius) shadow-card px-4 sm:px-[22px] py-6 animate-pulse`}
+        className={`${PLAYER_SIDE_PANEL_SURFACE_CLASS} bg-card border border-line rounded-(--radius) shadow-card px-4 sm:px-[22px] py-6 animate-pulse`}
         aria-busy
         aria-label="Loading player profile"
       >
@@ -67,7 +67,7 @@ export function PlayerSidePanelEmpty({ hasPlayers }: PlayerSidePanelEmptyProps) 
     <SidePanel>
       <EmptyState
         compact
-        className={`${PLAYER_SIDE_PANEL_SURFACE_CLASS} lg:border-r-0 lg:rounded-l-(--radius)`}
+        className={PLAYER_SIDE_PANEL_SURFACE_CLASS}
         icon={<UsersIcon className="w-5 h-5" />}
         title="No player selected"
         description={
@@ -88,7 +88,7 @@ export function PlayerSidePanelContent({
   return (
     <SidePanel>
       <div
-        className={`${PLAYER_SIDE_PANEL_SURFACE_CLASS} bg-card border border-line lg:border-r-0 rounded-(--radius) lg:rounded-l-(--radius) shadow-card px-4 sm:px-[22px] py-6`}
+        className={`${PLAYER_SIDE_PANEL_SURFACE_CLASS} bg-card border border-line rounded-(--radius) shadow-card px-4 sm:px-[22px] py-6`}
       >
         <div className="flex flex-col items-center text-center pb-[18px] border-b border-line2">
           <Avatar

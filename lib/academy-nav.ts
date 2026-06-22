@@ -8,7 +8,7 @@ export const searchPlaceholders: Partial<Record<AcademyNavItem, string>> = {
   tournaments: "Search tournaments…",
   attendance: "Search attendance…",
   gear: "Search gear & kit…",
-  fees: "Search staff…",
+  fees: "Search staff or player fees…",
   reports: "Search reports…",
 };
 

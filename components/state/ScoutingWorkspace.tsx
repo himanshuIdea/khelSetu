@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UpIcon } from "@/components/academy/icons";
 import { InlineSelect } from "@/components/academy/InlineSelect";
@@ -19,12 +18,16 @@ import {
   TableRow,
 } from "@/components/academy/shared";
 import { FillBarRow } from "@/components/state/shared";
+import {
+  ReportFormatPopover,
+  type ReportFormat,
+} from "@/components/state/ReportFormatPopover";
 import { StateFilteredEmpty, StateSectionEmpty } from "@/components/state/StateEmptyStates";
 import {
   parseAthleteRating,
   RatingFilterSlider,
 } from "@/components/state/RatingFilterSlider";
-import { useStateSearchRegistration } from "@/components/state/StateSearchContext";
+import { useStatePageSearch } from "@/components/state/StateSearchContext";
 import { api } from "@/lib/api";
 import { formatSportWeightLine } from "@/lib/format";
 import {
@@ -35,6 +38,7 @@ import {
 } from "@/lib/scouting-status";
 import { HARYANA_DISTRICTS, HARYANA_FEATURED_SPORTS } from "@/lib/state-catalog";
 import { statePageMeta } from "@/lib/state-nav";
+import { matchesStateTextSearch } from "@/lib/state-search";
 import type { StateScoutingDashboard, StateScoutingProspect } from "@/lib/state-portal";
 
 type ScoutingWorkspaceProps = {
@@ -61,27 +65,20 @@ const AGE_OPTIONS = [
   { value: "Senior", label: "Age: Senior" },
 ];
 
-const REPORT_FORMAT_OPTIONS = [
-  { value: "xlsx", label: "Excel (.xlsx)" },
-  { value: "pdf", label: "PDF (.pdf)" },
-];
-
 const DEFAULT_MIN_RATING = 8;
 
-function matchesSearch(prospect: StateScoutingProspect, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return (
-    prospect.name.toLowerCase().includes(q) ||
-    prospect.sport.toLowerCase().includes(q) ||
-    prospect.district.toLowerCase().includes(q) ||
-    prospect.nurseryName.toLowerCase().includes(q)
-  );
+function matchesScoutingSearch(prospect: StateScoutingProspect, query: string): boolean {
+  return matchesStateTextSearch(query, [
+    prospect.name,
+    prospect.sport,
+    prospect.district,
+    prospect.nurseryName,
+  ]);
 }
 
 export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspaceProps) {
   const router = useRouter();
-  const search = useStateSearchRegistration();
+  const searchQuery = useStatePageSearch();
 
   const [statusOverrides, setStatusOverrides] = useState<
     Record<string, ScoutingStatus | null | undefined>
@@ -99,11 +96,9 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
   const [error, setError] = useState<string | null>(null);
 
   const [shortlistOpen, setShortlistOpen] = useState(false);
-  const [reportFormat, setReportFormat] = useState("xlsx");
+  const [reportFormat, setReportFormat] = useState<ReportFormat>("xlsx");
   const [reportDownloading, setReportDownloading] = useState(false);
   const shortlistRef = useRef<HTMLDivElement>(null);
-  const shortlistMenuRef = useRef<HTMLDivElement>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
 
   const displayProspects = useMemo(
     () =>
@@ -115,34 +110,9 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
     [prospects, statusOverrides]
   );
 
-  useEffect(() => {
-    if (!search) return;
-    return search.register();
-  }, [search]);
-
-  useEffect(() => {
-    if (!shortlistOpen) return;
-
-    function handleClick(event: MouseEvent) {
-      const target = event.target as Node;
-      if (
-        shortlistRef.current?.contains(target) ||
-        shortlistMenuRef.current?.contains(target)
-      ) {
-        return;
-      }
-      setShortlistOpen(false);
-    }
-
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [shortlistOpen]);
-
-  const searchQuery = search?.query ?? "";
-
   const filtered = useMemo(() => {
     return displayProspects.filter((p) => {
-      if (!matchesSearch(p, searchQuery)) return false;
+      if (!matchesScoutingSearch(p, searchQuery)) return false;
       if (districtFilter !== "all" && p.district !== districtFilter) return false;
       if (sportFilter !== "all" && p.sportName !== sportFilter) return false;
       if (ageFilter !== "all" && p.batchName !== ageFilter) return false;
@@ -282,9 +252,6 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
   }, [selectedIds, bulkStatus, router]);
 
   const openShortlistMenu = useCallback(() => {
-    if (!shortlistRef.current) return;
-    const rect = shortlistRef.current.getBoundingClientRect();
-    setMenuPos({ top: rect.bottom + 6, left: rect.right - 240 });
     setShortlistOpen(true);
   }, []);
 
@@ -292,9 +259,7 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
     setError(null);
     setReportDownloading(true);
     try {
-      const { blob, filename } = await api.state.scouting.downloadShortlistReport(
-        reportFormat === "pdf" ? "pdf" : "xlsx"
-      );
+      const { blob, filename } = await api.state.scouting.downloadShortlistReport(reportFormat);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -325,34 +290,16 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
         <UpIcon />
         {meta.actionLabel}
       </button>
-      {shortlistOpen &&
-        menuPos &&
-        createPortal(
-          <div
-            ref={shortlistMenuRef}
-            className="fixed z-50 w-[240px] bg-card border border-line rounded-[12px] shadow-card p-3"
-            style={{ top: menuPos.top, left: Math.max(8, menuPos.left) }}
-          >
-            <div className="text-[12px] font-semibold text-ink mb-2">Report format</div>
-            <InlineSelect
-              value={reportFormat}
-              options={REPORT_FORMAT_OPTIONS}
-              onChange={setReportFormat}
-              variant="input"
-              aria-label="Report format"
-              className="w-full mb-3"
-            />
-            <button
-              type="button"
-              onClick={handleDownloadReport}
-              disabled={reportDownloading}
-              className="w-full bg-brand text-white font-semibold text-[13px] py-[10px] px-3 rounded-[10px] disabled:opacity-60"
-            >
-              {reportDownloading ? "Generating…" : "Download report"}
-            </button>
-          </div>,
-          document.body
-        )}
+      <ReportFormatPopover
+        open={shortlistOpen}
+        anchorRef={shortlistRef}
+        format={reportFormat}
+        onFormatChange={setReportFormat}
+        onDownload={handleDownloadReport}
+        downloading={reportDownloading}
+        onClose={() => setShortlistOpen(false)}
+        error={shortlistOpen ? error : null}
+      />
     </div>
   );
 
@@ -499,22 +446,10 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
             {filtered.length === 0 ? (
               <StateFilteredEmpty
                 entity="prospects"
-                description="Try lowering the rating threshold or changing filters."
+                description="Try changing filters or your search term."
               />
             ) : (
               <>
-                <div className="flex items-center gap-2 mb-2 px-1">
-                  <input
-                    type="checkbox"
-                    checked={allFilteredSelected}
-                    onChange={toggleSelectAll}
-                    aria-label="Select all visible prospects"
-                    className="w-4 h-4 accent-brand"
-                  />
-                  <span className="text-[12px] text-muted">
-                    Select all ({filtered.length})
-                  </span>
-                </div>
                 <AcademyTable
                   headers={["", "Athlete", "Sport", "District", "Score", "Status"]}
                   minWidth={640}
@@ -574,7 +509,7 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
               <div className="p-4">
                 <StateFilteredEmpty
                   entity="prospects"
-                  description="Try lowering the rating threshold or changing filters."
+                  description="Try changing filters or your search term."
                 />
               </div>
             ) : (

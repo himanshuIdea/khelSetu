@@ -1,5 +1,5 @@
 import { PageBody, SplitLayout, SidePanel } from "@/components/academy/shared";
-import { PageHeaderSkeleton, SidePanelSkeleton } from "@/components/academy/skeletons";
+import { PageHeaderSkeleton } from "@/components/academy/skeletons";
 
 export default function TournamentsPageLoading() {
   return (
@@ -19,11 +19,19 @@ export default function TournamentsPageLoading() {
         <SplitLayout className="flex-1 min-h-0 lg:overflow-hidden">
           <div className="flex-1 min-w-0 min-h-0 bg-card border border-line rounded-(--radius) shadow-card p-5 lg:overflow-y-auto">
             <div className="h-4 w-48 bg-line2 rounded mb-4" />
-            <div className="h-[280px] bg-line2 rounded-(--radius)" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="h-[140px] bg-line2 rounded-(--radius)" />
+              <div className="h-[140px] bg-line2 rounded-(--radius)" />
+              <div className="h-[140px] bg-line2 rounded-(--radius)" />
+              <div className="h-[140px] bg-line2 rounded-(--radius)" />
+            </div>
           </div>
           <SidePanel className="lg:min-h-0 lg:max-h-full">
-            <div className="lg:max-h-full lg:overflow-y-auto">
-              <SidePanelSkeleton rows={3} />
+            <div className="bg-card border border-line rounded-(--radius) shadow-card p-[18px] space-y-3 lg:max-h-full lg:overflow-y-auto">
+              <div className="h-[72px] bg-line2 rounded-[11px]" />
+              <div className="h-[64px] bg-line2 rounded-[11px]" />
+              <div className="h-[88px] bg-line2 rounded-[11px]" />
+              <div className="h-11 bg-line2 rounded-[8px]" />
             </div>
           </SidePanel>
         </SplitLayout>

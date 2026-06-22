@@ -17,6 +17,7 @@ import {
 } from "@/components/academy/shared";
 import { api } from "@/lib/api";
 import { todayDateString } from "@/lib/attendance";
+import { matchesStateTextSearch } from "@/lib/state-search";
 import type {
   StaffAttendanceSession,
   StaffAttendanceStatus,
@@ -24,6 +25,7 @@ import type {
 
 type StaffAttendanceSectionProps = {
   academyId: string;
+  searchQuery?: string;
 };
 
 type LocalStatusMap = Record<string, StaffAttendanceStatus | null>;
@@ -96,7 +98,10 @@ function statusLabel(status: StaffAttendanceStatus | null): string {
   return "Unmarked";
 }
 
-export function StaffAttendanceSection({ academyId }: StaffAttendanceSectionProps) {
+export function StaffAttendanceSection({
+  academyId,
+  searchQuery = "",
+}: StaffAttendanceSectionProps) {
   const router = useRouter();
   const [date, setDate] = useState(todayDateString());
   const [session, setSession] = useState<StaffAttendanceSession | null>(null);
@@ -138,6 +143,14 @@ export function StaffAttendanceSection({ academyId }: StaffAttendanceSectionProp
     () => Object.values(localStatus).filter((status) => status != null).length,
     [localStatus]
   );
+
+  const filteredRoster = useMemo(() => {
+    if (!session) return [];
+    if (!searchQuery.trim()) return session.roster;
+    return session.roster.filter((entry) =>
+      matchesStateTextSearch(searchQuery, [entry.name, entry.role])
+    );
+  }, [session, searchQuery]);
 
   const handleStatusChange = (staffId: string, status: StaffAttendanceStatus) => {
     setLocalStatus((prev) => {
@@ -271,10 +284,19 @@ export function StaffAttendanceSection({ academyId }: StaffAttendanceSectionProp
         />
       )}
 
-      {session && session.roster.length > 0 && (
+      {session && session.roster.length > 0 && filteredRoster.length === 0 && (
+        <EmptyState
+          compact
+          icon={<CalendarIcon className="w-5 h-5" />}
+          title="No staff match your search"
+          description="Try a different search term."
+        />
+      )}
+
+      {session && session.roster.length > 0 && filteredRoster.length > 0 && (
         <div className="min-w-0 w-full mb-4">
           <AcademyCardList className="lg:hidden">
-            {session.roster.map((entry) => {
+            {filteredRoster.map((entry) => {
               const status = localStatus[entry.staffId] ?? null;
               const wasMarked = entry.status != null;
               return (
@@ -312,7 +334,7 @@ export function StaffAttendanceSection({ academyId }: StaffAttendanceSectionProp
             columnWidths={["32%", "18%", "16%", "34%"]}
             minWidth={640}
           >
-            {session.roster.map((entry) => {
+            {filteredRoster.map((entry) => {
               const status = localStatus[entry.staffId] ?? null;
               return (
                 <TableRow key={entry.staffId}>

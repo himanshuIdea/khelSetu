@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAcademyPageSearch } from "@/components/academy/AcademySearchContext";
 import { PayrollStaffSection } from "@/components/academy/PayrollStaffSection";
 import { PlayerFeesSection } from "@/components/academy/PlayerFeesSection";
 import { PageHeader } from "@/components/academy/shared";
@@ -43,6 +44,7 @@ export function FeesWorkspace({
   formOptions,
 }: FeesWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<FeesTab>("payroll");
+  const searchQuery = useAcademyPageSearch();
 
   return (
     <div className="min-w-0 w-full">
@@ -87,6 +89,7 @@ export function FeesWorkspace({
           monthLabel={monthLabel}
           payrollStats={payrollStats}
           staffMembers={staffMembers}
+          searchQuery={searchQuery}
         />
       ) : (
         <PlayerFeesSection
@@ -94,6 +97,7 @@ export function FeesWorkspace({
           feeStats={feeStats}
           billingRows={billingRows}
           formOptions={formOptions}
+          searchQuery={searchQuery}
         />
       )}
     </div>

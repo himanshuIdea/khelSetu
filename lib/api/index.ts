@@ -46,6 +46,13 @@ import type {
   TimetableSlot,
 } from "@/lib/timetable";
 import type {
+  CreateTournamentPayload,
+  EligibleTournamentPlayer,
+  InterAcademyOption,
+  UpdateTournamentMatchPayload,
+  UpdateTournamentMedalsPayload,
+} from "@/lib/tournaments";
+import type {
   AcademyMeta,
   AttendanceSession,
   Coach,
@@ -413,6 +420,55 @@ export const api = {
       apiGet<{ gold: number; silver: number; bronze: number }>(
         `/tournaments/${tournamentId}/medals?academyId=${academyId}`
       ),
+    create: (academyId: string, body: CreateTournamentPayload) =>
+      apiPost<{ id: string; name: string; status: string }>(
+        `/academies/${academyId}/tournaments`,
+        body
+      ),
+    eligiblePlayers: (
+      academyId: string,
+      params: {
+        sportId: string;
+        ageDivision: string;
+        weightClass?: string;
+        scope?: string;
+        academyIds?: string[];
+      }
+    ) => {
+      const search = new URLSearchParams({
+        sportId: params.sportId,
+        ageDivision: params.ageDivision,
+      });
+      if (params.weightClass) search.set("weightClass", params.weightClass);
+      if (params.scope) search.set("scope", params.scope);
+      if (params.academyIds?.length) search.set("academyIds", params.academyIds.join(","));
+      return apiGet<{ players: EligibleTournamentPlayer[]; weightClasses: string[] }>(
+        `/academies/${academyId}/tournaments/eligible-players?${search.toString()}`
+      );
+    },
+    interAcademies: (academyId: string) =>
+      apiGet<{ academies: InterAcademyOption[] }>(
+        `/academies/${academyId}/tournaments/inter-academies`
+      ),
+    updateMatch: (tournamentId: string, matchId: string, body: UpdateTournamentMatchPayload) =>
+      apiPatch<{ match: unknown }>(
+        `/tournaments/${tournamentId}/matches/${matchId}`,
+        body
+      ),
+    updateMedals: (tournamentId: string, body: UpdateTournamentMedalsPayload) =>
+      apiPatch<{ medals: unknown }>(`/tournaments/${tournamentId}/medals`, body),
+    end: (tournamentId: string) =>
+      apiPost<{ tournament: { id: string; status: string } }>(
+        `/tournaments/${tournamentId}/end`,
+        {}
+      ),
+    moveAthlete: (
+      tournamentId: string,
+      body: {
+        from: { matchId: string; side: "a" | "b" };
+        to: { matchId: string; side: "a" | "b" };
+      }
+    ) => apiPatch<{ ok: boolean }>(`/tournaments/${tournamentId}/matches/move-athlete`, body),
   },
 
   inventory: {
@@ -776,10 +832,15 @@ export const api = {
           referenceNote?: string;
         }
       ) => apiPost<{ ok: boolean }>(`/state/funds/schemes/${slug}/disbursements`, body),
-      releasePending: (schemeSlug?: string) =>
+      releasePending: (schemeSlug?: string, disbursementId?: string) =>
         apiPost<{ ok: boolean; released: number }>("/state/funds/release", {
           schemeSlug,
+          disbursementId,
         }),
+    },
+    reports: {
+      generate: (reportType: string, format: "xlsx" | "pdf") =>
+        apiPostBlob("/state/reports/generate", { reportType, format }),
     },
   },
 };

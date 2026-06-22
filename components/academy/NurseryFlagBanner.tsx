@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthField } from "@/components/auth/AuthField";
 import { FLAG_RESPONSE_LABELS, type AcademyNurseryFlag } from "@/lib/state-nurseries";
@@ -18,6 +18,15 @@ export function NurseryFlagBanner({ academyId, flag: initialFlag }: NurseryFlagB
   const [submitting, setSubmitting] = useState<"addressed" | "request_review" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFlag(initialFlag);
+    if (initialFlag.flagResponseStatus === "none") {
+      setResponseNote("");
+      setSuccess(null);
+      setError(null);
+    }
+  }, [initialFlag]);
 
   async function handleRespond(action: "addressed" | "request_review") {
     if (submitting) return;

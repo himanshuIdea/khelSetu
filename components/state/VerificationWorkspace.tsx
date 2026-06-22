@@ -9,6 +9,7 @@ import {
   FilterPills,
   PageHeader,
   Pill,
+  ScrollableListPanel,
   SectionTitle,
   StatCard,
   StatGrid,
@@ -18,6 +19,7 @@ import {
 import { InlineSelect } from "@/components/academy/InlineSelect";
 import { AcademyOnboardingRequestDetailModal } from "@/components/state/AcademyOnboardingRequestDetailModal";
 import { StateFilteredEmpty, StateSectionEmpty } from "@/components/state/StateEmptyStates";
+import { useStatePageSearch } from "@/components/state/StateSearchContext";
 import { VerificationNurseryModal } from "@/components/state/VerificationNurseryModal";
 import type { AcademyOnboardingRequestDetail } from "@/lib/academy-onboarding";
 import {
@@ -27,13 +29,17 @@ import {
 import { HARYANA_DISTRICTS } from "@/lib/state-catalog";
 import { stateLayout } from "@/lib/state-layout";
 import { statePageMeta } from "@/lib/state-nav";
+import type { StateNurseryDetail } from "@/lib/state-nurseries";
 import type { VerificationBreakdown } from "@/lib/state-portal";
 import {
   verificationQueueStatusLabel,
   verificationQueueStatusVariant,
   isPendingReviewQueueItem,
+  isReviewRequestedQueueItem,
+  needsStateReviewAction,
   type VerificationQueueItem,
 } from "@/lib/state-verification-queue";
+import { matchesStateTextSearch } from "@/lib/state-search";
 
 type VerificationWorkspaceProps = {
   queue: VerificationQueueItem[];
@@ -59,6 +65,7 @@ const STATUS_OPTIONS = [
   { value: "pending", label: "Status: Pending" },
   { value: "flagged", label: "Status: Flagged" },
   { value: "review_requested", label: "Status: Review requested" },
+  { value: "addressed", label: "Status: Marked addressed" },
 ];
 
 const TIME_OPTIONS = [
@@ -92,12 +99,13 @@ function matchesFilters(
   if (statusFilter !== "all") {
     if (statusFilter === "pending") {
       if (!isPendingReviewQueueItem(item)) return false;
+    } else if (statusFilter === "review_requested") {
+      if (!isReviewRequestedQueueItem(item)) return false;
+    } else if (statusFilter === "addressed") {
+      if (item.kind !== "nursery" || item.flagResponseStatus !== "addressed") return false;
     } else if (item.kind === "onboarding") {
-      if (statusFilter === "review_requested") return false;
       if (["verified", "pending", "flagged"].includes(statusFilter)) return false;
       if (item.status !== statusFilter) return false;
-    } else if (statusFilter === "review_requested") {
-      if (item.flagResponseStatus !== "review_requested") return false;
     } else if (["verified", "pending", "flagged"].includes(statusFilter)) {
       if (item.verificationStatus !== statusFilter) return false;
     } else {
@@ -113,6 +121,17 @@ function matchesFilters(
   }
 
   return true;
+}
+
+function matchesVerificationSearch(item: VerificationQueueItem, query: string): boolean {
+  return matchesStateTextSearch(query, [
+    item.name,
+    item.adminFullName,
+    item.district,
+    item.queueTypeLabel,
+    item.statusLabel,
+    verificationQueueStatusLabel(item),
+  ]);
 }
 
 function QueueRowContent({ item }: { item: VerificationQueueItem }) {
@@ -136,9 +155,7 @@ function QueueRowContent({ item }: { item: VerificationQueueItem }) {
       </TableCell>
       <TableCell>
         <span className="text-[11px] font-semibold text-brand">
-          {item.kind === "onboarding" || (item.kind === "nursery" && item.verificationStatus === "pending")
-            ? "Review"
-            : "Manage"}
+          {needsStateReviewAction(item) ? "Review" : "Manage"}
         </span>
       </TableCell>
     </>
@@ -150,6 +167,7 @@ export function VerificationWorkspace({
   breakdown,
   initialFlaggedOnly = false,
 }: VerificationWorkspaceProps) {
+  const searchQuery = useStatePageSearch();
   const [queue, setQueue] = useState(initialQueue);
   const [queueType, setQueueType] = useState<"all" | "onboarding" | "nursery">("all");
   const [statusFilter, setStatusFilter] = useState(
@@ -171,22 +189,36 @@ export function VerificationWorkspace({
 
   const filtered = useMemo(
     () =>
-      queue.filter((item) =>
-        matchesFilters(item, queueType, statusFilter, districtFilter, timeFilter)
-      ),
-    [queue, queueType, statusFilter, districtFilter, timeFilter]
+      queue.filter((item) => {
+        if (!matchesVerificationSearch(item, searchQuery)) return false;
+        return matchesFilters(item, queueType, statusFilter, districtFilter, timeFilter);
+      }),
+    [queue, searchQuery, queueType, statusFilter, districtFilter, timeFilter]
   );
 
   function handleRowClick(item: VerificationQueueItem) {
     if (item.kind === "onboarding") {
+      setNurseryId(null);
       setOnboardingId(item.id);
       return;
     }
     if (item.onboardingRequestId) {
+      setNurseryId(null);
       setOnboardingId(item.onboardingRequestId);
       return;
     }
+    setOnboardingId(null);
     setNurseryId(item.academyId);
+  }
+
+  function closeOnboardingModal() {
+    setOnboardingId(null);
+    setNurseryId(null);
+  }
+
+  function closeNurseryModal() {
+    setNurseryId(null);
+    setOnboardingId(null);
   }
 
   function handleReviewed(updated: AcademyOnboardingRequestDetail) {
@@ -200,9 +232,26 @@ export function VerificationWorkspace({
         row.kind === "onboarding" && row.id === updated.id
           ? {
               ...row,
+              requestType: updated.requestType,
               status: updated.status,
               statusLabel: ONBOARDING_STATUS_LABELS[updated.status],
               statusVariant: onboardingStatusVariant(updated.status),
+            }
+          : row
+      )
+    );
+  }
+
+  function handleNurseryUpdated(nursery: StateNurseryDetail) {
+    setQueue((current) =>
+      current.map((row) =>
+        row.kind === "nursery" && row.academyId === nursery.academyId
+          ? {
+              ...row,
+              verificationStatus: nursery.verificationStatus,
+              statusLabel: nursery.statusLabel,
+              statusVariant: nursery.status,
+              flagResponseStatus: nursery.flagResponseStatus,
             }
           : row
       )
@@ -301,24 +350,27 @@ export function VerificationWorkspace({
       </div>
 
       <div className={`${stateLayout.listScrollRegion} mt-4`}>
-        <div className="flex flex-col flex-1 min-h-0 bg-card border border-line rounded-(--radius) overflow-hidden min-w-0">
-          <div className="shrink-0 px-[18px] pt-4 pb-1">
+        <ScrollableListPanel
+          header={
             <SectionTitle
               title="Verification queue"
               subtitle="onboarding requests and registered nurseries"
             />
-          </div>
-
+          }
+        >
           {!hasItems ? (
             <StateSectionEmpty screen="verification" />
           ) : filtered.length === 0 ? (
             <StateFilteredEmpty
               entity="queue items"
-              description="Try changing type, status, district, or time filters."
+              description="Try changing filters or your search term."
             />
           ) : (
             <>
-              <AcademyCardList scrollable className="border-0 shadow-none rounded-none">
+              <AcademyCardList
+                scrollable
+                className="flex-1 border-0 shadow-none rounded-none"
+              >
                 {filtered.map((item) => {
                   const statusVariant = verificationQueueStatusVariant(item);
                   const statusLabel = verificationQueueStatusLabel(item);
@@ -346,10 +398,7 @@ export function VerificationWorkspace({
                           </div>
                         </div>
                       <span className="text-[11px] font-semibold text-brand shrink-0">
-                        {item.kind === "onboarding" ||
-                        (item.kind === "nursery" && item.verificationStatus === "pending")
-                          ? "Review"
-                          : "Manage"}
+                        {needsStateReviewAction(item) ? "Review" : "Manage"}
                       </span>
                       </div>
                     </AcademyCardListItem>
@@ -359,7 +408,7 @@ export function VerificationWorkspace({
 
               <AcademyTable
                 scrollable
-                className="hidden lg:flex border-0 shadow-none rounded-none"
+                className="hidden lg:flex flex-1 border-0 shadow-none rounded-none"
                 headers={["Nursery", "Admin", "District", "Type", "Athletes", "Status", ""]}
                 minWidth={760}
               >
@@ -375,20 +424,21 @@ export function VerificationWorkspace({
               </AcademyTable>
             </>
           )}
-        </div>
+        </ScrollableListPanel>
       </div>
 
       <AcademyOnboardingRequestDetailModal
         requestId={onboardingId}
         open={onboardingId != null}
-        onClose={() => setOnboardingId(null)}
+        onClose={closeOnboardingModal}
         onReviewed={handleReviewed}
       />
 
       <VerificationNurseryModal
         academyId={nurseryId}
         open={nurseryId != null}
-        onClose={() => setNurseryId(null)}
+        onClose={closeNurseryModal}
+        onUpdated={handleNurseryUpdated}
       />
     </div>
   );
