@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { PlayerTabBar } from "@/components/mobile/PlayerTabBar";
-import { getActivePlayerNavItem, playerTabBarPaddingClass } from "@/lib/player-nav";
+import { getActivePlayerNavItem } from "@/lib/player-nav";
 
 type PlayerLayoutClientProps = {
   children: React.ReactNode;
@@ -21,10 +21,8 @@ export function PlayerLayoutClient({ children }: PlayerLayoutClientProps) {
       className="min-h-dvh w-full bg-[#F4F6FA] text-ink flex justify-center overflow-x-hidden"
       style={{ ["--player-tab-bar-height" as string]: "72px" }}
     >
-      <div className="relative flex flex-col min-h-dvh w-full max-w-lg min-w-0 bg-[#F4F6FA]">
-        <main
-          className={`flex flex-1 flex-col min-h-0 min-w-0 w-full overflow-x-clip overflow-hidden pt-[env(safe-area-inset-top,0px)] ${playerTabBarPaddingClass}`}
-        >
+      <div className="relative flex flex-col h-dvh w-full max-w-lg min-w-0 bg-[#F4F6FA] overflow-hidden">
+        <main className="h-full flex flex-col min-h-0 min-w-0 w-full overflow-x-clip overflow-hidden pt-[env(safe-area-inset-top,0px)]">
           {children}
         </main>
 

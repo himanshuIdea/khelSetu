@@ -117,7 +117,7 @@ export function TournamentMatchCard({
     );
   }
 
-  const cardWidth = compact ? "w-[232px]" : "w-full max-w-[280px]";
+  const cardWidth = compact ? "w-full max-w-[232px] sm:w-[232px]" : "w-full max-w-[280px]";
 
   return (
     <div

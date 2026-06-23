@@ -8,6 +8,8 @@ import {
 } from "@/lib/auth/portal-login";
 import type { CredentialRoleSegment } from "@/lib/repositories/credentials";
 
+type CopiedField = "all" | "username" | "password" | false;
+
 type CredentialRevealModalProps = {
   open: boolean;
   onClose: () => void;
@@ -28,7 +30,7 @@ export function CredentialRevealModal({
   role,
 }: CredentialRevealModalProps) {
   const [hovered, setHovered] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<CopiedField>(false);
 
   useEffect(() => {
     if (!open) return;
@@ -52,6 +54,15 @@ export function CredentialRevealModal({
     return () => window.clearTimeout(timer);
   }, [copied]);
 
+  async function copyField(text: string, field: "username" | "password") {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(field);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
+
   if (!open) return null;
 
   const portal = portalKindFromCredentialSegment(role);
@@ -68,7 +79,7 @@ export function CredentialRevealModal({
     ].join("\n");
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
+      setCopied("all");
     } catch {
       /* clipboard unavailable */
     }
@@ -102,14 +113,44 @@ export function CredentialRevealModal({
             <div className="text-[11px] font-semibold uppercase tracking-wide text-muted mb-1">
               Username
             </div>
-            <div className="text-[15px] font-semibold text-ink font-mono">{username}</div>
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <div className="text-[15px] font-semibold text-ink font-mono min-w-0 break-all">
+                {username}
+              </div>
+              <button
+                type="button"
+                onClick={() => copyField(username, "username")}
+                aria-label="Copy username"
+                className="shrink-0 inline-flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg border border-line text-muted hover:text-ink hover:bg-card transition-colors"
+              >
+                {copied === "username" ? (
+                  <CheckIcon className="w-4 h-4 text-brand" />
+                ) : (
+                  <CopyIcon className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
           <div className="rounded-xl border border-line bg-surface px-4 py-3">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-muted mb-1">
               Temporary password
             </div>
-            <div className="text-[15px] font-semibold text-ink font-mono tracking-widest">
-              {temporaryPassword}
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <div className="text-[15px] font-semibold text-ink font-mono tracking-widest min-w-0 break-all">
+                {temporaryPassword}
+              </div>
+              <button
+                type="button"
+                onClick={() => copyField(temporaryPassword, "password")}
+                aria-label="Copy temporary password"
+                className="shrink-0 inline-flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg border border-line text-muted hover:text-ink hover:bg-card transition-colors"
+              >
+                {copied === "password" ? (
+                  <CheckIcon className="w-4 h-4 text-brand" />
+                ) : (
+                  <CopyIcon className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -121,7 +162,7 @@ export function CredentialRevealModal({
 
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
-            {copied ? (
+            {copied === "all" ? (
               <div
                 role="status"
                 className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-ink text-white text-[12px] font-medium whitespace-nowrap shadow-lg"
@@ -136,7 +177,7 @@ export function CredentialRevealModal({
               onMouseLeave={() => setHovered(false)}
               className="w-full inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2.5 rounded-[10px] bg-brand text-white text-[13px] font-semibold cursor-pointer transition-opacity hover:opacity-95"
             >
-              {copied ? (
+              {copied === "all" ? (
                 <CheckIcon className="w-4 h-4" />
               ) : hovered ? (
                 <CopyIcon className="w-4 h-4" />

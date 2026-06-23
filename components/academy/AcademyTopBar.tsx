@@ -1,9 +1,16 @@
 "use client";
 
 import { AdminAvatarMenu } from "./AdminAvatarMenu";
+import { PortalAvatarMenu } from "@/components/auth/PortalAvatarMenu";
 import { useAcademySearch } from "./AcademySearchContext";
 import { BellIcon, MenuIcon, SearchIcon } from "./icons";
 import type { AcademyMeta } from "@/lib/repositories/types";
+
+type AcademyTopBarAccountMenu = {
+  initials: string;
+  avatarColor: string;
+  portal: "coach";
+};
 
 type AcademyTopBarProps = {
   academyMeta: AcademyMeta;
@@ -11,6 +18,7 @@ type AcademyTopBarProps = {
   searchHidden?: boolean;
   onMenuToggle?: () => void;
   menuOpen?: boolean;
+  accountMenu?: AcademyTopBarAccountMenu;
 };
 
 function SearchField({
@@ -56,6 +64,7 @@ export function AcademyTopBar({
   searchHidden = false,
   onMenuToggle,
   menuOpen,
+  accountMenu,
 }: AcademyTopBarProps) {
   return (
     <header className="shrink-0 bg-card border-b border-line">
@@ -100,7 +109,15 @@ export function AcademyTopBar({
             <span className="absolute top-2 right-[9px] w-[7px] h-[7px] rounded-full bg-brand border-2 border-card" />
           </button>
 
-          <AdminAvatarMenu initials={academyMeta.adminInitials} />
+          {accountMenu ? (
+            <PortalAvatarMenu
+              initials={accountMenu.initials}
+              avatarColor={accountMenu.avatarColor}
+              portal={accountMenu.portal}
+            />
+          ) : (
+            <AdminAvatarMenu initials={academyMeta.adminInitials} />
+          )}
         </div>
       </div>
 

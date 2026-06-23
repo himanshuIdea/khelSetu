@@ -6,7 +6,7 @@ import { InlineSelect } from "@/components/academy/InlineSelect";
 import { FilterPills } from "@/components/academy/shared";
 import { PlayerFeedPost } from "@/components/player/PlayerFeedPost";
 import { PlayerScrollBody } from "@/components/player/PlayerScrollBody";
-import { playerAthleteProfileRoute } from "@/lib/player-nav";
+import { playerAthleteProfileRoute, playerFeedScrollEndClass } from "@/lib/player-nav";
 import type {
   AcademyAthlete,
   AcademyFeedItem,
@@ -70,7 +70,7 @@ export function PlayerExploreFeed({
   }, [items, search, sportId, topic]);
 
   return (
-    <PlayerScrollBody className="pt-0">
+    <PlayerScrollBody className={`pt-0 ${playerFeedScrollEndClass}`}>
       <div className="mb-3 min-w-0 w-full max-w-full space-y-3">
         <input
           type="search"

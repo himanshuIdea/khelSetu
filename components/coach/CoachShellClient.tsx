@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AcademyTopBar } from "@/components/academy/AcademyTopBar";
 import { MenuIcon } from "@/components/academy/icons";
+import { PortalAvatarMenu } from "@/components/auth/PortalAvatarMenu";
 import { CoachSidebar } from "@/components/coach/CoachSidebar";
 import { CoachTabBar } from "@/components/coach/CoachTabBar";
 import {
@@ -58,6 +59,11 @@ export function CoachShellClient({
             <AcademyTopBar
               academyMeta={academyMeta}
               searchPlaceholder="Search your players and batches…"
+              accountMenu={{
+                initials: coachMeta.initials,
+                avatarColor: coachMeta.avatarColor,
+                portal: "coach",
+              }}
             />
             {children}
           </div>
@@ -81,9 +87,12 @@ export function CoachShellClient({
               >
                 <MenuIcon />
               </button>
-              <div className="w-9 h-9 rounded-[9px] bg-brand-soft border border-[#FFD9C5] flex items-center justify-center font-extrabold text-brand-d text-sm shrink-0">
-                {academyMeta.initials}
-              </div>
+              <PortalAvatarMenu
+                initials={coachMeta.initials}
+                avatarColor={coachMeta.avatarColor}
+                portal="coach"
+                buttonClassName="w-9 h-9 rounded-[9px]"
+              />
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-bold text-ink truncate">{academyMeta.name}</div>
                 <div className="text-[11px] text-muted truncate">{coachMeta.name} · Coach</div>

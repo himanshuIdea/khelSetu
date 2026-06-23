@@ -12,9 +12,9 @@ export function DashboardCredentialsCard({
   return (
     <Link
       href={`/academy/${academyId}/credentials`}
-      className="group block bg-card border border-line rounded-2xl p-4 sm:p-5 shadow-sm hover:border-brand/40 hover:shadow-md transition-all min-w-0 w-full"
+      className="group block bg-card border border-line rounded-2xl p-4 sm:p-5 shadow-sm hover:border-brand/40 hover:shadow-md transition-all min-w-0 w-full mb-3"
     >
-      <div className="flex items-center justify-between gap-3 min-w-0">
+      <div className="flex items-center justify-between gap-3 min-w-0 mb-5">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-[15px] sm:text-[16px] font-bold text-ink">Credential management</h2>

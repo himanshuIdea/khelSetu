@@ -326,7 +326,38 @@ export function CoachMediaWorkspace({
         </svg>
       </Link>
 
-      <div className="mb-5">
+      <div className="mb-4 lg:hidden" role="tablist" aria-label="Media sections">
+        <div className="grid grid-cols-3 gap-1 p-1 bg-surface border border-line rounded-[12px]">
+          {(Object.keys(TAB_LABELS) as CoachMediaTab[]).map((tabId) => {
+            const isActive = tab === tabId;
+            return (
+              <button
+                key={tabId}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setTab(tabId)}
+                className={`flex flex-col items-center justify-center gap-0.5 min-h-[44px] px-1 py-2 rounded-[10px] transition-colors ${
+                  isActive
+                    ? "bg-card border border-line shadow-card text-brand-d"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                <span
+                  className={`text-[15px] font-bold leading-none ${isActive ? "text-brand-d" : "text-ink"}`}
+                >
+                  {tabCounts[tabId]}
+                </span>
+                <span className="text-[10.5px] font-semibold leading-tight text-center line-clamp-2">
+                  {TAB_LABELS[tabId]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="hidden lg:block mb-5">
         <StatGrid>
           {(Object.keys(TAB_LABELS) as CoachMediaTab[]).map((tabId) => (
             <button

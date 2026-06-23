@@ -49,10 +49,10 @@ export function DoubleEliminationPanel({ tournamentId, matches }: DoubleEliminat
   );
 
   return (
-    <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-5">
-      <div>
+    <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-full">
+      <div className="min-w-0 max-w-full">
         <SectionTitle title="Winners bracket" subtitle="Winners advance · losers drop to LB" />
-        <div className="flex flex-wrap gap-2.5 mt-3">
+        <div className="flex flex-wrap gap-2.5 mt-3 max-w-full">
           {winners.map((match) => (
             <BracketMatchNode
               key={match.id}
@@ -63,9 +63,9 @@ export function DoubleEliminationPanel({ tournamentId, matches }: DoubleEliminat
           ))}
         </div>
       </div>
-      <div>
+      <div className="min-w-0 max-w-full">
         <SectionTitle title="Losers bracket" subtitle="Must lose twice to exit" />
-        <div className="flex flex-wrap gap-2.5 mt-3">
+        <div className="flex flex-wrap gap-2.5 mt-3 max-w-full">
           {losers.map((match) => (
             <BracketMatchNode
               key={match.id}
@@ -77,7 +77,7 @@ export function DoubleEliminationPanel({ tournamentId, matches }: DoubleEliminat
         </div>
       </div>
       {grandFinal.length > 0 ? (
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 min-w-0 max-w-full">
           <SectionTitle title="Grand final" />
           <div className="mt-3">
             <BracketMatchNode

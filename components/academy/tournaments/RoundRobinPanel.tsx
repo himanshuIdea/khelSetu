@@ -34,7 +34,7 @@ export function RoundRobinPanel({ tournamentId, matches, standings }: RoundRobin
 
         <SectionTitle title="Standings" subtitle="Points table · all players in one pool" />
 
-        <div className="overflow-x-auto mt-3">
+        <div className="max-w-full overflow-x-auto mt-3 -mx-1 px-1 overscroll-x-contain [-webkit-overflow-scrolling:touch]">
 
           <table className="w-full text-[12px] min-w-[420px]">
 
@@ -98,7 +98,7 @@ export function RoundRobinPanel({ tournamentId, matches, standings }: RoundRobin
 
         <SectionTitle title="Fixtures" subtitle="Mark winners on each match card" />
 
-        <div className="flex flex-wrap gap-2 mt-3">
+        <div className="flex flex-wrap gap-2 mt-3 max-w-full">
 
           {matches.map((match) => (
 

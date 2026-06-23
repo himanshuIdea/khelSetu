@@ -146,7 +146,7 @@ export function PoolKnockoutPanel({ tournamentId, matches, standings }: PoolKnoc
 
           <SectionTitle title={`${activePool} standings`} subtitle="Top 2 advance to semis" />
 
-          <div className="overflow-x-auto mt-3">
+          <div className="max-w-full overflow-x-auto mt-3 -mx-1 px-1 overscroll-x-contain [-webkit-overflow-scrolling:touch]">
 
             <table className="w-full text-[12px] min-w-[360px]">
 

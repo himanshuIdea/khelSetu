@@ -7,6 +7,7 @@ import { FilterPills } from "@/components/academy/shared";
 import { PlayerEmptyState } from "@/components/player/PlayerEmptyState";
 import { PlayerFeedPost } from "@/components/player/PlayerFeedPost";
 import { PlayerScrollBody } from "@/components/player/PlayerScrollBody";
+import { playerFeedScrollEndClass } from "@/lib/player-nav";
 import type { AcademyFeedItem } from "@/lib/repositories/academy-feed";
 
 type PlayerFeedProps = {
@@ -50,7 +51,7 @@ export function PlayerFeed({
   }, [highlightPostKey, filtered]);
 
   return (
-    <PlayerScrollBody className="pt-0">
+    <PlayerScrollBody className={`pt-0 ${playerFeedScrollEndClass}`}>
       <div className="min-w-0 w-full max-w-full">
         <FilterPills>
           <InlineSelect

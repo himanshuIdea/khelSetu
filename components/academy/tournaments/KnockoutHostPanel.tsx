@@ -51,7 +51,8 @@ export function KnockoutHostPanel({ tournamentId, matches }: KnockoutHostPanelPr
     <div className="mt-3">
       <SectionTitle title="Knockout bracket" subtitle="Tap a player to record the winner" />
 
-      <div className="mt-4 overflow-x-auto pb-2 -mx-1 px-1">
+      <div className="mt-4 max-w-full overflow-x-auto scroll-smooth pb-2 -mx-1 px-1 overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+        <p className="text-[10.5px] text-muted mb-2 lg:hidden">Swipe to view bracket rounds →</p>
         <div className="flex items-stretch gap-0 min-w-max">
           {columns.map((column, columnIndex) => (
             <div key={column.round} className="flex items-stretch shrink-0">

@@ -26,6 +26,10 @@ export const PLAYER_TAB_BAR_HEIGHT_PX = 72;
 export const playerTabBarPaddingClass =
   "pb-[calc(var(--player-tab-bar-height,72px)+env(safe-area-inset-bottom,0px))]";
 
+/** Scroll-end clearance for feed pages — clears fixed tab bar when content is scrolled to the end. */
+export const playerFeedScrollEndClass =
+  "pb-[calc(var(--player-tab-bar-height,72px)+env(safe-area-inset-bottom,0px)+16px)]";
+
 /** @deprecated Tab bar is always visible on `/player/*`. Kept for legacy `PhoneShell`. */
 export const PLAYER_ROUTES_WITHOUT_TAB_BAR = [
   playerRoutes.submit,

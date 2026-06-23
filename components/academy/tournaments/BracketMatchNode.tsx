@@ -127,7 +127,7 @@ export function BracketMatchNode({
 
   return (
     <div
-      className={`w-[232px] shrink-0 rounded-[10px] border bg-card overflow-hidden ${
+      className={`w-full max-w-[232px] sm:w-[232px] shrink-0 rounded-[10px] border bg-card overflow-hidden ${
         isLive ? "border-red shadow-[0_0_0_2px_rgba(239,68,68,0.15)]" : "border-line shadow-card/30"
       }`}
     >
