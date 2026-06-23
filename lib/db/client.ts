@@ -18,8 +18,12 @@ function resolvePoolMax(): number {
     const parsed = Number(configured);
     if (!Number.isNaN(parsed) && parsed > 0) return parsed;
   }
-  // Local dev runs many parallel state aggregates; serverless stays at 1.
-  return process.env.NODE_ENV === "production" ? 1 : 10;
+  // Serverless: one connection per instance.
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return 1;
+  }
+  // Local dev and long-running production Node servers.
+  return process.env.NODE_ENV === "production" ? 5 : 10;
 }
 
 function createClient() {

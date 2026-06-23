@@ -37,17 +37,21 @@ export function StackedBarRow({
         {label}
       </span>
       <div className="flex-1 h-[18px] bg-line2 rounded-md overflow-hidden">
-        <div className="flex h-full w-full">
-          {segments.map((pct, i) => (
-            <span
-              key={i}
-              className="h-full"
-              style={{
-                width: `${pct}%`,
-                background: colors[i] ?? segmentColorFallback,
-              }}
-            />
-          ))}
+        <div className="flex h-full w-full overflow-hidden rounded-md">
+          {segments.map((pct, i) => {
+            if (pct <= 0) return null;
+            const color = colors[i] ?? segmentColorFallback;
+            return (
+              <span
+                key={i}
+                className="h-full shrink-0"
+                style={{
+                  flex: `0 0 ${pct}%`,
+                  backgroundColor: color,
+                }}
+              />
+            );
+          })}
         </div>
       </div>
       <span className="text-[11.5px] font-semibold text-text w-10 text-right shrink-0">{total}</span>

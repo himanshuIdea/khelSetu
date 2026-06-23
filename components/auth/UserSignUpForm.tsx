@@ -2,15 +2,14 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { AuthField } from "@/components/auth/AuthField";
 import { AuthModeToggle } from "@/components/auth/AuthModeToggle";
 import { AuthContinueButton } from "@/components/auth/AuthButton";
 import { authConfig, AuthMode } from "@/lib/auth-config";
 import { api, ApiError } from "@/lib/api";
+import { completeAuthRedirect } from "@/lib/auth/complete-auth-redirect";
 
 export function UserSignUpForm() {
-  const router = useRouter();
   const { signUp } = authConfig;
   const [mode, setMode] = useState<AuthMode>("password");
   const [fullName, setFullName] = useState("");
@@ -59,7 +58,7 @@ export function UserSignUpForm() {
               otp: otp.trim(),
             });
 
-      router.push(result.redirectTo);
+      completeAuthRedirect(result.redirectTo);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

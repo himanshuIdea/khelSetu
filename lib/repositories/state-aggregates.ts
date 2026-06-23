@@ -123,7 +123,6 @@ export const getSportLegend = cache(async (): Promise<SportLegendItem[]> => {
   const rows = await db
     .select({
       sportName: sports.name,
-      color: sports.color,
       count: sql<number>`count(*)`,
     })
     .from(players)
@@ -134,12 +133,12 @@ export const getSportLegend = cache(async (): Promise<SportLegendItem[]> => {
         inArray(players.status, ["active", "on_hold"])
       )
     )
-    .groupBy(sports.name, sports.color)
+    .groupBy(sports.name)
     .orderBy(desc(sql`count(*)`));
 
-  const top = rows.slice(0, 4).map((row) => ({
+  const top = rows.slice(0, 4).map((row, index) => ({
     label: row.sportName,
-    color: row.color,
+    color: SEGMENT_COLORS[index] ?? SEGMENT_COLORS[4]!,
   }));
 
   if (rows.length > 4) {

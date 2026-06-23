@@ -2,7 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthField } from "@/components/auth/AuthField";
 import { AuthModeToggle } from "@/components/auth/AuthModeToggle";
@@ -11,6 +11,7 @@ import { PortalLoginCrossLinks } from "@/components/auth/PortalLoginCrossLinks";
 import { authConfig, type AuthMode, type CuratedPortalId } from "@/lib/auth-config";
 import type { PortalKind } from "@/lib/auth/portal-login";
 import { api, ApiError } from "@/lib/api";
+import { completeAuthRedirect } from "@/lib/auth/complete-auth-redirect";
 
 type PortalLoginFormProps = {
   portal: PortalKind;
@@ -25,7 +26,6 @@ function curatedPortalId(portal: PortalKind): CuratedPortalId | null {
 }
 
 export function PortalLoginForm({ portal }: PortalLoginFormProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
 
@@ -81,7 +81,7 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
               next: next ?? undefined,
             });
 
-      router.push(result.redirectTo);
+      completeAuthRedirect(result.redirectTo);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

@@ -7,6 +7,7 @@ import { AuthField } from "@/components/auth/AuthField";
 import { AuthContinueButton } from "@/components/auth/AuthButton";
 import { authConfig } from "@/lib/auth-config";
 import { api, ApiError } from "@/lib/api";
+import { completeAuthRedirect } from "@/lib/auth/complete-auth-redirect";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -55,7 +56,7 @@ export default function ChangePasswordPage() {
         currentPassword,
         newPassword,
       });
-      router.push(result.redirectTo);
+      completeAuthRedirect(result.redirectTo);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

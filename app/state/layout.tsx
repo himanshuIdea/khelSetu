@@ -1,18 +1,14 @@
-import { StateLayoutClient } from "@/components/state/StateLayoutClient";
-import { requireStateAccess } from "@/lib/auth/require-state-access";
+import { Suspense } from "react";
+import { StateLayoutContent } from "@/components/state/StateLayoutContent";
+import { StateShellSkeleton } from "@/components/state/StateShellSkeleton";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-export default async function StateLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const profile = await requireStateAccess();
-
+export default function StateLayout({ children }: { children: React.ReactNode }) {
   return (
-    <StateLayoutClient adminMeta={{ fullName: profile.fullName || "Sports Dept." }}>
-      {children}
-    </StateLayoutClient>
+    <Suspense fallback={<StateShellSkeleton />}>
+      <StateLayoutContent>{children}</StateLayoutContent>
+    </Suspense>
   );
 }

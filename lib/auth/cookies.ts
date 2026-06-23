@@ -1,10 +1,31 @@
 export const SESSION_COOKIE_NAME = "khelsetu_session";
 
+function resolveCookieSecure(): boolean {
+  const override = process.env.COOKIE_SECURE;
+  if (override === "true") return true;
+  if (override === "false") return false;
+
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+
+  if (appUrl) {
+    try {
+      return new URL(appUrl).protocol === "https:";
+    } catch {
+      // fall through to NODE_ENV fallback
+    }
+  }
+
+  return process.env.NODE_ENV === "production";
+}
+
 export function getSessionCookieOptions(maxAgeSeconds: number) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: resolveCookieSecure(),
     path: "/",
     maxAge: maxAgeSeconds,
   };
