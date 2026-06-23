@@ -40,7 +40,7 @@ export async function GET(_request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const { academyId, coachId } = await context.params;
-    const accessError = await assertAcademyCoachAccess(academyId);
+    const accessError = await assertAcademyCoachAccess(academyId, { writable: true });
     if (accessError) return accessError;
 
     const body = (await request.json()) as UpdateCoachAssignmentPayload;
@@ -59,7 +59,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     const { academyId, coachId } = await context.params;
-    const accessError = await assertAcademyCoachAccess(academyId);
+    const accessError = await assertAcademyCoachAccess(academyId, { writable: true });
     if (accessError) return accessError;
 
     const body = (await request.json()) as UnassignPayload;

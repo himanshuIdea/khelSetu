@@ -55,8 +55,9 @@ export function OnboardingStatusPanel({ request }: OnboardingStatusPanelProps) {
 
       {request.status === "submitted" || request.status === "under_review" ? (
         <p className="text-[13.5px] text-text leading-relaxed">
-          Your academy onboarding request is with the state team. You will get access to your
-          dashboard after verification is complete.
+          {request.requestType === "resubmission"
+            ? "Your nursery re-registration request is with the state team. Coaches and athletes have view-only access until approval."
+            : "Your academy onboarding request is with the state team. You will get access to your dashboard after verification is complete."}
         </p>
       ) : null}
 

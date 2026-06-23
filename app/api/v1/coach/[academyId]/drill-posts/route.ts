@@ -29,7 +29,7 @@ export async function GET(_request: Request, context: RouteContext) {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { academyId } = await context.params;
-    const access = await getCoachApiContext(academyId);
+    const access = await getCoachApiContext(academyId, { writable: true });
     if (!access.ok) {
       return access.response;
     }

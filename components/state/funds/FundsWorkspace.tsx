@@ -165,7 +165,7 @@ export function FundsWorkspace({ dashboard: initialDashboard }: FundsWorkspacePr
                   (h) => (
                     <th
                       key={h || "actions"}
-                      className="text-left text-[10.5px] tracking-[0.6px] uppercase text-muted2 font-semibold px-3.5 pb-[11px]"
+                      className="text-left text-[10.5px] tracking-[0.6px] uppercase text-muted2 font-semibold px-3.5 pt-[11px] pb-[11px]"
                     >
                       {h}
                     </th>

@@ -17,6 +17,7 @@ export const academies = academySchema.table(
     brandColor: text("brand_color").notNull().default("#FF6B2C"),
     initials: text("initials").notNull(),
     locationLabel: text("location_label").notNull(),
+    nurseryDeregisteredAt: timestamp("nursery_deregistered_at", { withTimezone: true }),
     ...timestamps,
     ...softDelete,
   },

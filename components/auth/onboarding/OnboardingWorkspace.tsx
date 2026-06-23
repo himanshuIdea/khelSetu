@@ -5,20 +5,26 @@ import { useRouter } from "next/navigation";
 import type { AcademyOnboardingRequestDetail } from "@/lib/academy-onboarding";
 import { isEditableOnboardingStatus } from "@/lib/academy-onboarding";
 import { OnboardingProfileForm } from "@/components/auth/OnboardingProfileForm";
+import { DeregistrationWarningBanner } from "@/components/auth/onboarding/DeregistrationWarningBanner";
 import { OnboardingStatusPanel } from "@/components/auth/onboarding/OnboardingStatusPanel";
 import { api, ApiError } from "@/lib/api";
 
 export function OnboardingWorkspace() {
   const router = useRouter();
   const [request, setRequest] = useState<AcademyOnboardingRequestDetail | null>(null);
+  const [requiresNurseryReregistration, setRequiresNurseryReregistration] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadRequest = useCallback(async () => {
     setError(null);
     try {
-      const { request: loaded } = await api.onboarding.getRequest();
-      setRequest(loaded);
+      const [session, requestResponse] = await Promise.all([
+        api.auth.me(),
+        api.onboarding.getRequest(),
+      ]);
+      setRequiresNurseryReregistration(session.requiresNurseryReregistration);
+      setRequest(requestResponse.request);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not load onboarding status.");
     } finally {
@@ -57,8 +63,13 @@ export function OnboardingWorkspace() {
       request.status === "needs_action" ||
       request.status === "rejected");
 
+  const showDeregistrationWarning =
+    requiresNurseryReregistration ||
+    (request?.status === "draft" && request.requestType === "resubmission");
+
   return (
     <div className="space-y-6">
+      {showDeregistrationWarning ? <DeregistrationWarningBanner /> : null}
       {showStatus ? <OnboardingStatusPanel request={request} /> : null}
       {showForm ? (
         <OnboardingProfileForm initialRequest={request} onRequestUpdated={handleRequestUpdated} />

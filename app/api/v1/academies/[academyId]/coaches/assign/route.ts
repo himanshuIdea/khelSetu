@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadEnv } from "@/lib/load-env";
 import { validateAssignCoachPayload, type AssignCoachPayload } from "@/lib/coaches";
-import { AuthRequiredError, requireSessionUserId } from "@/lib/auth/server";
-import { isStateAdmin } from "@/lib/rbac";
-import { getAuthProfile } from "@/lib/repositories/auth";
+import { AcademyAccessError, requireAcademyAccess } from "@/lib/auth/require-academy-access";
 import { assignCoachToBatches } from "@/lib/repositories/coaches";
 
 export const runtime = "nodejs";
@@ -17,24 +15,7 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { academyId } = await context.params;
-    const userId = await requireSessionUserId();
-    const profile = await getAuthProfile(userId);
-
-    if (!profile) {
-      return NextResponse.json({ error: "User not found." }, { status: 404 });
-    }
-
-    if (isStateAdmin(profile.platformRole)) {
-      return NextResponse.json(
-        { error: "State administrators cannot manage academy coaches." },
-        { status: 403 }
-      );
-    }
-
-    const hasAccess = profile.academies.some((academy) => academy.id === academyId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: "You do not have access to this academy." }, { status: 403 });
-    }
+    await requireAcademyAccess(academyId, { writable: true });
 
     const body = (await request.json()) as AssignCoachPayload;
     const validationError = validateAssignCoachPayload(body);
@@ -46,8 +27,8 @@ export async function POST(request: Request, context: RouteContext) {
     const result = await assignCoachToBatches(academyId, body);
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof AuthRequiredError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
+    if (error instanceof AcademyAccessError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
     const message = error instanceof Error ? error.message : "Could not assign coach.";

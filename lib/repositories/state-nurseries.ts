@@ -28,6 +28,7 @@ import {
   getSportsByAcademy,
   getStateNurseryContext,
 } from "./state-nursery-helpers";
+import { resetOnboardingForNurseryReregistration } from "@/lib/repositories/academy-onboarding";
 
 function applyListFilters(
   items: StateNurseryListItem[],
@@ -384,14 +385,76 @@ export async function registerStateNursery(academyId: string, registeredByUserId
   });
 }
 
-export async function deregisterStateNursery(academyId: string) {
-  const deleted = await db
-    .delete(stateNurseryRegistrations)
-    .where(eq(stateNurseryRegistrations.academyId, academyId))
-    .returning({ id: stateNurseryRegistrations.id });
+export async function isAcademyNurseryDeregistered(academyId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ nurseryDeregisteredAt: academies.nurseryDeregisteredAt })
+    .from(academies)
+    .where(eq(academies.id, academyId))
+    .limit(1);
 
-  if (deleted.length === 0) {
-    throw new Error("Nursery registration not found.");
+  return Boolean(row?.nurseryDeregisteredAt);
+}
+
+export async function getAcademyDeregistrationState(academyId: string) {
+  const [row] = await db
+    .select({ nurseryDeregisteredAt: academies.nurseryDeregisteredAt })
+    .from(academies)
+    .where(eq(academies.id, academyId))
+    .limit(1);
+
+  if (!row?.nurseryDeregisteredAt) return null;
+
+  return {
+    academyId,
+    deregisteredAt: row.nurseryDeregisteredAt.toISOString(),
+  };
+}
+
+export const ACADEMY_READONLY_MESSAGE =
+  "Academy is read-only until nursery re-registration is approved.";
+
+export async function deregisterStateNursery(academyId: string, _deregisteredByUserId: string) {
+  const [adminRow] = await db
+    .select({ userId: academyMemberships.userId })
+    .from(academyMemberships)
+    .where(and(eq(academyMemberships.academyId, academyId), eq(academyMemberships.role, "admin")))
+    .limit(1);
+
+  const [onboardingRow] = adminRow
+    ? await db
+        .select({
+          id: academyOnboardingRequests.id,
+          status: academyOnboardingRequests.status,
+          academyId: academyOnboardingRequests.academyId,
+        })
+        .from(academyOnboardingRequests)
+        .where(eq(academyOnboardingRequests.userId, adminRow.userId))
+        .limit(1)
+    : [];
+
+  const isVerifiedNurseryReset =
+    onboardingRow?.status === "approved" && onboardingRow.academyId === academyId;
+
+  await db.transaction(async (tx) => {
+    const deleted = await tx
+      .delete(stateNurseryRegistrations)
+      .where(eq(stateNurseryRegistrations.academyId, academyId))
+      .returning({ id: stateNurseryRegistrations.id });
+
+    if (deleted.length === 0) {
+      throw new Error("Nursery registration not found.");
+    }
+
+    if (isVerifiedNurseryReset) {
+      await tx
+        .update(academies)
+        .set({ nurseryDeregisteredAt: new Date(), updatedAt: new Date() })
+        .where(eq(academies.id, academyId));
+    }
+  });
+
+  if (isVerifiedNurseryReset && adminRow) {
+    await resetOnboardingForNurseryReregistration(adminRow.userId, academyId);
   }
 }
 

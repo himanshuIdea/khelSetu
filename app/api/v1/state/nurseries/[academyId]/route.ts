@@ -49,7 +49,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if ("error" in auth) return auth.error;
 
     const { academyId } = await context.params;
-    await deregisterStateNursery(academyId);
+    await deregisterStateNursery(academyId, auth.userId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

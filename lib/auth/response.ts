@@ -47,6 +47,7 @@ export async function createAuthResponse(
     },
     academies: profile.academies,
     needsAcademyOnboarding: profile.needsAcademyOnboarding,
+    requiresNurseryReregistration: profile.requiresNurseryReregistration,
     onboardingRequest: profile.onboardingRequest,
     redirectTo,
   });

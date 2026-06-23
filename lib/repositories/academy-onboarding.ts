@@ -1,6 +1,6 @@
 import { cache } from "react";
-import { and, desc, eq, gte, ne } from "drizzle-orm";
-import { academyMemberships, academyOnboardingRequests, users } from "@/db/schema";
+import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
+import { academyMemberships, academyOnboardingRequests, academies, users } from "@/db/schema";
 import {
   type AcademyOnboardingDraftPayload,
   type AcademyOnboardingRequestDetail,
@@ -21,7 +21,7 @@ import {
 } from "@/lib/academy-onboarding";
 import { db, isUniqueViolation, SlugTakenError } from "@/lib/db";
 import { validateOnboardingPayload } from "@/lib/onboarding";
-import { createAcademyProfile, isSlugAvailable } from "@/lib/repositories/onboarding";
+import { createAcademyProfile, isSlugAvailable, updateAcademyProfileFromOnboarding } from "@/lib/repositories/onboarding";
 import { ensureStateNurseryRegistered } from "@/lib/repositories/state-nurseries";
 
 export class OnboardingRequestError extends Error {
@@ -109,8 +109,12 @@ export async function getOnboardingRequestById(
   };
 }
 
-async function isSlugAvailableForOnboarding(slug: string, userId: string): Promise<boolean> {
-  const academyAvailable = await isSlugAvailable(slug);
+async function isSlugAvailableForOnboarding(
+  slug: string,
+  userId: string,
+  academyId?: string | null
+): Promise<boolean> {
+  const academyAvailable = await isSlugAvailable(slug, academyId ?? undefined);
   if (!academyAvailable) return false;
 
   const [conflict] = await db
@@ -138,14 +142,14 @@ export async function upsertOnboardingDraft(
     throw new OnboardingRequestError(profileError);
   }
 
-  const slugAvailable = await isSlugAvailableForOnboarding(payload.slug, userId);
-  if (!slugAvailable) {
-    throw new OnboardingRequestError("This branded link is already taken.");
-  }
-
   const existing = await getOnboardingRequestByUserId(userId);
   if (existing && !isEditableOnboardingStatus(existing.status)) {
     throw new OnboardingRequestError("This request cannot be edited in its current status.");
+  }
+
+  const slugAvailable = await isSlugAvailableForOnboarding(payload.slug, userId, existing?.academyId);
+  if (!slugAvailable) {
+    throw new OnboardingRequestError("This branded link is already taken.");
   }
 
   const values = {
@@ -267,12 +271,14 @@ export async function submitOnboardingRequest(
     throw new OnboardingRequestError(kycError);
   }
 
-  const slugAvailable = await isSlugAvailableForOnboarding(existing.slug ?? "", userId);
+  const slugAvailable = await isSlugAvailableForOnboarding(existing.slug ?? "", userId, existing.academyId);
   if (!slugAvailable) {
     throw new OnboardingRequestError("This branded link is already taken.");
   }
 
-  const isResubmission = existing.status === "needs_action";
+  const isResubmission =
+    existing.status === "needs_action" ||
+    (existing.status === "draft" && existing.requestType === "resubmission");
 
   const [row] = await db
     .update(academyOnboardingRequests)
@@ -302,6 +308,20 @@ export type StateOnboardingListFilters = {
   district?: string | "all";
   days?: number | "all";
 };
+
+/** Lightweight gate for report availability — avoids loading full onboarding list on SSR. */
+export const hasPendingOnboardingRequests = cache(async (): Promise<boolean> => {
+  const row = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(academyOnboardingRequests)
+    .where(
+      and(
+        ne(academyOnboardingRequests.status, "draft"),
+        ne(academyOnboardingRequests.status, "approved")
+      )
+    );
+  return Number(row[0]?.count ?? 0) > 0;
+});
 
 export const listStateOnboardingRequests = cache(async (
   filters: StateOnboardingListFilters = {}
@@ -420,22 +440,47 @@ export async function reviewOnboardingRequest(input: {
     }
 
     try {
-      const academy = await createAcademyProfile(request.userId, {
-        academyName: request.academyName!,
-        district: request.district!,
-        slug: request.slug!,
-        sports: request.sports,
-        fundingType: request.fundingType,
-        brandColor: request.brandColor,
-      });
+      let approvedAcademyId = request.academyId;
 
-      await ensureStateNurseryRegistered(academy.id, input.reviewerUserId);
+      if (approvedAcademyId) {
+        const [academyRow] = await db
+          .select({ nurseryDeregisteredAt: academies.nurseryDeregisteredAt })
+          .from(academies)
+          .where(eq(academies.id, approvedAcademyId))
+          .limit(1);
+
+        if (!academyRow?.nurseryDeregisteredAt) {
+          throw new OnboardingRequestError("This academy is already active.");
+        }
+
+        const updated = await updateAcademyProfileFromOnboarding(approvedAcademyId, request.userId, {
+          academyName: request.academyName!,
+          district: request.district!,
+          slug: request.slug!,
+          sports: request.sports,
+          fundingType: request.fundingType,
+          brandColor: request.brandColor,
+        });
+        approvedAcademyId = updated.id;
+      } else {
+        const academy = await createAcademyProfile(request.userId, {
+          academyName: request.academyName!,
+          district: request.district!,
+          slug: request.slug!,
+          sports: request.sports,
+          fundingType: request.fundingType,
+          brandColor: request.brandColor,
+        });
+        approvedAcademyId = academy.id;
+      }
+
+      await ensureStateNurseryRegistered(approvedAcademyId, input.reviewerUserId);
 
       const [row] = await db
         .update(academyOnboardingRequests)
         .set({
           status: "approved",
-          academyId: academy.id,
+          academyId: approvedAcademyId,
           reviewedByUserId: input.reviewerUserId,
           reviewedAt: new Date(),
           reviewNotes: input.reviewNotes?.trim() || null,
@@ -518,4 +563,37 @@ export async function userHasApprovedAcademy(userId: string): Promise<boolean> {
     .limit(1);
 
   return Boolean(membership);
+}
+
+export async function resetOnboardingForNurseryReregistration(
+  adminUserId: string,
+  academyId: string
+): Promise<void> {
+  const [row] = await db
+    .select()
+    .from(academyOnboardingRequests)
+    .where(eq(academyOnboardingRequests.userId, adminUserId))
+    .limit(1);
+
+  if (!row) {
+    throw new OnboardingRequestError("Onboarding request not found for academy admin.");
+  }
+
+  if (row.status !== "approved" || row.academyId !== academyId) {
+    throw new OnboardingRequestError("Only approved nurseries can be reset for re-registration.");
+  }
+
+  await db
+    .update(academyOnboardingRequests)
+    .set({
+      status: "draft",
+      requestType: "resubmission",
+      submittedAt: null,
+      reviewedAt: null,
+      reviewedByUserId: null,
+      reviewNotes: null,
+      requiredActions: [],
+      updatedAt: new Date(),
+    })
+    .where(eq(academyOnboardingRequests.id, row.id));
 }

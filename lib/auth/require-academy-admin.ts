@@ -1,6 +1,10 @@
 import { AuthRequiredError, requireSessionUserId } from "@/lib/auth/server";
 import { MEMBERSHIP_ROLES } from "@/lib/rbac/membership-roles";
 import { getAuthProfile } from "@/lib/repositories/auth";
+import {
+  ACADEMY_READONLY_MESSAGE,
+  isAcademyNurseryDeregistered,
+} from "@/lib/repositories/state-nurseries";
 
 export class AcademyAdminAccessError extends Error {
   constructor(
@@ -12,7 +16,10 @@ export class AcademyAdminAccessError extends Error {
   }
 }
 
-export async function requireAcademyAdminAccess(academyId: string) {
+export async function requireAcademyAdminAccess(
+  academyId: string,
+  options?: { writable?: boolean }
+) {
   try {
     const userId = await requireSessionUserId();
     const profile = await getAuthProfile(userId);
@@ -30,6 +37,10 @@ export async function requireAcademyAdminAccess(academyId: string) {
         "Only academy administrators can manage credentials.",
         403
       );
+    }
+
+    if (options?.writable && (await isAcademyNurseryDeregistered(academyId))) {
+      throw new AcademyAdminAccessError(ACADEMY_READONLY_MESSAGE, 403);
     }
 
     return profile;

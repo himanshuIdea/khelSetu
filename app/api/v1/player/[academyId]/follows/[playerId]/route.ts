@@ -14,7 +14,7 @@ type RouteContext = {
 export async function POST(_request: Request, context: RouteContext) {
   try {
     const { academyId, playerId } = await context.params;
-    const access = await getPlayerApiContext(academyId);
+    const access = await getPlayerApiContext(academyId, { writable: true });
     if (!access.ok) {
       return access.response;
     }
@@ -29,7 +29,7 @@ export async function POST(_request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const { academyId, playerId } = await context.params;
-    const access = await getPlayerApiContext(academyId);
+    const access = await getPlayerApiContext(academyId, { writable: true });
     if (!access.ok) {
       return access.response;
     }

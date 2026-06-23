@@ -1,10 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { NurseryDeregisteredBanner } from "@/components/academy/NurseryDeregisteredBanner";
 import { PlayerTabBar } from "@/components/mobile/PlayerTabBar";
 import { getActivePlayerNavItem } from "@/lib/player-nav";
 
 type PlayerLayoutClientProps = {
+  nurseryDeregistered?: boolean;
   children: React.ReactNode;
 };
 
@@ -12,7 +14,10 @@ type PlayerLayoutClientProps = {
  * Full-viewport mobile web app shell for `/player/*`.
  * No device bezel — fills the browser on phone and centers a mobile column on desktop.
  */
-export function PlayerLayoutClient({ children }: PlayerLayoutClientProps) {
+export function PlayerLayoutClient({
+  nurseryDeregistered = false,
+  children,
+}: PlayerLayoutClientProps) {
   const pathname = usePathname();
   const activeItem = getActivePlayerNavItem(pathname);
 
@@ -23,6 +28,7 @@ export function PlayerLayoutClient({ children }: PlayerLayoutClientProps) {
     >
       <div className="relative flex flex-col h-dvh w-full max-w-lg min-w-0 bg-[#F4F6FA] overflow-hidden">
         <main className="h-full flex flex-col min-h-0 min-w-0 w-full overflow-x-clip overflow-hidden pt-[env(safe-area-inset-top,0px)]">
+          {nurseryDeregistered ? <NurseryDeregisteredBanner compact /> : null}
           {children}
         </main>
 

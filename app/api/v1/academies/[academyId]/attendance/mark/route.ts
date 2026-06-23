@@ -50,7 +50,9 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const accessError = await assertAcademyAttendanceAccess(academyId, body.batchId);
+    const accessError = await assertAcademyAttendanceAccess(academyId, body.batchId, {
+      writable: true,
+    });
     if (accessError) {
       return accessError;
     }

@@ -153,41 +153,42 @@ export const getDistrictAthleteSportBreakdown = cache(
     const { academyIds } = await getStateNurseryContext();
     if (academyIds.length === 0) return [];
 
-    const globalSportRows = await db
-      .select({
-        sportName: sports.name,
-        count: sql<number>`count(*)`,
-      })
-      .from(players)
-      .innerJoin(sports, eq(players.sportId, sports.id))
-      .where(
-        and(
-          inArray(players.academyId, academyIds),
-          inArray(players.status, ["active", "on_hold"])
+    const [globalSportRows, districtSportRows] = await Promise.all([
+      db
+        .select({
+          sportName: sports.name,
+          count: sql<number>`count(*)`,
+        })
+        .from(players)
+        .innerJoin(sports, eq(players.sportId, sports.id))
+        .where(
+          and(
+            inArray(players.academyId, academyIds),
+            inArray(players.status, ["active", "on_hold"])
+          )
         )
-      )
-      .groupBy(sports.name)
-      .orderBy(desc(sql`count(*)`));
+        .groupBy(sports.name)
+        .orderBy(desc(sql`count(*)`)),
+      db
+        .select({
+          district: academies.district,
+          sportName: sports.name,
+          count: sql<number>`count(*)`,
+        })
+        .from(players)
+        .innerJoin(academies, eq(players.academyId, academies.id))
+        .innerJoin(sports, eq(players.sportId, sports.id))
+        .where(
+          and(
+            inArray(players.academyId, academyIds),
+            inArray(players.status, ["active", "on_hold"]),
+            isNull(academies.deletedAt)
+          )
+        )
+        .groupBy(academies.district, sports.name),
+    ]);
 
     const topSports = globalSportRows.slice(0, 4).map((r) => r.sportName);
-
-    const districtSportRows = await db
-      .select({
-        district: academies.district,
-        sportName: sports.name,
-        count: sql<number>`count(*)`,
-      })
-      .from(players)
-      .innerJoin(academies, eq(players.academyId, academies.id))
-      .innerJoin(sports, eq(players.sportId, sports.id))
-      .where(
-        and(
-          inArray(players.academyId, academyIds),
-          inArray(players.status, ["active", "on_hold"]),
-          isNull(academies.deletedAt)
-        )
-      )
-      .groupBy(academies.district, sports.name);
 
     const districtTotals = new Map<string, number>();
     const sportCountsByDistrict = new Map<string, Map<string, number>>();

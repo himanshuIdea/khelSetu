@@ -5,6 +5,10 @@ import { isStateAdmin } from "@/lib/rbac";
 import { getAuthProfile } from "@/lib/repositories/auth";
 import { resolveCoachForUser } from "@/lib/repositories/coaches";
 import { assertCoachOwnsTeam, assertCoachSportAssigned } from "@/lib/repositories/teams";
+import {
+  ACADEMY_READONLY_MESSAGE,
+  isAcademyNurseryDeregistered,
+} from "@/lib/repositories/state-nurseries";
 import type { CreateTeamPayload } from "@/lib/teams";
 
 export type TeamAccessContext = {
@@ -12,7 +16,14 @@ export type TeamAccessContext = {
   isCoachRole: boolean;
 };
 
-export async function getTeamAccessContext(academyId: string): Promise<
+type TeamAccessOptions = {
+  writable?: boolean;
+};
+
+export async function getTeamAccessContext(
+  academyId: string,
+  options?: TeamAccessOptions
+): Promise<
   | { ok: true; context: TeamAccessContext }
   | { ok: false; response: NextResponse }
 > {
@@ -49,6 +60,13 @@ export async function getTeamAccessContext(academyId: string): Promise<
     }
 
     const coach = await resolveCoachForUser(academyId, userId);
+
+    if (options?.writable && (await isAcademyNurseryDeregistered(academyId))) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: ACADEMY_READONLY_MESSAGE }, { status: 403 }),
+      };
+    }
 
     return {
       ok: true,

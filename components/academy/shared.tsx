@@ -1,5 +1,57 @@
 import { PlusIcon } from "./icons";
 
+type RowHighlightTone = "default" | "alert";
+
+function listRowStateClasses({
+  highlighted,
+  highlightTone = "default",
+  interactive,
+}: {
+  highlighted?: boolean;
+  highlightTone?: RowHighlightTone;
+  interactive: boolean;
+}): string {
+  const transition =
+    "transition-[background-color,box-shadow,border-color,color] duration-150 ease-out";
+
+  if (highlighted && highlightTone === "alert") {
+    const alertBase =
+      "bg-red-soft/75 shadow-[inset_3px_0_0_0_rgba(214,59,59,0.5)]";
+    if (!interactive) return alertBase;
+    return [
+      "cursor-pointer",
+      transition,
+      alertBase,
+      "hover:bg-red-soft",
+      "hover:shadow-[inset_3px_0_0_0_#D63B3B,0_2px_8px_rgba(214,59,59,0.1)]",
+      "active:bg-[#fad4d4]",
+    ].join(" ");
+  }
+
+  if (highlighted) {
+    if (!interactive) return "bg-brand-soft";
+    return [
+      "cursor-pointer",
+      transition,
+      "bg-brand-soft",
+      "hover:bg-[#ffe8dc]",
+      "hover:shadow-sm",
+      "active:bg-[#ffdfc8]",
+    ].join(" ");
+  }
+
+  if (interactive) {
+    return [
+      "cursor-pointer",
+      transition,
+      "hover:bg-brand-soft/60",
+      "active:bg-brand-soft/80",
+    ].join(" ");
+  }
+
+  return "";
+}
+
 type PageHeaderProps = {
   title: React.ReactNode;
   subtitle: string;
@@ -325,6 +377,8 @@ export function AcademyTable({
   scrollable = false,
   maxHeightClass,
   className = "",
+  footer,
+  scrollContainerRef,
 }: {
   headers: string[];
   children: React.ReactNode;
@@ -334,6 +388,8 @@ export function AcademyTable({
   scrollable?: boolean;
   maxHeightClass?: string;
   className?: string;
+  footer?: React.ReactNode;
+  scrollContainerRef?: React.Ref<HTMLDivElement>;
 }) {
   const useFixedLayout = columnWidths != null && columnWidths.length === headers.length;
   const stickyHeaderCellClass = scrollable
@@ -357,7 +413,7 @@ export function AcademyTable({
           {headers.map((h, index) => (
             <th
               key={`${h}-${index}`}
-              className={`text-left text-[10.5px] tracking-[0.6px] uppercase text-muted2 font-semibold px-2 sm:px-3.5 pb-[11px] whitespace-nowrap ${stickyHeaderCellClass} ${columnClassNames?.[index] ?? ""}`}
+              className={`text-left text-[10.5px] tracking-[0.6px] uppercase text-muted2 font-semibold px-2 sm:px-3.5 pt-[11px] pb-[11px] whitespace-nowrap ${stickyHeaderCellClass} ${columnClassNames?.[index] ?? ""}`}
             >
               {h}
             </th>
@@ -378,7 +434,10 @@ export function AcademyTable({
 
   return (
     <div className={outerClass}>
-      <div className={scrollContainerClass}>{table}</div>
+      <div ref={scrollContainerRef} className={scrollContainerClass}>
+        {table}
+        {footer}
+      </div>
     </div>
   );
 }
@@ -386,22 +445,27 @@ export function AcademyTable({
 export function TableRow({
   children,
   highlighted,
+  highlightTone = "default",
   onClick,
+  className = "",
+  title,
 }: {
   children: React.ReactNode;
   highlighted?: boolean;
+  highlightTone?: RowHighlightTone;
   onClick?: () => void;
+  className?: string;
+  title?: string;
 }) {
   return (
     <tr
       onClick={onClick}
-      className={
-        highlighted
-          ? "bg-brand-soft"
-          : onClick
-            ? "cursor-pointer hover:bg-brand-soft/60"
-            : undefined
-      }
+      title={title}
+      className={`group ${listRowStateClasses({
+        highlighted,
+        highlightTone,
+        interactive: onClick != null,
+      })} ${className}`}
     >
       {children}
     </tr>
@@ -451,13 +515,17 @@ export function AcademyCardList({
 export function AcademyCardListItem({
   children,
   highlighted,
+  highlightTone = "default",
   onClick,
   className = "",
+  title,
 }: {
   children: React.ReactNode;
   highlighted?: boolean;
+  highlightTone?: RowHighlightTone;
   onClick?: () => void;
   className?: string;
+  title?: string;
 }) {
   const interactive = onClick != null;
 
@@ -465,6 +533,7 @@ export function AcademyCardListItem({
     <div
       role={interactive ? "button" : undefined}
       tabIndex={interactive ? 0 : undefined}
+      title={title}
       onClick={onClick}
       onKeyDown={
         interactive
@@ -476,13 +545,11 @@ export function AcademyCardListItem({
             }
           : undefined
       }
-      className={`min-w-0 w-full px-3.5 py-3.5 text-left ${
-        highlighted
-          ? "bg-brand-soft"
-          : interactive
-            ? "cursor-pointer hover:bg-brand-soft/60 active:bg-brand-soft/80"
-            : ""
-      } ${className}`}
+      className={`group min-w-0 w-full px-3.5 py-3.5 text-left ${listRowStateClasses({
+        highlighted,
+        highlightTone,
+        interactive,
+      })} ${className}`}
     >
       {children}
     </div>

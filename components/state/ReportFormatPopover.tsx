@@ -14,6 +14,7 @@ type ReportFormatPopoverProps = {
   downloading: boolean;
   onClose: () => void;
   error?: string | null;
+  helperText?: string;
 };
 
 const POPOVER_WIDTH = 240;
@@ -35,6 +36,7 @@ export function ReportFormatPopover({
   downloading,
   onClose,
   error,
+  helperText,
 }: ReportFormatPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
@@ -132,6 +134,9 @@ export function ReportFormatPopover({
           PDF
         </button>
       </div>
+      {helperText ? (
+        <p className="mb-3 text-[11.5px] text-muted leading-snug">{helperText}</p>
+      ) : null}
       {error ? (
         <div className="mb-3 text-[12px] text-[#D63B3B] bg-red-soft border border-[#F5C2C2] rounded-[8px] px-2.5 py-2">
           {error}

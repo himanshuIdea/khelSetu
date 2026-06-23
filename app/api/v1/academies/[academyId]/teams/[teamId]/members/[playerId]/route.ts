@@ -26,7 +26,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { academyId, teamId, playerId } = await context.params;
     await requireAcademyAccess(academyId);
 
-    const access = await getTeamAccessContext(academyId);
+    const access = await getTeamAccessContext(academyId, { writable: true });
     if (!access.ok) {
       return access.response;
     }
@@ -76,7 +76,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const { academyId, teamId, playerId } = await context.params;
     await requireAcademyAccess(academyId);
 
-    const access = await getTeamAccessContext(academyId);
+    const access = await getTeamAccessContext(academyId, { writable: true });
     if (!access.ok) {
       return access.response;
     }

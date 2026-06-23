@@ -7,6 +7,8 @@ type VerificationPageProps = {
   searchParams: Promise<{ status?: string }>;
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function VerificationPage({ searchParams }: VerificationPageProps) {
   const params = await searchParams;
   const [queue, breakdown] = await Promise.all([

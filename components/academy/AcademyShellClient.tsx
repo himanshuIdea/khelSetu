@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { AcademySidebar, type AcademyNavItem } from "./AcademySidebar";
 import { AcademyTopBar } from "./AcademyTopBar";
 import { NurseryFlagBanner } from "./NurseryFlagBanner";
+import { NurseryDeregisteredBanner } from "./NurseryDeregisteredBanner";
 
 type AcademyShellClientProps = {
   academyId: string;
@@ -15,6 +16,7 @@ type AcademyShellClientProps = {
   searchPlaceholder?: string;
   searchHidden?: boolean;
   nurseryFlag?: AcademyNurseryFlag | null;
+  nurseryDeregistered?: boolean;
   children: React.ReactNode;
 };
 
@@ -25,6 +27,7 @@ export function AcademyShellClient({
   searchPlaceholder,
   searchHidden = false,
   nurseryFlag = null,
+  nurseryDeregistered = false,
   children,
 }: AcademyShellClientProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -115,6 +118,7 @@ export function AcademyShellClient({
             onMenuToggle={() => setMenuOpen((open) => !open)}
             menuOpen={menuOpen}
           />
+          {nurseryDeregistered ? <NurseryDeregisteredBanner /> : null}
           {liveFlag ? (
             <NurseryFlagBanner academyId={academyId} flag={liveFlag} />
           ) : null}

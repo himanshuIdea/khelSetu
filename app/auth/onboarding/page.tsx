@@ -28,6 +28,11 @@ export default function AcademyOnboardingPage() {
           return;
         }
 
+        if (session.requiresNurseryReregistration) {
+          setIsReady(true);
+          return;
+        }
+
         if (!session.needsAcademyOnboarding && session.academies.length > 0) {
           router.replace(`/academy/${session.academies[0].id}/dashboard`);
           return;

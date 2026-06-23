@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AcademyTopBar } from "@/components/academy/AcademyTopBar";
+import { NurseryDeregisteredBanner } from "@/components/academy/NurseryDeregisteredBanner";
 import { MenuIcon } from "@/components/academy/icons";
 import { PortalAvatarMenu } from "@/components/auth/PortalAvatarMenu";
 import { CoachSidebar } from "@/components/coach/CoachSidebar";
@@ -19,6 +20,7 @@ type CoachShellClientProps = {
   academyId: string;
   academyMeta: AcademyMeta;
   coachMeta: CoachPortalMeta;
+  nurseryDeregistered?: boolean;
   children: React.ReactNode;
 };
 
@@ -26,6 +28,7 @@ export function CoachShellClient({
   academyId,
   academyMeta,
   coachMeta,
+  nurseryDeregistered = false,
   children,
 }: CoachShellClientProps) {
   const pathname = usePathname();
@@ -65,6 +68,7 @@ export function CoachShellClient({
                 portal: "coach",
               }}
             />
+            {nurseryDeregistered ? <NurseryDeregisteredBanner /> : null}
             {children}
           </div>
         </div>
@@ -124,6 +128,7 @@ export function CoachShellClient({
               showTabBar ? coachTabBarPaddingClass : "pb-[env(safe-area-inset-bottom,0px)]"
             }`}
           >
+            {nurseryDeregistered ? <NurseryDeregisteredBanner compact /> : null}
             {children}
           </main>
 

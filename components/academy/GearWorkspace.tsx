@@ -62,7 +62,7 @@ const GEAR_TABLE_CELL =
   "px-2 py-2 xl:px-3.5 xl:py-[13px] text-[12px] xl:text-[13px]";
 
 const GEAR_TABLE_HEADER =
-  "text-[9.5px] xl:text-[10.5px] pb-2 xl:pb-[11px]";
+  "text-[9.5px] xl:text-[10.5px] pt-2 xl:pt-[11px] pb-2 xl:pb-[11px]";
 
 const ISSUES_TABLE_COLUMN_CLASSES = [
   "w-[26%] min-w-0",
@@ -76,7 +76,7 @@ const ISSUES_TABLE_CELL =
   "px-2 py-2 xl:px-3.5 xl:py-[13px] text-[12px] xl:text-[13px]";
 
 const ISSUES_TABLE_HEADER =
-  "text-[9.5px] xl:text-[10.5px] pb-2 xl:pb-[11px]";
+  "text-[9.5px] xl:text-[10.5px] pt-2 xl:pt-[11px] pb-2 xl:pb-[11px]";
 
 export function GearWorkspace({
   academyId,

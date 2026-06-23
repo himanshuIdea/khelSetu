@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { InlineSelect } from "@/components/academy/InlineSelect";
@@ -14,34 +14,28 @@ import {
   TableRow,
 } from "@/components/academy/shared";
 import { StateFilteredEmpty } from "@/components/state/StateEmptyStates";
+import { StateLoadMoreFooter } from "@/components/state/StateLoadMoreFooter";
 import { useStatePageSearch } from "@/components/state/StateSearchContext";
-import {
-  GrantDisbursementModal,
-  GrantStatusPill,
-} from "@/components/state/funds/GrantDisbursementModal";
+import { GrantColumnCell } from "@/components/state/funds/GrantColumnCell";
+import { GrantDisbursementModal } from "@/components/state/funds/GrantDisbursementModal";
 import { HARYANA_DISTRICTS, HARYANA_FEATURED_SPORTS } from "@/lib/state-catalog";
+import { api } from "@/lib/api";
 import {
   COACH_NIS_FILTER_OPTIONS,
   GRANT_STATUS_FILTER_OPTIONS,
-  matchesDistrictFilter,
-  matchesGrantFilter,
-  matchesSportFilter,
-  uniqueSorted,
   type GrantStatusFilter,
 } from "@/lib/state-fund-filters";
 import { stateLayout } from "@/lib/state-layout";
 import type {
   StateFundAthleteBeneficiaryRow,
+  StateFundBeneficiaryListResult,
   StateFundCoachBeneficiaryRow,
-  StateFundGrantSummary,
   StateFundNurseryBeneficiaryRow,
-  StateFundSchemeDetail,
+  StateFundScheme,
+  StateFundSchemeHeader,
 } from "@/lib/state-portal";
-import { matchesStateTextSearch } from "@/lib/state-search";
 
-type SchemeDisbursementWorkspaceProps = {
-  detail: StateFundSchemeDetail;
-};
+const PAGE_SIZE = 100;
 
 const DISTRICT_FILTER_OPTIONS = [
   { value: "all", label: "All districts" },
@@ -53,221 +47,372 @@ const SPORT_FILTER_OPTIONS = [
   ...HARYANA_FEATURED_SPORTS.map((sport) => ({ value: sport, label: `Sport: ${sport}` })),
 ];
 
-function matchesAthleteSearch(row: StateFundAthleteBeneficiaryRow, query: string) {
-  return matchesStateTextSearch(query, [
-    row.name,
-    row.detail,
-    row.sport,
-    row.district,
-    row.nurseryName,
-  ]);
-}
+const ATHLETE_TABLE = {
+  headers: ["Athlete", "Sport", "District", "Nursery", "Grant"],
+  columnWidths: ["22%", "20%", "12%", "30%", "16%"],
+  columnClassNames: ["min-w-0", "min-w-0", "min-w-0", "min-w-0", "min-w-0"],
+} as const;
 
-function matchesCoachSearch(row: StateFundCoachBeneficiaryRow, query: string) {
-  return matchesStateTextSearch(query, [
-    row.name,
-    row.detail,
-    row.sport,
-    row.district,
-    row.nurseryName,
-    row.nisLevel,
-  ]);
-}
+const COACH_TABLE = {
+  headers: ["Coach", "Sport", "District", "Nursery", "NIS", "Grant"],
+  columnWidths: ["22%", "18%", "12%", "22%", "10%", "16%"],
+  columnClassNames: ["min-w-0", "min-w-0", "min-w-0", "min-w-0", "min-w-0", "min-w-0"],
+} as const;
 
-function matchesNurserySearch(row: StateFundNurseryBeneficiaryRow, query: string) {
-  return matchesStateTextSearch(query, [
-    row.name,
-    row.detail,
-    row.district,
-    row.sportLabel,
-  ]);
-}
+const NURSERY_TABLE = {
+  headers: ["Nursery", "District", "Sport", "Athletes", "Grant"],
+  columnWidths: ["30%", "14%", "16%", "10%", "30%"],
+  columnClassNames: ["min-w-0", "min-w-0", "min-w-0", "min-w-0", "min-w-0"],
+} as const;
 
-const GRANT_ACTION_BUTTON_CLASS =
-  "inline-flex items-center shrink-0 whitespace-nowrap text-[12px] font-semibold text-brand hover:underline disabled:opacity-50";
+type SchemeDisbursementWorkspaceProps = {
+  initialHeader: StateFundSchemeHeader;
+  initialList: StateFundBeneficiaryListResult;
+  nurseryFilterOptions: { value: string; label: string }[];
+};
 
-function GrantActionButton({
-  grant,
-  onGrant,
-  onMarkGranted,
-  marking,
-}: {
-  grant: StateFundGrantSummary;
-  onGrant: () => void;
-  onMarkGranted: (disbursementId: string) => void;
-  marking: boolean;
-}) {
-  if (grant.status === "paid") return null;
-
-  if (grant.status === "pending" && grant.disbursementId) {
-    return (
-      <button
-        type="button"
-        onClick={() => onMarkGranted(grant.disbursementId!)}
-        disabled={marking}
-        className={GRANT_ACTION_BUTTON_CLASS}
-      >
-        {marking ? "Saving…" : "Mark granted"}
-      </button>
-    );
+function beneficiaryKey(
+  beneficiaryType: StateFundScheme["beneficiaryType"],
+  row: StateFundAthleteBeneficiaryRow | StateFundCoachBeneficiaryRow | StateFundNurseryBeneficiaryRow
+): string {
+  if (beneficiaryType === "nursery") {
+    return (row as StateFundNurseryBeneficiaryRow).academyId;
   }
-
-  return (
-    <button type="button" onClick={onGrant} className={GRANT_ACTION_BUTTON_CLASS}>
-      Grant
-    </button>
-  );
+  return (row as StateFundAthleteBeneficiaryRow | StateFundCoachBeneficiaryRow).id;
 }
 
-function GrantColumnCell({
-  grant,
-  onGrant,
-  onMarkGranted,
-  marking,
-}: {
-  grant: StateFundGrantSummary;
-  onGrant: () => void;
-  onMarkGranted: (disbursementId: string) => void;
-  marking: boolean;
-}) {
-  const action =
-    grant.status === "paid" ? null : (
-      <GrantActionButton
-        grant={grant}
-        onGrant={onGrant}
-        onMarkGranted={onMarkGranted}
-        marking={marking}
-      />
-    );
-
-  return (
-    <TableCell className="pr-0">
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0 w-full">
-        <GrantStatusPill status={grant.status} amountPaise={grant.amountPaise} />
-        {action ? <span className="shrink-0 ml-auto">{action}</span> : null}
-      </div>
-    </TableCell>
-  );
+function mergeBeneficiaryItems(
+  current: StateFundBeneficiaryListResult["items"],
+  incoming: StateFundBeneficiaryListResult["items"],
+  beneficiaryType: StateFundScheme["beneficiaryType"]
+) {
+  const seen = new Set(current.map((row) => beneficiaryKey(beneficiaryType, row)));
+  const next = incoming.filter((row) => !seen.has(beneficiaryKey(beneficiaryType, row)));
+  return [...current, ...next] as StateFundBeneficiaryListResult["items"];
 }
 
-export function SchemeDisbursementWorkspace({ detail: initialDetail }: SchemeDisbursementWorkspaceProps) {
+export function SchemeDisbursementWorkspace({
+  initialHeader,
+  initialList,
+  nurseryFilterOptions,
+}: SchemeDisbursementWorkspaceProps) {
   const router = useRouter();
   const searchQuery = useStatePageSearch();
-  const [detail, setDetail] = useState(initialDetail);
+  const [scheme, setScheme] = useState(initialHeader.scheme);
+  const [fiscalYearLabel, setFiscalYearLabel] = useState(initialHeader.fiscalYearLabel);
+  const beneficiaryType = initialList.beneficiaryType;
+
+  const [items, setItems] = useState(initialList.items);
+  const [total, setTotal] = useState(initialList.total);
   const [districtFilter, setDistrictFilter] = useState("all");
   const [sportFilter, setSportFilter] = useState("all");
   const [grantFilter, setGrantFilter] = useState<GrantStatusFilter>("all");
   const [nurseryFilter, setNurseryFilter] = useState("all");
   const [nisFilter, setNisFilter] = useState("all");
-  const [grantTarget, setGrantTarget] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [grantTarget, setGrantTarget] = useState<{ id: string; name: string } | null>(null);
   const [markingDisbursementId, setMarkingDisbursementId] = useState<string | null>(null);
 
-  const { scheme } = detail;
-  const beneficiaryType = scheme.beneficiaryType;
-
-  const nurseryFilterOptions = useMemo(() => {
-    const names = uniqueSorted(
-      (detail.athleteBeneficiaries ?? []).map((row) => row.nurseryName)
-    );
-    return [
-      { value: "all", label: "Nursery: All" },
-      ...names.map((name) => ({ value: name, label: name })),
-    ];
-  }, [detail.athleteBeneficiaries]);
-
-  const athleteRows = useMemo(() => {
-    return (detail.athleteBeneficiaries ?? []).filter((row) => {
-      if (!matchesAthleteSearch(row, searchQuery)) return false;
-      if (!matchesDistrictFilter(row.district, districtFilter)) return false;
-      if (!matchesSportFilter("athlete", row.sport, sportFilter)) return false;
-      if (!matchesGrantFilter(row.grant.status, grantFilter)) return false;
-      if (nurseryFilter !== "all" && row.nurseryName !== nurseryFilter) return false;
-      return true;
-    });
-  }, [
-    detail.athleteBeneficiaries,
-    searchQuery,
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const fetchGenerationRef = useRef(0);
+  const skipInitialRefetchRef = useRef(true);
+  const searchDebounceRef = useRef<number | null>(null);
+  const prevFilterSnapshotRef = useRef({
     districtFilter,
     sportFilter,
     grantFilter,
     nurseryFilter,
-  ]);
-
-  const coachRows = useMemo(() => {
-    return (detail.coachBeneficiaries ?? []).filter((row) => {
-      if (!matchesCoachSearch(row, searchQuery)) return false;
-      if (!matchesDistrictFilter(row.district, districtFilter)) return false;
-      if (!matchesSportFilter("coach", row.sport, sportFilter)) return false;
-      if (!matchesGrantFilter(row.grant.status, grantFilter)) return false;
-      if (nisFilter !== "all" && row.nisLevel !== nisFilter) return false;
-      return true;
-    });
-  }, [
-    detail.coachBeneficiaries,
-    searchQuery,
-    districtFilter,
-    sportFilter,
-    grantFilter,
     nisFilter,
-  ]);
-
-  const nurseryRows = useMemo(() => {
-    return (detail.nurseryBeneficiaries ?? []).filter((row) => {
-      if (!matchesNurserySearch(row, searchQuery)) return false;
-      if (!matchesDistrictFilter(row.district, districtFilter)) return false;
-      if (!matchesSportFilter("nursery", row.sportLabel, sportFilter)) return false;
-      if (!matchesGrantFilter(row.grant.status, grantFilter)) return false;
-      return true;
-    });
-  }, [
-    detail.nurseryBeneficiaries,
     searchQuery,
+  });
+
+  const hasAnyBeneficiaries = initialList.total > 0 || total > 0;
+  const hasMore = items.length < total;
+
+  const listParams = useCallback(
+    () => ({
+      district: districtFilter,
+      sport: sportFilter,
+      grant: grantFilter,
+      nursery: nurseryFilter,
+      nis: nisFilter,
+      search: searchQuery,
+      limit: PAGE_SIZE,
+    }),
+    [districtFilter, sportFilter, grantFilter, nurseryFilter, nisFilter, searchQuery]
+  );
+
+  const listParamsRef = useRef(listParams);
+  listParamsRef.current = listParams;
+
+  const refreshSchemeHeader = useCallback(async () => {
+    const { detail } = await api.state.funds.schemeDetail(scheme.slug);
+    setScheme(detail.scheme);
+    setFiscalYearLabel(detail.fiscalYearLabel);
+    router.refresh();
+  }, [router, scheme.slug]);
+
+  const fetchPage = useCallback(
+    async (offset: number, append: boolean) => {
+      if (!append) {
+        fetchGenerationRef.current += 1;
+      }
+      const requestGeneration = fetchGenerationRef.current;
+
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+        setListError(null);
+      }
+
+      try {
+        const result = await api.state.funds.listBeneficiaries(scheme.slug, {
+          ...listParamsRef.current(),
+          offset,
+        });
+        if (requestGeneration !== fetchGenerationRef.current) return;
+
+        setTotal(result.total);
+        setItems((current) => {
+          if (!append) return result.items;
+          return mergeBeneficiaryItems(current, result.items, beneficiaryType);
+        });
+      } catch (err) {
+        if (requestGeneration !== fetchGenerationRef.current) return;
+
+        const message = err instanceof Error ? err.message : "Failed to load beneficiaries.";
+        if (!append) {
+          setListError(message);
+          setItems([]);
+          setTotal(0);
+        } else {
+          setListError(message);
+        }
+      } finally {
+        if (requestGeneration !== fetchGenerationRef.current) {
+          if (append) setLoadingMore(false);
+          return;
+        }
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [beneficiaryType, scheme.slug]
+  );
+
+  useEffect(() => {
+    const prev = prevFilterSnapshotRef.current;
+    const filtersChanged =
+      prev.districtFilter !== districtFilter ||
+      prev.sportFilter !== sportFilter ||
+      prev.grantFilter !== grantFilter ||
+      prev.nurseryFilter !== nurseryFilter ||
+      prev.nisFilter !== nisFilter;
+    const searchChanged = prev.searchQuery !== searchQuery;
+    prevFilterSnapshotRef.current = {
+      districtFilter,
+      sportFilter,
+      grantFilter,
+      nurseryFilter,
+      nisFilter,
+      searchQuery,
+    };
+
+    if (skipInitialRefetchRef.current) {
+      skipInitialRefetchRef.current = false;
+      return;
+    }
+
+    if (searchDebounceRef.current) {
+      window.clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
+
+    const runRefetch = () => {
+      void fetchPage(0, false);
+    };
+
+    if (filtersChanged) {
+      runRefetch();
+      return;
+    }
+
+    if (searchChanged) {
+      searchDebounceRef.current = window.setTimeout(runRefetch, 300);
+    }
+
+    return () => {
+      if (searchDebounceRef.current) {
+        window.clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
+    };
+  }, [
     districtFilter,
     sportFilter,
     grantFilter,
+    nurseryFilter,
+    nisFilter,
+    searchQuery,
+    fetchPage,
   ]);
 
-  const rows =
-    beneficiaryType === "athlete"
-      ? athleteRows
-      : beneficiaryType === "coach"
-        ? coachRows
-        : nurseryRows;
+  const handleLoadMore = useCallback(() => {
+    if (!hasMore || loadingMore || loading) return;
+    void fetchPage(items.length, true);
+  }, [fetchPage, hasMore, items.length, loading, loadingMore]);
 
-  const totalRows =
-    beneficiaryType === "athlete"
-      ? (detail.athleteBeneficiaries ?? []).length
-      : beneficiaryType === "coach"
-        ? (detail.coachBeneficiaries ?? []).length
-        : (detail.nurseryBeneficiaries ?? []).length;
-
-  async function refreshDetail() {
-    const { api } = await import("@/lib/api");
-    const { detail: next } = await api.state.funds.schemeDetail(scheme.slug);
-    setDetail(next);
-    router.refresh();
+  async function handleAfterGrant() {
+    await Promise.all([refreshSchemeHeader(), fetchPage(0, false)]);
   }
 
   async function handleMarkGranted(disbursementId: string) {
     setMarkingDisbursementId(disbursementId);
     try {
-      const { api } = await import("@/lib/api");
       await api.state.funds.releasePending(scheme.slug, disbursementId);
-      await refreshDetail();
+      await handleAfterGrant();
     } finally {
       setMarkingDisbursementId(null);
     }
   }
+
+  const subtitle =
+    total > 0
+      ? `Showing ${items.length.toLocaleString("en-IN")} of ${total.toLocaleString("en-IN")} beneficiaries · ${scheme.detail} · FY ${fiscalYearLabel} · ${scheme.disbursed} disbursed of ${scheme.allocated}`
+      : `${scheme.detail} · FY ${fiscalYearLabel} · ${scheme.disbursed} disbursed of ${scheme.allocated}`;
+
+  const loadMoreFooter =
+    hasMore && items.length > 0 ? (
+      <StateLoadMoreFooter
+        loaded={items.length}
+        total={total}
+        entityLabel="beneficiaries"
+        loading={loadingMore}
+        disabled={loading || loadingMore}
+        scrollRootRef={tableScrollRef}
+        onLoadMore={handleLoadMore}
+      />
+    ) : undefined;
+
+  function renderTableBody() {
+    if (beneficiaryType === "athlete") {
+      const rows = items as StateFundAthleteBeneficiaryRow[];
+      return rows.map((row) => (
+        <TableRow key={row.id}>
+          <TableCell className="pl-0 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Avatar initials={row.initials} color={row.color} size="sm" />
+              <div className="min-w-0">
+                <div className="font-semibold text-[12.5px] text-ink truncate">{row.name}</div>
+                <div className="text-[11.5px] text-muted truncate">{row.detail}</div>
+              </div>
+            </div>
+          </TableCell>
+          <TableCell className="min-w-0">
+            <div className="truncate" title={row.sport}>
+              {row.sport}
+            </div>
+          </TableCell>
+          <TableCell className="min-w-0">
+            <div className="truncate">{row.district}</div>
+          </TableCell>
+          <TableCell className="min-w-0">
+            <div className="truncate" title={row.nurseryName}>
+              {row.nurseryName}
+            </div>
+          </TableCell>
+          <GrantColumnCell
+            grant={row.grant}
+            onGrant={() => setGrantTarget({ id: row.id, name: row.name })}
+            onMarkGranted={handleMarkGranted}
+            marking={markingDisbursementId === row.grant.disbursementId}
+          />
+        </TableRow>
+      ));
+    }
+
+    if (beneficiaryType === "coach") {
+      const rows = items as StateFundCoachBeneficiaryRow[];
+      return rows.map((row) => (
+        <TableRow key={row.id}>
+          <TableCell className="pl-0 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Avatar initials={row.initials} color={row.color} size="sm" />
+              <div className="min-w-0">
+                <div className="font-semibold text-[12.5px] text-ink truncate">{row.name}</div>
+                <div className="text-[11.5px] text-muted truncate">{row.detail}</div>
+              </div>
+            </div>
+          </TableCell>
+          <TableCell className="min-w-0">
+            <div className="truncate">{row.sport}</div>
+          </TableCell>
+          <TableCell className="min-w-0">
+            <div className="truncate">{row.district}</div>
+          </TableCell>
+          <TableCell className="min-w-0">
+            <div className="truncate" title={row.nurseryName}>
+              {row.nurseryName}
+            </div>
+          </TableCell>
+          <TableCell className="min-w-0">
+            <div className="truncate">{row.nisLevel}</div>
+          </TableCell>
+          <GrantColumnCell
+            grant={row.grant}
+            onGrant={() => setGrantTarget({ id: row.id, name: row.name })}
+            onMarkGranted={handleMarkGranted}
+            marking={markingDisbursementId === row.grant.disbursementId}
+          />
+        </TableRow>
+      ));
+    }
+
+    const rows = items as StateFundNurseryBeneficiaryRow[];
+    return rows.map((row) => (
+      <TableRow key={row.academyId}>
+        <TableCell className="pl-0 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar initials={row.initials} color={row.color} size="sm" />
+            <div className="min-w-0">
+              <div className="font-semibold text-[12.5px] text-ink truncate">{row.name}</div>
+              <div className="text-[11.5px] text-muted truncate">{row.detail}</div>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="min-w-0">
+          <div className="truncate">{row.district}</div>
+        </TableCell>
+        <TableCell className="min-w-0">
+          <div className="truncate">{row.sportLabel}</div>
+        </TableCell>
+        <TableCell>{row.athletes}</TableCell>
+        <GrantColumnCell
+          grant={row.grant}
+          onGrant={() => setGrantTarget({ id: row.academyId, name: row.name })}
+          onMarkGranted={handleMarkGranted}
+          marking={markingDisbursementId === row.grant.disbursementId}
+        />
+      </TableRow>
+    ));
+  }
+
+  const tableConfig =
+    beneficiaryType === "athlete"
+      ? ATHLETE_TABLE
+      : beneficiaryType === "coach"
+        ? COACH_TABLE
+        : NURSERY_TABLE;
 
   return (
     <div className={stateLayout.listWorkspace}>
       <div className={stateLayout.listChrome}>
         <PageHeader
           title={scheme.name}
-          subtitle={`${scheme.detail} · FY ${detail.fiscalYearLabel} · ${scheme.disbursed} disbursed of ${scheme.allocated}`}
+          subtitle={subtitle}
           action={
             <Link
               href="/state/funds"
@@ -283,7 +428,7 @@ export function SchemeDisbursementWorkspace({ detail: initialDetail }: SchemeDis
           <Pill variant="grey">{scheme.util}% utilised</Pill>
         </div>
 
-        {totalRows > 0 && (
+        {hasAnyBeneficiaries && (
           <FilterPills>
             <InlineSelect
               variant="pill"
@@ -349,101 +494,50 @@ export function SchemeDisbursementWorkspace({ detail: initialDetail }: SchemeDis
       </div>
 
       <div className={stateLayout.listScrollRegion}>
-        {totalRows === 0 ? (
+        {!hasAnyBeneficiaries && items.length === 0 && !loading ? (
           <StateFilteredEmpty
             entity="beneficiaries"
             description="Registered nurseries need athletes, coaches, or academies before grants can be issued."
           />
-        ) : rows.length === 0 ? (
+        ) : listError && items.length === 0 ? (
+          <StateFilteredEmpty entity="beneficiaries" description={listError} />
+        ) : items.length === 0 && !loading ? (
           <StateFilteredEmpty
             entity="beneficiaries"
             description="Try changing filters or your search term."
           />
-        ) : beneficiaryType === "athlete" ? (
-          <AcademyTable
-            scrollable
-            headers={["Athlete", "Sport", "District", "Nursery", "Grant"]}
-          >
-            {athleteRows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="pl-0">
-                  <div className="flex items-center gap-2.5">
-                    <Avatar initials={row.initials} color={row.color} />
-                    <div>
-                      <div className="font-semibold text-[13px] text-ink">{row.name}</div>
-                      <div className="text-[11.5px] text-muted">{row.detail}</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>{row.sport}</TableCell>
-                <TableCell>{row.district}</TableCell>
-                <TableCell>{row.nurseryName}</TableCell>
-                <GrantColumnCell
-                  grant={row.grant}
-                  onGrant={() => setGrantTarget({ id: row.id, name: row.name })}
-                  onMarkGranted={handleMarkGranted}
-                  marking={markingDisbursementId === row.grant.disbursementId}
-                />
-              </TableRow>
-            ))}
-          </AcademyTable>
-        ) : beneficiaryType === "coach" ? (
-          <AcademyTable
-            scrollable
-            headers={["Coach", "Sport", "District", "Nursery", "NIS", "Grant"]}
-          >
-            {coachRows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="pl-0">
-                  <div className="flex items-center gap-2.5">
-                    <Avatar initials={row.initials} color={row.color} />
-                    <div>
-                      <div className="font-semibold text-[13px] text-ink">{row.name}</div>
-                      <div className="text-[11.5px] text-muted">{row.detail}</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>{row.sport}</TableCell>
-                <TableCell>{row.district}</TableCell>
-                <TableCell>{row.nurseryName}</TableCell>
-                <TableCell>{row.nisLevel}</TableCell>
-                <GrantColumnCell
-                  grant={row.grant}
-                  onGrant={() => setGrantTarget({ id: row.id, name: row.name })}
-                  onMarkGranted={handleMarkGranted}
-                  marking={markingDisbursementId === row.grant.disbursementId}
-                />
-              </TableRow>
-            ))}
-          </AcademyTable>
         ) : (
-          <AcademyTable
-            scrollable
-            headers={["Nursery", "District", "Sport", "Athletes", "Grant"]}
-          >
-            {nurseryRows.map((row) => (
-              <TableRow key={row.academyId}>
-                <TableCell className="pl-0">
-                  <div className="flex items-center gap-2.5">
-                    <Avatar initials={row.initials} color={row.color} />
-                    <div>
-                      <div className="font-semibold text-[13px] text-ink">{row.name}</div>
-                      <div className="text-[11.5px] text-muted">{row.detail}</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>{row.district}</TableCell>
-                <TableCell>{row.sportLabel}</TableCell>
-                <TableCell>{row.athletes}</TableCell>
-                <GrantColumnCell
-                  grant={row.grant}
-                  onGrant={() => setGrantTarget({ id: row.academyId, name: row.name })}
-                  onMarkGranted={handleMarkGranted}
-                  marking={markingDisbursementId === row.grant.disbursementId}
-                />
-              </TableRow>
-            ))}
-          </AcademyTable>
+          <div className="relative flex flex-col min-h-0 flex-1">
+            <div
+              className={`flex flex-col min-h-0 flex-1 transition-opacity ${
+                loading && items.length > 0 ? "opacity-50 pointer-events-none" : ""
+              }`}
+            >
+              <AcademyTable
+                scrollable
+                scrollContainerRef={tableScrollRef}
+                headers={[...tableConfig.headers]}
+                columnWidths={[...tableConfig.columnWidths]}
+                columnClassNames={[...tableConfig.columnClassNames]}
+                className="flex-1"
+                footer={loadMoreFooter}
+              >
+                {renderTableBody()}
+              </AcademyTable>
+            </div>
+
+            {loading && items.length > 0 ? (
+              <div className="absolute inset-x-0 top-0 z-10 flex justify-center pt-3 pointer-events-none">
+                <span className="text-[12px] font-medium text-muted bg-card/95 border border-line rounded-full px-3 py-1 shadow-sm">
+                  Updating…
+                </span>
+              </div>
+            ) : null}
+
+            {loading && items.length === 0 ? (
+              <p className="text-center text-[13px] text-muted py-6">Loading beneficiaries…</p>
+            ) : null}
+          </div>
         )}
       </div>
 
@@ -453,7 +547,7 @@ export function SchemeDisbursementWorkspace({ detail: initialDetail }: SchemeDis
         schemeSlug={scheme.slug}
         beneficiaryId={grantTarget?.id ?? ""}
         beneficiaryName={grantTarget?.name ?? ""}
-        onGranted={refreshDetail}
+        onGranted={handleAfterGrant}
       />
     </div>
   );

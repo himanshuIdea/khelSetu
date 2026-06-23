@@ -12,7 +12,7 @@ export default async function ScoutingPage() {
   ]);
 
   return (
-    <StatePageBody>
+    <StatePageBody variant="list">
       <ScoutingWorkspace dashboard={dashboard} prospects={prospects} />
     </StatePageBody>
   );

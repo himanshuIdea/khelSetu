@@ -1,0 +1,239 @@
+Probing dev :3000 and prod :3001...
+{
+  "probedAt": "2026-06-23T08:16:23.518Z",
+  "nodeEnv": "development",
+  "cookieSecureDefault": false,
+  "envVars": {
+    "DATABASE_URL": true,
+    "JWT_SECRET": true,
+    "STATE_ADMIN_EMAIL": true,
+    "COOKIE_SECURE": "(unset)",
+    "NEXT_PUBLIC_APP_URL": "(unset)"
+  },
+  "diffCount": 3,
+  "diffs": [
+    "/api/v1/state/funds: status dev=200 prod=0",
+    "api:reports-generate-xlsx: status dev=200 prod=0",
+    "api:reports-generate-pdf-full: status dev=200 prod=0"
+  ],
+  "results": [
+    {
+      "name": "server-reachable",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 0,
+      "detail": "3000"
+    },
+    {
+      "name": "health",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 4,
+      "detail": "{\"status\":\"ok\",\"service\":\"khel-setu-web\",\"version\":\"v1\"}"
+    },
+    {
+      "name": "auth:login",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 0,
+      "detail": "session cookie received"
+    },
+    {
+      "name": "/state/overview",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 202
+    },
+    {
+      "name": "/state/nurseries",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 162
+    },
+    {
+      "name": "/state/districts",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 42
+    },
+    {
+      "name": "/state/funds",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 110
+    },
+    {
+      "name": "/state/reports",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 91
+    },
+    {
+      "name": "/state/scouting",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 148
+    },
+    {
+      "name": "/state/verification",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 93
+    },
+    {
+      "name": "/state/athletes",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 62
+    },
+    {
+      "name": "/state/nurseries/requests",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 85
+    },
+    {
+      "name": "/api/v1/state/nurseries",
+      "mode": "dev",
+      "status": 0,
+      "durationMs": 0,
+      "detail": "The operation was aborted due to timeout"
+    },
+    {
+      "name": "/api/v1/state/funds",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 854,
+      "detail": "{\"dashboard\":{\"fiscalYearLabel\":\"2026-27\",\"totalDisbursed\":\"₹12,000\",\"totalAllocatedPaise\":120000000,\"fyTotalAllocatedPa",
+      "headers": {
+        "set-cookie-secure": "no",
+        "report-timing": ""
+      }
+    },
+    {
+      "name": "api:reports-generate-xlsx",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 403,
+      "detail": "PK\u0003\u0004\n\u0000\u0000\u0000\b\u0000\tA�\\���\tY\u0001\u0000\u0000�\u0004\u0000\u0000\u0013\u0000\u0000\u0000[Content_Types].xml��Mn�0\u0010��=E�-J\f]TUE¢��\u0016��\u0000�xB,\u001c���w\u0012(�* �`\u0013+�7�{��\u0019O��I�\u0018H;��Q6\u0014\t��)m\u0017�",
+      "headers": {
+        "set-cookie-secure": "no",
+        "report-timing": "391"
+      }
+    },
+    {
+      "name": "api:reports-generate-pdf-full",
+      "mode": "dev",
+      "status": 200,
+      "durationMs": 3654,
+      "detail": "%PDF-1.3\n%����\n7 0 obj\n<<\n/Type /Page\n/Parent 1 0 R\n/MediaBox [0 0 841.89 595.28]\n/Contents 5 0 R\n/Resources 6 0 R\n/User",
+      "headers": {
+        "set-cookie-secure": "no",
+        "report-timing": "3648"
+      }
+    },
+    {
+      "name": "server-reachable",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 0,
+      "detail": "3001"
+    },
+    {
+      "name": "health",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 4,
+      "detail": "{\"status\":\"ok\",\"service\":\"khel-setu-web\",\"version\":\"v1\"}"
+    },
+    {
+      "name": "auth:login",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 0,
+      "detail": "session cookie received"
+    },
+    {
+      "name": "/state/overview",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 78
+    },
+    {
+      "name": "/state/nurseries",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 8
+    },
+    {
+      "name": "/state/districts",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 7
+    },
+    {
+      "name": "/state/funds",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 6
+    },
+    {
+      "name": "/state/reports",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 12
+    },
+    {
+      "name": "/state/scouting",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 8
+    },
+    {
+      "name": "/state/verification",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 6
+    },
+    {
+      "name": "/state/athletes",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 6
+    },
+    {
+      "name": "/state/nurseries/requests",
+      "mode": "prod",
+      "status": 200,
+      "durationMs": 5
+    },
+    {
+      "name": "/api/v1/state/nurseries",
+      "mode": "prod",
+      "status": 0,
+      "durationMs": 0,
+      "detail": "The operation was aborted due to timeout"
+    },
+    {
+      "name": "/api/v1/state/funds",
+      "mode": "prod",
+      "status": 0,
+      "durationMs": 0,
+      "detail": "The operation was aborted due to timeout"
+    },
+    {
+      "name": "api:reports-generate-xlsx",
+      "mode": "prod",
+      "status": 0,
+      "durationMs": 0,
+      "detail": "The operation was aborted due to timeout"
+    },
+    {
+      "name": "api:reports-generate-pdf-full",
+      "mode": "prod",
+      "status": 0,
+      "durationMs": 0,
+      "detail": "The operation was aborted due to timeout"
+    }
+  ]
+}

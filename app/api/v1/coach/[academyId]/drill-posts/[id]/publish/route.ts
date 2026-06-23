@@ -14,7 +14,7 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const { academyId, id } = await context.params;
-    const access = await getCoachApiContext(academyId);
+    const access = await getCoachApiContext(academyId, { writable: true });
     if (!access.ok) {
       return access.response;
     }

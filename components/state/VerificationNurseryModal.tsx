@@ -13,6 +13,7 @@ type VerificationNurseryModalProps = {
   open: boolean;
   onClose: () => void;
   onUpdated?: (nursery: StateNurseryDetail) => void;
+  onRemoved?: (academyId: string) => void;
 };
 
 export function VerificationNurseryModal({
@@ -20,6 +21,7 @@ export function VerificationNurseryModal({
   open,
   onClose,
   onUpdated,
+  onRemoved,
 }: VerificationNurseryModalProps) {
   const router = useRouter();
   const [nursery, setNursery] = useState<StateNurseryDetail | null>(null);
@@ -163,6 +165,7 @@ export function VerificationNurseryModal({
     try {
       await api.state.nurseries.deregister(academyId);
       setConfirmDeregister(false);
+      onRemoved?.(academyId);
       onClose();
       router.refresh();
     } catch (err) {
@@ -425,7 +428,7 @@ export function VerificationNurseryModal({
         description={
           isPending
             ? `Rejecting removes state recognition for ${nursery?.name ?? "this nursery"}. The academy record stays in the database.`
-            : `This removes state recognition for ${nursery?.name ?? "this nursery"}. The academy record stays in the database.`
+            : `This removes state recognition for ${nursery?.name ?? "this nursery"}. The academy admin will be sent to onboarding to resubmit registration, and the portal becomes view-only until the state approves again.`
         }
         isSubmitting={submitting === "deregister"}
         onCancel={() => setConfirmDeregister(false)}

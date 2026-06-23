@@ -9,8 +9,16 @@ import {
   assertCoachAssignedToBatch,
   resolveCoachForUser,
 } from "@/lib/repositories/coaches";
+import {
+  ACADEMY_READONLY_MESSAGE,
+  isAcademyNurseryDeregistered,
+} from "@/lib/repositories/state-nurseries";
 
-export async function assertAcademyAttendanceAccess(academyId: string, batchId?: string) {
+export async function assertAcademyAttendanceAccess(
+  academyId: string,
+  batchId?: string,
+  options?: { writable?: boolean }
+) {
   const userId = await requireSessionUserId();
   const denial = await checkAcademyReadAccess(userId, academyId, {
     stateAdminMessage: "State administrators cannot manage academy attendance.",
@@ -39,6 +47,10 @@ export async function assertAcademyAttendanceAccess(academyId: string, batchId?:
         return NextResponse.json({ error: message }, { status: 403 });
       }
     }
+  }
+
+  if (options?.writable && (await isAcademyNurseryDeregistered(academyId))) {
+    return NextResponse.json({ error: ACADEMY_READONLY_MESSAGE }, { status: 403 });
   }
 
   return null;

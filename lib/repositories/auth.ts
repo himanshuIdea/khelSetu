@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { academies, academyMemberships, users } from "@/db/schema";
 import { verifyOtpChallenge } from "@/lib/auth/otp";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
@@ -7,6 +7,7 @@ import type { AuthProfile } from "@/lib/auth/types";
 import { db, isUniqueViolation } from "@/lib/db";
 import { getInitials } from "@/lib/onboarding";
 import { isStateAdmin } from "@/lib/rbac";
+import { MEMBERSHIP_ROLES } from "@/lib/rbac/membership-roles";
 import { getOnboardingRequestByUserId } from "@/lib/repositories/academy-onboarding";
 
 export class AuthError extends Error {
@@ -40,34 +41,47 @@ function normalizePhone(phone: string) {
   return phone.trim();
 }
 
-async function resolveOnboardingRequestSummary(
+async function resolveProfileOnboarding(
   userId: string,
   platformRole: DbUser["platformRole"],
-  memberships: { academyId: string }[]
-): Promise<AuthProfile["onboardingRequest"]> {
-  if (memberships.length > 0 || isStateAdmin(platformRole)) {
-    return null;
+  memberships: { academyId: string; role: string }[]
+): Promise<{
+  onboardingRequest: AuthProfile["onboardingRequest"];
+  requiresNurseryReregistration: boolean;
+}> {
+  const requiresNurseryReregistration = await userRequiresNurseryReregistration(memberships);
+  const shouldLoadOnboarding =
+    (memberships.length === 0 && !isStateAdmin(platformRole)) || requiresNurseryReregistration;
+
+  if (!shouldLoadOnboarding) {
+    return { onboardingRequest: null, requiresNurseryReregistration };
   }
 
   const detail = await getOnboardingRequestByUserId(userId);
-  if (!detail) return null;
+  if (!detail) {
+    return { onboardingRequest: null, requiresNurseryReregistration };
+  }
 
   return {
-    id: detail.id,
-    status: detail.status,
-    requestType: detail.requestType,
-    requiredActions: detail.requiredActions,
-    reviewNotes: detail.reviewNotes,
-    submittedAt: detail.submittedAt,
-    reviewedAt: detail.reviewedAt,
-    academyId: detail.academyId,
+    requiresNurseryReregistration,
+    onboardingRequest: {
+      id: detail.id,
+      status: detail.status,
+      requestType: detail.requestType,
+      requiredActions: detail.requiredActions,
+      reviewNotes: detail.reviewNotes,
+      submittedAt: detail.submittedAt,
+      reviewedAt: detail.reviewedAt,
+      academyId: detail.academyId,
+    },
   };
 }
 
 function toAuthProfile(
   user: DbUser,
   memberships: { academyId: string; slug: string; role: string }[],
-  onboardingRequest: AuthProfile["onboardingRequest"]
+  onboardingRequest: AuthProfile["onboardingRequest"],
+  requiresNurseryReregistration: boolean
 ): AuthProfile {
   const academiesList = memberships.map((membership) => ({
     id: membership.academyId,
@@ -86,8 +100,29 @@ function toAuthProfile(
     mustChangePassword: user.mustChangePassword,
     academies: academiesList,
     needsAcademyOnboarding: !isStateAdmin(user.platformRole) && academiesList.length === 0,
+    requiresNurseryReregistration,
     onboardingRequest,
   };
+}
+
+async function userRequiresNurseryReregistration(
+  memberships: { academyId: string; role: string }[]
+): Promise<boolean> {
+  const adminAcademyIds = memberships
+    .filter((membership) => membership.role === MEMBERSHIP_ROLES.ADMIN)
+    .map((membership) => membership.academyId);
+
+  if (adminAcademyIds.length === 0) return false;
+
+  const [row] = await db
+    .select({ id: academies.id })
+    .from(academies)
+    .where(
+      and(inArray(academies.id, adminAcademyIds), isNotNull(academies.nurseryDeregisteredAt))
+    )
+    .limit(1);
+
+  return Boolean(row);
 }
 
 async function getMembershipsForUser(userId: string) {
@@ -110,27 +145,13 @@ async function fetchAuthProfile(userId: string): Promise<AuthProfile | null> {
   if (!user) return null;
 
   const memberships = await getMembershipsForUser(userId);
-  const onboardingRequest =
-    memberships.length === 0 && !isStateAdmin(user.platformRole)
-      ? await getOnboardingRequestByUserId(userId)
-      : null;
-
-  return toAuthProfile(
-    user,
-    memberships,
-    onboardingRequest
-      ? {
-          id: onboardingRequest.id,
-          status: onboardingRequest.status,
-          requestType: onboardingRequest.requestType,
-          requiredActions: onboardingRequest.requiredActions,
-          reviewNotes: onboardingRequest.reviewNotes,
-          submittedAt: onboardingRequest.submittedAt,
-          reviewedAt: onboardingRequest.reviewedAt,
-          academyId: onboardingRequest.academyId,
-        }
-      : null
+  const { onboardingRequest, requiresNurseryReregistration } = await resolveProfileOnboarding(
+    userId,
+    user.platformRole,
+    memberships
   );
+
+  return toAuthProfile(user, memberships, onboardingRequest, requiresNurseryReregistration);
 }
 
 export async function getAuthProfile(userId: string): Promise<AuthProfile | null> {
@@ -199,7 +220,7 @@ export async function registerWithIdentifier(input: {
 
   try {
     const [user] = await db.insert(users).values(values).returning();
-    return toAuthProfile(user, [], null);
+    return toAuthProfile(user, [], null, false);
   } catch (error) {
     if (isUniqueViolation(error)) {
       if (fields.kind === "email") {
@@ -238,7 +259,7 @@ export async function registerWithPhone(input: {
       })
       .returning();
 
-    return toAuthProfile(user, [], null);
+    return toAuthProfile(user, [], null, false);
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw new DuplicateAccountError("An account with this phone number already exists.");
@@ -375,12 +396,12 @@ async function authenticatePasswordUser(user: DbUser, password: string): Promise
   }
 
   const memberships = await getMembershipsForUser(user.id);
-  const onboardingRequest = await resolveOnboardingRequestSummary(
+  const { onboardingRequest, requiresNurseryReregistration } = await resolveProfileOnboarding(
     user.id,
     user.platformRole,
     memberships
   );
-  return toAuthProfile(user, memberships, onboardingRequest);
+  return toAuthProfile(user, memberships, onboardingRequest, requiresNurseryReregistration);
 }
 
 export async function loginWithPassword(input: {
@@ -446,12 +467,12 @@ export async function changePassword(input: {
     .returning();
 
   const memberships = await getMembershipsForUser(updated.id);
-  const onboardingRequest = await resolveOnboardingRequestSummary(
+  const { onboardingRequest, requiresNurseryReregistration } = await resolveProfileOnboarding(
     updated.id,
     updated.platformRole,
     memberships
   );
-  return toAuthProfile(updated, memberships, onboardingRequest);
+  return toAuthProfile(updated, memberships, onboardingRequest, requiresNurseryReregistration);
 }
 
 export async function loginWithPhone(input: {
@@ -470,12 +491,12 @@ export async function loginWithPhone(input: {
   }
 
   const memberships = await getMembershipsForUser(user.id);
-  const onboardingRequest = await resolveOnboardingRequestSummary(
+  const { onboardingRequest, requiresNurseryReregistration } = await resolveProfileOnboarding(
     user.id,
     user.platformRole,
     memberships
   );
-  return toAuthProfile(user, memberships, onboardingRequest);
+  return toAuthProfile(user, memberships, onboardingRequest, requiresNurseryReregistration);
 }
 
 export async function userHasAcademyMembership(userId: string): Promise<boolean> {

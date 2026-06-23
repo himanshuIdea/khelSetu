@@ -17,10 +17,12 @@ import {
 } from "@/lib/state-report-generators";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 loadEnv();
 
 export async function POST(request: Request) {
+  const routeStart = Date.now();
   try {
     const auth = await assertStateAdminAccess();
     if ("error" in auth) return auth.error;
@@ -35,6 +37,7 @@ export async function POST(request: Request) {
     const reportType = body.reportType;
 
     const data = await fetchStateReportData(reportType);
+
     if (!reportDataHasContent(reportType, data)) {
       return NextResponse.json({ error: emptyReportMessage(reportType) }, { status: 400 });
     }
@@ -43,12 +46,15 @@ export async function POST(request: Request) {
 
     await recordStateReportExport(reportType, format, auth.userId);
 
+    const totalMs = Date.now() - routeStart;
+
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "Content-Type": mimeType,
         "Content-Disposition": `attachment; filename="${filename}"`,
         "Cache-Control": "no-store",
+        "X-Report-Timing-Ms": String(totalMs),
       },
     });
   } catch (error) {

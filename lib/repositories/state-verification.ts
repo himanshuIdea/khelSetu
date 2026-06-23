@@ -6,12 +6,10 @@ import { listStateOnboardingRequests } from "@/lib/repositories/academy-onboardi
 import { listStateNurseries } from "@/lib/repositories/state-nurseries";
 import { type NurseryFlagResponseStatus } from "@/lib/state-nurseries";
 import {
-  NURSERY_SORT_PRIORITY,
-  ONBOARDING_SORT_PRIORITY,
-  REVIEW_REQUESTED_SORT_PRIORITY,
   onboardingInitials,
   onboardingStatusVariant,
-  isReviewRequestedQueueItem,
+  verificationQueueSortBand,
+  verificationQueueSubPriority,
   type VerificationQueueItem,
   type VerificationQueueNurseryItem,
   type VerificationQueueOnboardingItem,
@@ -26,6 +24,8 @@ export type {
 export {
   verificationQueueStatusLabel,
   verificationQueueStatusVariant,
+  verificationQueueSortBand,
+  verificationQueueSubPriority,
   isPendingReviewQueueItem,
   isReviewRequestedQueueItem,
   needsStateReviewAction,
@@ -121,12 +121,9 @@ export const listVerificationQueue = cache(async (): Promise<VerificationQueueIt
         statusLabel: request.statusLabel,
         statusVariant: onboardingStatusVariant(status),
         submittedAt,
-        sortPriority: ONBOARDING_SORT_PRIORITY[status],
+        sortPriority: 0,
         sortDate: submittedAt ? new Date(submittedAt).getTime() : 0,
       };
-      if (isReviewRequestedQueueItem(item)) {
-        item.sortPriority = REVIEW_REQUESTED_SORT_PRIORITY;
-      }
       return item;
     });
 
@@ -151,7 +148,7 @@ export const listVerificationQueue = cache(async (): Promise<VerificationQueueIt
       flagResponseStatus,
       registeredAt,
       onboardingRequestId: onboardingRequestByAcademy.get(nursery.academyId) ?? null,
-      sortPriority: NURSERY_SORT_PRIORITY[nursery.verificationStatus],
+      sortPriority: 0,
       sortDate: registeredAt ? new Date(registeredAt).getTime() : 0,
     };
   });
@@ -159,7 +156,12 @@ export const listVerificationQueue = cache(async (): Promise<VerificationQueueIt
   const items: VerificationQueueItem[] = [...onboardingItems, ...nurseryItems];
 
   items.sort((a, b) => {
-    if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+    const bandA = verificationQueueSortBand(a);
+    const bandB = verificationQueueSortBand(b);
+    if (bandA !== bandB) return bandA - bandB;
+    const subA = verificationQueueSubPriority(a);
+    const subB = verificationQueueSubPriority(b);
+    if (subA !== subB) return subA - subB;
     return b.sortDate - a.sortDate;
   });
 

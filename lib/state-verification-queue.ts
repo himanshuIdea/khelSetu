@@ -120,6 +120,27 @@ export function isPendingReviewQueueItem(item: VerificationQueueItem): boolean {
   return item.verificationStatus === "pending";
 }
 
+/** Top-level queue band: 0 = action needed, 1 = flagged, 2 = verified. */
+export function verificationQueueSortBand(item: VerificationQueueItem): number {
+  if (item.kind === "nursery" && item.verificationStatus === "verified") return 2;
+  if (
+    item.kind === "nursery" &&
+    item.verificationStatus === "flagged" &&
+    !isReviewRequestedQueueItem(item)
+  ) {
+    return 1;
+  }
+  return 0;
+}
+
+/** Sub-order within band 0 (and tie-breaker within other bands). */
+export function verificationQueueSubPriority(item: VerificationQueueItem): number {
+  if (isReviewRequestedQueueItem(item)) return 0;
+  if (isPendingReviewQueueItem(item)) return 1;
+  if (item.kind === "onboarding" && item.status === "rejected") return 2;
+  return 3;
+}
+
 export function verificationQueueStatusVariant(
   item: VerificationQueueItem
 ): NurseryPillVariant | "grey" {

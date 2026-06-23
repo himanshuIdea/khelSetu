@@ -3,6 +3,7 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -112,8 +113,12 @@ function ReportGenerateCard({
 }
 
 export const ReportsWorkspace = forwardRef<ReportsWorkspaceHandle, ReportsWorkspaceProps>(
-  function ReportsWorkspace({ dashboard, reportAvailability, hasPortalData }, ref) {
+  function ReportsWorkspace(
+    { dashboard: initialDashboard, reportAvailability, hasPortalData },
+    ref
+  ) {
     const searchQuery = useStatePageSearch();
+    const [dashboard, setDashboard] = useState(initialDashboard);
     const [error, setError] = useState<string | null>(null);
     const [activeReportId, setActiveReportId] = useState<StateReportType | null>(null);
     const [reportFormat, setReportFormat] = useState<ReportFormat>("xlsx");
@@ -121,6 +126,27 @@ export const ReportsWorkspace = forwardRef<ReportsWorkspaceHandle, ReportsWorksp
     const anchorRefs = useRef<Partial<Record<StateReportType, HTMLDivElement | null>>>({});
     const headerAnchorRef = useRef<HTMLDivElement | null>(null);
     const popoverAnchorRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+      setDashboard(initialDashboard);
+    }, [initialDashboard]);
+
+    useEffect(() => {
+      let cancelled = false;
+
+      void api.state.reports
+        .dashboard()
+        .then(({ dashboard: next }) => {
+          if (!cancelled) setDashboard(next);
+        })
+        .catch(() => {
+          // Keep SSR snapshot when refresh fails (e.g. offline).
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }, []);
 
     const hasExportHistory = dashboard.totalExports > 0;
 

@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   academyOnboardingRequests,
@@ -66,12 +66,23 @@ export const getAthleteCountByAcademy = cache(async (academyIds: string[]) => {
 export const getNurseryVerificationByAcademy = cache(async (): Promise<
   Map<string, NurseryVerificationStatus>
 > => {
-  const registrationRows = await db
-    .select({
-      academyId: stateNurseryRegistrations.academyId,
-      verificationStatus: stateNurseryRegistrations.verificationStatus,
-    })
-    .from(stateNurseryRegistrations);
+  const [registrationRows, approvedRows] = await Promise.all([
+    db
+      .select({
+        academyId: stateNurseryRegistrations.academyId,
+        verificationStatus: stateNurseryRegistrations.verificationStatus,
+      })
+      .from(stateNurseryRegistrations),
+    db
+      .select({ academyId: academyOnboardingRequests.academyId })
+      .from(academyOnboardingRequests)
+      .where(
+        and(
+          eq(academyOnboardingRequests.status, "approved"),
+          isNotNull(academyOnboardingRequests.academyId)
+        )
+      ),
+  ]);
 
   const map = new Map<string, NurseryVerificationStatus>(
     registrationRows.map((row) => [
@@ -79,16 +90,6 @@ export const getNurseryVerificationByAcademy = cache(async (): Promise<
       row.verificationStatus as NurseryVerificationStatus,
     ])
   );
-
-  const approvedRows = await db
-    .select({ academyId: academyOnboardingRequests.academyId })
-    .from(academyOnboardingRequests)
-    .where(
-      and(
-        eq(academyOnboardingRequests.status, "approved"),
-        isNotNull(academyOnboardingRequests.academyId)
-      )
-    );
 
   for (const row of approvedRows) {
     if (row.academyId && !map.has(row.academyId)) {

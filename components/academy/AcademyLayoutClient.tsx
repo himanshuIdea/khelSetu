@@ -12,6 +12,7 @@ type AcademyLayoutClientProps = {
   academyId: string;
   academyMeta: AcademyMeta;
   nurseryFlag?: AcademyNurseryFlag | null;
+  nurseryDeregistered?: boolean;
   children: React.ReactNode;
 };
 
@@ -19,6 +20,7 @@ function AcademyLayoutInner({
   academyId,
   academyMeta,
   nurseryFlag,
+  nurseryDeregistered = false,
   children,
 }: AcademyLayoutClientProps) {
   const pathname = usePathname();
@@ -39,6 +41,7 @@ function AcademyLayoutInner({
       searchPlaceholder={searchPlaceholder}
       searchHidden={searchHidden}
       nurseryFlag={nurseryFlag}
+      nurseryDeregistered={nurseryDeregistered}
     >
       {children}
     </AcademyShellClient>

@@ -2,7 +2,6 @@ import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import { scoutingStatusLabel } from "@/lib/scouting-status";
 import type { FullStateReportData } from "@/lib/repositories/state-report-data";
-import { getStateSummary } from "@/lib/repositories/state-aggregates";
 import {
   beneficiaryDetailRowsForReport,
   countAllReportableBeneficiaries,
@@ -125,15 +124,14 @@ export async function generateFullStateReport(
   format: ReportFormat,
   data: FullStateReportData
 ): Promise<GeneratedReport> {
-  const summary = await getStateSummary();
   const overviewRows: string[][] = [
-    ["Nurseries", String(summary.nurseryCount)],
-    ["Athletes", String(summary.athleteCount)],
-    ["Coaches", String(summary.coachCount)],
-    ["Verified nurseries", String(summary.verifiedCount)],
-    ["Pending verification", String(summary.pendingCount)],
-    ["Flagged nurseries", String(summary.flaggedCount)],
-    ["Verification rate", `${summary.verifiedRate}%`],
+    ["Nurseries", String(data.districts.districts.reduce((sum, d) => sum + d.nurseries, 0))],
+    ["Athletes", String(data.districts.districts.reduce((sum, d) => sum + d.athleteCount, 0))],
+    ["Coaches", String(data.districts.districts.reduce((sum, d) => sum + d.coaches, 0))],
+    ["Verified nurseries", String(data.verification.breakdown.verified)],
+    ["Pending verification", String(data.verification.breakdown.pending)],
+    ["Flagged nurseries", String(data.verification.breakdown.flagged)],
+    ["Verification rate", `${data.verification.breakdown.rate}%`],
     ["Total disbursed", data.funds.dashboard.totalDisbursed],
     ["Fund beneficiaries (pending + paid)", String(countAllReportableBeneficiaries(data.funds))],
     ["Shortlisted athletes", String(data.talent.rows.length)],

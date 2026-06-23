@@ -1,3 +1,4 @@
+import type { GrantStatusFilter } from "@/lib/state-fund-filters";
 import type { ScoutingStatus } from "@/lib/scouting-status";
 import type { NurseryPillVariant } from "@/lib/state-nurseries";
 
@@ -54,7 +55,34 @@ export type StateAthleteFilters = {
   sport?: string;
   district?: string;
   minRating?: number;
+  search?: string;
 };
+
+export type StateAthleteListResult = {
+  items: StateAthleteListItem[];
+  total: number;
+};
+
+export type StateAthleteReportRow = {
+  playerId: string;
+  name: string;
+  age: string;
+  sport: string;
+  weight: string;
+  height: string;
+  batch: string;
+  district: string;
+  nursery: string;
+  score: string;
+  playerStatus: string;
+  scoutingStatus: string;
+  primaryCoach: string;
+  joined: string;
+};
+
+export type StateAthleteReportFilters = StateAthleteFilters;
+
+export const STATE_ATHLETE_ROSTER_REPORT_MAX_ROWS = 5000;
 
 export type StateDistrictRow = {
   name: string;
@@ -198,6 +226,37 @@ export type StateFundSchemeDetail = {
   coachBeneficiaries?: StateFundCoachBeneficiaryRow[];
   nurseryBeneficiaries?: StateFundNurseryBeneficiaryRow[];
 };
+
+export type StateFundSchemeHeader = {
+  scheme: StateFundScheme;
+  fiscalYearLabel: string;
+};
+
+export type StateFundBeneficiaryFilters = {
+  district?: string;
+  sport?: string;
+  grant?: GrantStatusFilter;
+  nursery?: string;
+  nis?: string;
+  search?: string;
+};
+
+export type StateFundBeneficiaryListResult =
+  | {
+      beneficiaryType: "athlete";
+      items: StateFundAthleteBeneficiaryRow[];
+      total: number;
+    }
+  | {
+      beneficiaryType: "coach";
+      items: StateFundCoachBeneficiaryRow[];
+      total: number;
+    }
+  | {
+      beneficiaryType: "nursery";
+      items: StateFundNurseryBeneficiaryRow[];
+      total: number;
+    };
 
 export type FundUtilisationRow = {
   label: string;

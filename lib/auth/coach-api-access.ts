@@ -4,6 +4,10 @@ import { MEMBERSHIP_ROLES } from "@/lib/rbac/membership-roles";
 import { isStateAdmin } from "@/lib/rbac";
 import { getAuthProfile } from "@/lib/repositories/auth";
 import { resolveCoachForUser } from "@/lib/repositories/coaches";
+import {
+  ACADEMY_READONLY_MESSAGE,
+  isAcademyNurseryDeregistered,
+} from "@/lib/repositories/state-nurseries";
 
 export type CoachApiContext = {
   userId: string;
@@ -11,7 +15,14 @@ export type CoachApiContext = {
   isCoachRole: boolean;
 };
 
-export async function getCoachApiContext(academyId: string): Promise<
+type CoachApiAccessOptions = {
+  writable?: boolean;
+};
+
+export async function getCoachApiContext(
+  academyId: string,
+  options?: CoachApiAccessOptions
+): Promise<
   | { ok: true; context: CoachApiContext }
   | { ok: false; response: NextResponse }
 > {
@@ -52,6 +63,13 @@ export async function getCoachApiContext(academyId: string): Promise<
       return {
         ok: false,
         response: NextResponse.json({ error: "Coach profile not found." }, { status: 403 }),
+      };
+    }
+
+    if (options?.writable && (await isAcademyNurseryDeregistered(academyId))) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: ACADEMY_READONLY_MESSAGE }, { status: 403 }),
       };
     }
 

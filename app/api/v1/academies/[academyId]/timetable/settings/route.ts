@@ -15,7 +15,7 @@ type RouteContext = {
 export async function PUT(request: Request, context: RouteContext) {
   try {
     const { academyId } = await context.params;
-    await requireAcademyAccess(academyId);
+    await requireAcademyAccess(academyId, { writable: true });
 
     const body = (await request.json()) as ScheduleSettingsPayload;
     const validationError = validateScheduleSettings(body);

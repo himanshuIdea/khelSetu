@@ -210,7 +210,11 @@ export function NurseryDetailModal({ academyId, open, onClose }: NurseryDetailMo
       <SimpleConfirmDialog
         open={confirmOpen}
         title="Deregister nursery?"
-        description={`This removes state recognition for ${nursery?.name ?? "this nursery"}. The academy record stays in the database.`}
+        description={
+          nursery?.verificationStatus === "pending"
+            ? `Rejecting removes state recognition for ${nursery?.name ?? "this nursery"}. The academy record stays in the database.`
+            : `This removes state recognition for ${nursery?.name ?? "this nursery"}. The academy admin will be sent to onboarding to resubmit registration, and the portal becomes view-only until the state approves again.`
+        }
         isSubmitting={isSubmitting}
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => void handleDeregister()}

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { PlayerLayoutClient } from "@/components/player/PlayerLayoutClient";
 import { requirePlayerAccess } from "@/lib/auth/require-player-access";
+import { isAcademyNurseryDeregistered } from "@/lib/repositories/state-nurseries";
 
 export const metadata: Metadata = {
   title: "KhelSetu — Athlete",
@@ -21,7 +22,10 @@ export const viewport: Viewport = {
 };
 
 export default async function PlayerLayout({ children }: { children: React.ReactNode }) {
-  await requirePlayerAccess();
+  const { academyId } = await requirePlayerAccess();
+  const nurseryDeregistered = await isAcademyNurseryDeregistered(academyId);
 
-  return <PlayerLayoutClient>{children}</PlayerLayoutClient>;
+  return (
+    <PlayerLayoutClient nurseryDeregistered={nurseryDeregistered}>{children}</PlayerLayoutClient>
+  );
 }

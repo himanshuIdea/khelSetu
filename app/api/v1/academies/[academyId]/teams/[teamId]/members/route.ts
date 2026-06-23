@@ -19,7 +19,7 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { academyId, teamId } = await context.params;
-    const access = await getTeamAccessContext(academyId);
+    const access = await getTeamAccessContext(academyId, { writable: true });
     if (!access.ok) {
       return access.response;
     }

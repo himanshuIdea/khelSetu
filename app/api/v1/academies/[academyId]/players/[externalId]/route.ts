@@ -52,7 +52,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const { academyId, externalId } = await context.params;
-    await requireAcademyAccess(academyId);
+    await requireAcademyAccess(academyId, { writable: true });
 
     const body = (await request.json()) as UpdatePlayerPayload;
     const validationError = validateUpdatePlayerPayload(body);
@@ -76,7 +76,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const { academyId, externalId } = await context.params;
-    await requireAcademyAccess(academyId);
+    await requireAcademyAccess(academyId, { writable: true });
 
     await removePlayer(academyId, externalId);
     return new NextResponse(null, { status: 204 });

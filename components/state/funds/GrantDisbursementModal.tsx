@@ -160,27 +160,50 @@ export function GrantDisbursementModal({
 export function GrantStatusPill({
   status,
   amountPaise,
+  compact = false,
 }: {
   status: "none" | "pending" | "paid";
   amountPaise: number;
+  compact?: boolean;
 }) {
   if (status === "none") {
+    if (compact) return null;
     return (
       <span className="text-[11.5px] text-muted2 font-medium">Not granted</span>
     );
   }
 
   const label = formatPaiseFull(amountPaise);
+
+  if (compact) {
+    const statusLabel = status === "pending" ? "Pending" : "Paid";
+    const compactClass =
+      status === "pending"
+        ? "bg-[#FFF4E0] text-[#C77F12]"
+        : "bg-green-soft text-[#0E9B72]";
+
+    return (
+      <span
+        className={`inline-flex flex-col items-center leading-tight rounded-[7px] px-1.5 py-1 text-[10px] font-semibold shrink-0 ${compactClass}`}
+      >
+        <span>{statusLabel}</span>
+        <span className="text-[9.5px] font-medium tabular-nums">{label}</span>
+      </span>
+    );
+  }
+
+  const pillClass = "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold";
+
   if (status === "pending") {
     return (
-      <span className="inline-flex items-center rounded-full bg-[#FFF4E0] text-[#C77F12] px-2.5 py-1 text-[11px] font-semibold">
+      <span className={`${pillClass} bg-[#FFF4E0] text-[#C77F12]`}>
         Pending {label}
       </span>
     );
   }
 
   return (
-    <span className="inline-flex items-center rounded-full bg-green-soft text-[#0E9B72] px-2.5 py-1 text-[11px] font-semibold">
+    <span className={`${pillClass} bg-green-soft text-[#0E9B72]`}>
       Paid {label}
     </span>
   );

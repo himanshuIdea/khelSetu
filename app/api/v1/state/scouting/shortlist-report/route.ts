@@ -11,6 +11,7 @@ import {
 import { listShortlistReportRows } from "@/lib/repositories/state-scouting";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 loadEnv();
 

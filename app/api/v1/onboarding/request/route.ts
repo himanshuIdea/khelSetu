@@ -57,7 +57,7 @@ export async function PUT(request: Request) {
       );
     }
 
-    if (await userHasAcademyMembership(userId)) {
+    if ((await userHasAcademyMembership(userId)) && !profile.requiresNurseryReregistration) {
       return NextResponse.json(
         { error: "You already have a verified academy." },
         { status: 409 }

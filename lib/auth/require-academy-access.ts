@@ -1,5 +1,9 @@
 import { AuthRequiredError, requireSessionUserId } from "@/lib/auth/server";
 import { checkAcademyReadAccess } from "@/lib/auth/academy-access";
+import {
+  ACADEMY_READONLY_MESSAGE,
+  isAcademyNurseryDeregistered,
+} from "@/lib/repositories/state-nurseries";
 
 export class AcademyAccessError extends Error {
   constructor(
@@ -11,7 +15,10 @@ export class AcademyAccessError extends Error {
   }
 }
 
-export async function requireAcademyAccess(academyId: string): Promise<void> {
+export async function requireAcademyAccess(
+  academyId: string,
+  options?: { writable?: boolean }
+): Promise<void> {
   try {
     const userId = await requireSessionUserId();
     const denial = await checkAcademyReadAccess(userId, academyId, {
@@ -20,6 +27,10 @@ export async function requireAcademyAccess(academyId: string): Promise<void> {
 
     if (denial) {
       throw new AcademyAccessError(denial.error, denial.status);
+    }
+
+    if (options?.writable && (await isAcademyNurseryDeregistered(academyId))) {
+      throw new AcademyAccessError(ACADEMY_READONLY_MESSAGE, 403);
     }
   } catch (error) {
     if (error instanceof AuthRequiredError) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AcademyCardList,
   AcademyCardListItem,
@@ -27,6 +27,7 @@ import {
   onboardingStatusVariant,
 } from "@/lib/academy-onboarding";
 import { HARYANA_DISTRICTS } from "@/lib/state-catalog";
+import { api } from "@/lib/api";
 import { stateLayout } from "@/lib/state-layout";
 import { statePageMeta } from "@/lib/state-nav";
 import type { StateNurseryDetail } from "@/lib/state-nurseries";
@@ -80,8 +81,40 @@ const DISTRICT_OPTIONS = [
   ...HARYANA_DISTRICTS.map((district) => ({ value: district, label: district })),
 ];
 
+const TABLE_HEADERS = ["Nursery", "Admin", "District", "Athletes", "Status", ""] as const;
+
+const TABLE_COLUMN_WIDTHS = ["30%", "28%", "14%", "8%", "12%", "8%"];
+
+const TABLE_COLUMN_CLASS_NAMES = [
+  "min-w-0",
+  "min-w-0",
+  "min-w-0",
+  "text-right",
+  "min-w-0",
+  "m-0",
+] as const;
+
+const COMPACT_CELL = "py-2 sm:py-2.5";
+
+function mobileSubtitle(item: VerificationQueueItem): string {
+  const parts = [item.adminFullName, item.district];
+  if (item.kind === "nursery") {
+    parts.push(`${item.athleteCount} athletes`);
+  }
+  return parts.join(" · ");
+}
+
 function rowKey(item: VerificationQueueItem): string {
   return item.kind === "onboarding" ? item.id : item.academyId;
+}
+
+function isFlaggedNursery(item: VerificationQueueItem): boolean {
+  return item.kind === "nursery" && item.verificationStatus === "flagged";
+}
+
+function flaggedRowTitle(item: VerificationQueueItem): string | undefined {
+  if (!isFlaggedNursery(item)) return undefined;
+  return "Flagged nursery — open to review flag details and clear or follow up";
 }
 
 function matchesFilters(
@@ -137,24 +170,54 @@ function matchesVerificationSearch(item: VerificationQueueItem, query: string): 
 function QueueRowContent({ item }: { item: VerificationQueueItem }) {
   const statusVariant = verificationQueueStatusVariant(item);
   const statusLabel = verificationQueueStatusLabel(item);
+  const flagged = isFlaggedNursery(item);
 
   return (
     <>
-      <TableCell>
+      <TableCell className={`${COMPACT_CELL} ${TABLE_COLUMN_CLASS_NAMES[0]}`}>
         <div className="flex items-center gap-[11px] min-w-0">
           <Avatar initials={item.initials} color={item.color} />
-          <div className="font-semibold text-[13px] text-ink truncate">{item.name}</div>
+          <div className="min-w-0 flex-1">
+            <div
+              className="font-semibold text-[13px] text-ink truncate group-hover:text-[#B5392F] transition-colors duration-150"
+              title={item.name}
+            >
+              {item.name}
+            </div>
+            {flagged ? (
+              <div className="mt-0.5 text-[10.5px] font-medium text-[#B5392F]/80 truncate opacity-90 group-hover:opacity-100 transition-opacity duration-150">
+                State flag active — review required
+              </div>
+            ) : null}
+          </div>
         </div>
       </TableCell>
-      <TableCell>{item.adminFullName}</TableCell>
-      <TableCell>{item.district}</TableCell>
-      <TableCell>{item.queueTypeLabel}</TableCell>
-      <TableCell>{item.kind === "nursery" ? item.athleteCount : "—"}</TableCell>
-      <TableCell>
-        <Pill variant={statusVariant}>{statusLabel}</Pill>
+      <TableCell className={`${COMPACT_CELL} ${TABLE_COLUMN_CLASS_NAMES[1]}`}>
+        <div className="truncate" title={item.adminFullName}>
+          {item.adminFullName}
+        </div>
       </TableCell>
-      <TableCell>
-        <span className="text-[11px] font-semibold text-brand">
+      <TableCell className={`${COMPACT_CELL} ${TABLE_COLUMN_CLASS_NAMES[2]}`}>
+        <div className="truncate" title={item.district}>
+          {item.district}
+        </div>
+      </TableCell>
+      <TableCell className={`${COMPACT_CELL} ${TABLE_COLUMN_CLASS_NAMES[3]} tabular-nums`}>
+        {item.kind === "nursery" ? item.athleteCount : "—"}
+      </TableCell>
+      <TableCell className={`${COMPACT_CELL} ${TABLE_COLUMN_CLASS_NAMES[4]}`}>
+        <Pill variant={statusVariant} className="max-w-full min-w-0">
+          <span className="truncate">{statusLabel}</span>
+        </Pill>
+      </TableCell>
+      <TableCell className={`${COMPACT_CELL} ${TABLE_COLUMN_CLASS_NAMES[5]}`}>
+        <span
+          className={`text-[11px] font-semibold whitespace-nowrap transition-all duration-150 ${
+            flagged
+              ? "text-[#D63B3B] group-hover:text-[#B5392F] group-hover:underline underline-offset-2"
+              : "text-brand group-hover:underline underline-offset-2"
+          }`}
+        >
           {needsStateReviewAction(item) ? "Review" : "Manage"}
         </span>
       </TableCell>
@@ -164,11 +227,12 @@ function QueueRowContent({ item }: { item: VerificationQueueItem }) {
 
 export function VerificationWorkspace({
   queue: initialQueue,
-  breakdown,
+  breakdown: initialBreakdown,
   initialFlaggedOnly = false,
 }: VerificationWorkspaceProps) {
   const searchQuery = useStatePageSearch();
   const [queue, setQueue] = useState(initialQueue);
+  const [breakdown, setBreakdown] = useState(initialBreakdown);
   const [queueType, setQueueType] = useState<"all" | "onboarding" | "nursery">("all");
   const [statusFilter, setStatusFilter] = useState(
     initialFlaggedOnly ? "flagged" : "all"
@@ -181,6 +245,15 @@ export function VerificationWorkspace({
   useEffect(() => {
     setQueue(initialQueue);
   }, [initialQueue]);
+
+  useEffect(() => {
+    setBreakdown(initialBreakdown);
+  }, [initialBreakdown]);
+
+  const refreshBreakdown = useCallback(async () => {
+    const { breakdown: next } = await api.state.verification.breakdown();
+    setBreakdown(next);
+  }, []);
 
   const hasItems = queue.length > 0;
   const subtitle = hasItems
@@ -224,6 +297,7 @@ export function VerificationWorkspace({
   function handleReviewed(updated: AcademyOnboardingRequestDetail) {
     if (updated.status === "approved") {
       setQueue((current) => current.filter((row) => row.kind !== "onboarding" || row.id !== updated.id));
+      void refreshBreakdown();
       return;
     }
 
@@ -240,6 +314,7 @@ export function VerificationWorkspace({
           : row
       )
     );
+    void refreshBreakdown();
   }
 
   function handleNurseryUpdated(nursery: StateNurseryDetail) {
@@ -256,6 +331,14 @@ export function VerificationWorkspace({
           : row
       )
     );
+    void refreshBreakdown();
+  }
+
+  function handleNurseryRemoved(academyId: string) {
+    setQueue((current) =>
+      current.filter((row) => row.kind !== "nursery" || row.academyId !== academyId)
+    );
+    void refreshBreakdown();
   }
 
   function handleReviewFlagged() {
@@ -374,32 +457,43 @@ export function VerificationWorkspace({
                 {filtered.map((item) => {
                   const statusVariant = verificationQueueStatusVariant(item);
                   const statusLabel = verificationQueueStatusLabel(item);
-                  const highlighted =
-                    item.kind === "nursery" && item.verificationStatus === "flagged";
+                  const flagged = isFlaggedNursery(item);
 
                   return (
                     <AcademyCardListItem
                       key={rowKey(item)}
-                      highlighted={highlighted}
+                      highlighted={flagged}
+                      highlightTone={flagged ? "alert" : "default"}
+                      title={flaggedRowTitle(item)}
                       onClick={() => handleRowClick(item)}
                     >
                       <div className="flex items-start gap-3 min-w-0">
                         <Avatar initials={item.initials} color={item.color} />
                         <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-[13px] text-ink truncate">
+                          <div className="font-semibold text-[13px] text-ink truncate group-hover:text-[#B5392F] transition-colors duration-150">
                             {item.name}
                           </div>
-                          <div className="text-[11.5px] text-muted mt-0.5">
-                            {item.adminFullName} · {item.district}
+                          <div className="text-[11.5px] text-muted mt-0.5 truncate">
+                            {mobileSubtitle(item)}
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 mt-2">
-                            <Pill variant="grey">{item.queueTypeLabel}</Pill>
+                          {flagged ? (
+                            <div className="text-[10.5px] font-medium text-[#B5392F]/85 mt-1">
+                              State flag active — tap to review
+                            </div>
+                          ) : null}
+                          <div className="flex flex-wrap items-center gap-2 mt-1.5">
                             <Pill variant={statusVariant}>{statusLabel}</Pill>
                           </div>
                         </div>
-                      <span className="text-[11px] font-semibold text-brand shrink-0">
-                        {needsStateReviewAction(item) ? "Review" : "Manage"}
-                      </span>
+                        <span
+                          className={`text-[11px] font-semibold shrink-0 transition-all duration-150 ${
+                            flagged
+                              ? "text-[#D63B3B] group-hover:underline underline-offset-2"
+                              : "text-brand group-hover:underline underline-offset-2"
+                          }`}
+                        >
+                          {needsStateReviewAction(item) ? "Review" : "Manage"}
+                        </span>
                       </div>
                     </AcademyCardListItem>
                   );
@@ -409,18 +503,25 @@ export function VerificationWorkspace({
               <AcademyTable
                 scrollable
                 className="hidden lg:flex flex-1 border-0 shadow-none rounded-none"
-                headers={["Nursery", "Admin", "District", "Type", "Athletes", "Status", ""]}
-                minWidth={760}
+                headers={[...TABLE_HEADERS]}
+                columnWidths={TABLE_COLUMN_WIDTHS}
+                columnClassNames={[...TABLE_COLUMN_CLASS_NAMES]}
               >
-                {filtered.map((item) => (
-                  <TableRow
-                    key={rowKey(item)}
-                    highlighted={item.kind === "nursery" && item.verificationStatus === "flagged"}
-                    onClick={() => handleRowClick(item)}
-                  >
-                    <QueueRowContent item={item} />
-                  </TableRow>
-                ))}
+                {filtered.map((item) => {
+                  const flagged = isFlaggedNursery(item);
+
+                  return (
+                    <TableRow
+                      key={rowKey(item)}
+                      highlighted={flagged}
+                      highlightTone={flagged ? "alert" : "default"}
+                      title={flaggedRowTitle(item)}
+                      onClick={() => handleRowClick(item)}
+                    >
+                      <QueueRowContent item={item} />
+                    </TableRow>
+                  );
+                })}
               </AcademyTable>
             </>
           )}
@@ -439,6 +540,7 @@ export function VerificationWorkspace({
         open={nurseryId != null}
         onClose={closeNurseryModal}
         onUpdated={handleNurseryUpdated}
+        onRemoved={handleNurseryRemoved}
       />
     </div>
   );

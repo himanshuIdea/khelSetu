@@ -37,7 +37,7 @@ function validatePayload(body: CreateTournamentPayload): string | null {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { academyId } = await context.params;
-    await requireAcademyAdminAccess(academyId);
+    await requireAcademyAdminAccess(academyId, { writable: true });
 
     const body = (await request.json()) as CreateTournamentPayload;
     const validationError = validatePayload(body);

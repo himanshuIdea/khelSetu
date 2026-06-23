@@ -17,7 +17,7 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { academyId } = await context.params;
-    await requireAcademyAdminAccess(academyId);
+    await requireAcademyAdminAccess(academyId, { writable: true });
 
     const body = (await request.json()) as {
       action: "addressed" | "request_review";

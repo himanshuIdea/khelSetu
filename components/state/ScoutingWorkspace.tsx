@@ -11,6 +11,7 @@ import {
   Avatar,
   FilterPills,
   PageHeader,
+  ScrollableListPanel,
   SectionTitle,
   StatCard,
   StatGrid,
@@ -37,6 +38,7 @@ import {
   type ScoutingStatus,
 } from "@/lib/scouting-status";
 import { HARYANA_DISTRICTS, HARYANA_FEATURED_SPORTS } from "@/lib/state-catalog";
+import { stateLayout } from "@/lib/state-layout";
 import { statePageMeta } from "@/lib/state-nav";
 import { matchesStateTextSearch } from "@/lib/state-search";
 import type { StateScoutingDashboard, StateScoutingProspect } from "@/lib/state-portal";
@@ -66,6 +68,17 @@ const AGE_OPTIONS = [
 ];
 
 const DEFAULT_MIN_RATING = 8;
+
+const TABLE_HEADERS = ["", "Athlete", "Sport", "District", "Score", "Status"] as const;
+const TABLE_COLUMN_WIDTHS = ["4%", "32%", "16%", "16%", "10%", "22%"] as const;
+const TABLE_COLUMN_CLASS_NAMES = [
+  "w-[4%] min-w-0 pl-0",
+  "min-w-0 pl-0",
+  "min-w-0",
+  "min-w-0",
+  "min-w-0",
+  "min-w-0",
+] as const;
 
 function matchesScoutingSearch(prospect: StateScoutingProspect, query: string): boolean {
   return matchesStateTextSearch(query, [
@@ -305,144 +318,151 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
 
   if (!hasAnyData) {
     return (
-      <>
-        <PageHeader title={meta.title} subtitle={subtitle} />
+      <div className={stateLayout.listWorkspace}>
+        <div className={stateLayout.listChrome}>
+          <PageHeader title={meta.title} subtitle={subtitle} />
+        </div>
         <StateSectionEmpty screen="scouting-prospects" />
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      <PageHeader title={meta.title} subtitle={subtitle} action={runShortlistAction} />
+    <div className={stateLayout.listWorkspace}>
+      <div className={stateLayout.listChrome}>
+        <PageHeader title={meta.title} subtitle={subtitle} action={runShortlistAction} />
 
-      {error && (
-        <div className="mb-3 text-[13px] text-[#D63B3B] bg-red-soft border border-[#F5C2C2] rounded-[10px] px-3 py-2">
-          {error}
+        {error && (
+          <div className="mb-3 text-[13px] text-[#D63B3B] bg-red-soft border border-[#F5C2C2] rounded-[10px] px-3 py-2">
+            {error}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2 mb-3.5 min-w-0">
+          <FilterPills>
+            <InlineSelect
+              value={sportFilter}
+              options={SPORT_OPTIONS}
+              onChange={setSportFilter}
+              variant="pill"
+              filterPill
+              className="shrink-0"
+            />
+            <InlineSelect
+              value={ageFilter}
+              options={AGE_OPTIONS}
+              onChange={setAgeFilter}
+              variant="pill"
+              filterPill
+              className="shrink-0"
+            />
+            <InlineSelect
+              value={districtFilter}
+              options={DISTRICT_OPTIONS}
+              onChange={setDistrictFilter}
+              variant="pill"
+              filterPill
+              className="shrink-0"
+            />
+            <RatingFilterSlider value={minRating} onChange={setMinRating} />
+            <InlineSelect
+              value={statusFilter}
+              options={SCOUTING_STATUS_FILTER_OPTIONS}
+              onChange={(value) => {
+                setStatusFilter(value);
+                setKheloReadyOnly(value === "khelo_india");
+              }}
+              variant="pill"
+              filterPill
+              active={statusFilter !== "all"}
+              className="shrink-0"
+            />
+            <button
+              type="button"
+              onClick={toggleKheloReady}
+              className={`shrink-0 inline-flex items-center min-h-[36px] px-3 py-2 rounded-full text-[12.5px] font-semibold border transition-colors ${
+                kheloReadyOnly
+                  ? "bg-brand-soft text-brand-d border-brand/30"
+                  : "bg-card border-line text-muted"
+              }`}
+            >
+              Khelo India ready
+            </button>
+          </FilterPills>
         </div>
-      )}
 
-      <div className="flex flex-wrap gap-2 mb-3.5 min-w-0">
-        <FilterPills>
-          <InlineSelect
-            value={sportFilter}
-            options={SPORT_OPTIONS}
-            onChange={setSportFilter}
-            variant="pill"
-            filterPill
-            className="shrink-0"
+        {selectedIds.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-3.5 p-3 bg-surface border border-line rounded-[12px] min-w-0">
+            <span className="text-[13px] font-semibold text-ink shrink-0">
+              {selectedIds.size} selected
+            </span>
+            <InlineSelect
+              value={bulkStatus}
+              options={SCOUTING_STATUS_OPTIONS.map((o) => ({
+                value: o.value,
+                label: o.label,
+              }))}
+              onChange={setBulkStatus}
+              variant="pill"
+              className="shrink-0"
+              aria-label="Bulk scouting status"
+            />
+            <button
+              type="button"
+              onClick={handleBulkApply}
+              disabled={bulkSaving}
+              className="inline-flex items-center justify-center bg-brand text-white font-semibold text-[13px] py-[9px] px-3.5 rounded-[10px] disabled:opacity-60 min-h-[44px]"
+            >
+              {bulkSaving ? "Applying…" : "Apply to selected"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-[13px] font-medium text-muted min-h-[44px] px-2"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
+        <StatGrid>
+          <StatCard
+            compact
+            value={dashboard.prospectsIdentified.toLocaleString("en-IN")}
+            label="Prospects identified"
           />
-          <InlineSelect
-            value={ageFilter}
-            options={AGE_OPTIONS}
-            onChange={setAgeFilter}
-            variant="pill"
-            filterPill
-            className="shrink-0"
+          <StatCard
+            compact
+            value={dashboard.shortlistedCount.toLocaleString("en-IN")}
+            label="Shortlisted · Khelo India"
+            valueColor={hasIdentified ? "#C77F12" : undefined}
           />
-          <InlineSelect
-            value={districtFilter}
-            options={DISTRICT_OPTIONS}
-            onChange={setDistrictFilter}
-            variant="pill"
-            filterPill
-            className="shrink-0"
+          <StatCard
+            compact
+            value={dashboard.inCampsCount.toLocaleString("en-IN")}
+            label="In state training camps"
           />
-          <RatingFilterSlider value={minRating} onChange={setMinRating} />
-          <InlineSelect
-            value={statusFilter}
-            options={SCOUTING_STATUS_FILTER_OPTIONS}
-            onChange={(value) => {
-              setStatusFilter(value);
-              setKheloReadyOnly(value === "khelo_india");
-            }}
-            variant="pill"
-            filterPill
-            active={statusFilter !== "all"}
-            className="shrink-0"
+          <StatCard
+            compact
+            value={hasIdentified ? `${dashboard.nationalCampRate}%` : "—"}
+            label="Reached national camp"
+            valueColor={hasIdentified ? "#0E9B72" : undefined}
           />
-          <button
-            type="button"
-            onClick={toggleKheloReady}
-            className={`shrink-0 inline-flex items-center min-h-[36px] px-3 py-2 rounded-full text-[12.5px] font-semibold border transition-colors ${
-              kheloReadyOnly
-                ? "bg-brand-soft text-brand-d border-brand/30"
-                : "bg-card border-line text-muted"
-            }`}
-          >
-            Khelo India ready
-          </button>
-        </FilterPills>
+        </StatGrid>
       </div>
 
-      {selectedIds.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-3.5 p-3 bg-surface border border-line rounded-[12px] min-w-0">
-          <span className="text-[13px] font-semibold text-ink shrink-0">
-            {selectedIds.size} selected
-          </span>
-          <InlineSelect
-            value={bulkStatus}
-            options={SCOUTING_STATUS_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label,
-            }))}
-            onChange={setBulkStatus}
-            variant="pill"
-            className="shrink-0"
-            aria-label="Bulk scouting status"
-          />
-          <button
-            type="button"
-            onClick={handleBulkApply}
-            disabled={bulkSaving}
-            className="inline-flex items-center justify-center bg-brand text-white font-semibold text-[13px] py-[9px] px-3.5 rounded-[10px] disabled:opacity-60 min-h-[44px]"
-          >
-            {bulkSaving ? "Applying…" : "Apply to selected"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedIds(new Set())}
-            className="text-[13px] font-medium text-muted min-h-[44px] px-2"
-          >
-            Clear
-          </button>
-        </div>
-      )}
-
-      <StatGrid>
-        <StatCard
-          compact
-          value={dashboard.prospectsIdentified.toLocaleString("en-IN")}
-          label="Prospects identified"
-        />
-        <StatCard
-          compact
-          value={dashboard.shortlistedCount.toLocaleString("en-IN")}
-          label="Shortlisted · Khelo India"
-          valueColor={hasIdentified ? "#C77F12" : undefined}
-        />
-        <StatCard
-          compact
-          value={dashboard.inCampsCount.toLocaleString("en-IN")}
-          label="In state training camps"
-        />
-        <StatCard
-          compact
-          value={hasIdentified ? `${dashboard.nationalCampRate}%` : "—"}
-          label="Reached national camp"
-          valueColor={hasIdentified ? "#0E9B72" : undefined}
-        />
-      </StatGrid>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-3.5 mt-4 min-w-0">
-        <div className="min-w-0">
-          <div className="hidden lg:block min-w-0">
-            <div className="flex justify-between items-center mb-1 pr-3 px-1">
+      <div className={stateLayout.listScrollRegion}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-3.5 min-w-0 min-h-0 flex-1 overflow-x-hidden">
+        <div className="min-w-0 min-h-0 flex flex-col">
+          <ScrollableListPanel
+            className="flex-1 min-h-0"
+            header={
               <SectionTitle
                 title="Top prospects this quarter"
                 subtitle="ranked by KhelSetu score"
               />
-            </div>
+            }
+          >
             {filtered.length === 0 ? (
               <StateFilteredEmpty
                 entity="prospects"
@@ -450,13 +470,58 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
               />
             ) : (
               <>
+                <AcademyCardList scrollable className="flex-1 border-0 shadow-none rounded-none">
+                  {filtered.map((p) => (
+                    <AcademyCardListItem key={p.playerId}>
+                      <div className="flex items-start gap-3 p-4 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(p.playerId)}
+                          onChange={() => toggleSelect(p.playerId)}
+                          aria-label={`Select ${p.name}`}
+                          className="w-4 h-4 accent-brand mt-1 shrink-0"
+                        />
+                        <Avatar initials={p.initials} color={p.color} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-[13px] text-ink truncate">
+                            {p.name}
+                          </div>
+                          <div className="text-[11.5px] text-muted truncate">
+                            {formatSportWeightLine(p.detail)}
+                          </div>
+                          <div className="text-[11.5px] text-muted mt-1 truncate">
+                            {p.sport} · {p.district}
+                          </div>
+                          <div className="text-[12px] font-semibold text-[#0E9B72] mt-1">
+                            Score {p.score}
+                          </div>
+                          <div className="mt-2 min-w-0">
+                            <InlineSelect
+                              value={p.scoutingStatus ?? ""}
+                              options={SCOUTING_STATUS_SELECT_OPTIONS}
+                              onChange={(value) => handleStatusChange(p.playerId, value)}
+                              variant="pill"
+                              className="w-full max-w-full min-w-0"
+                              aria-label={`Status for ${p.name}`}
+                              disabled={rowSavingId === p.playerId}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </AcademyCardListItem>
+                  ))}
+                </AcademyCardList>
+
                 <AcademyTable
-                  headers={["", "Athlete", "Sport", "District", "Score", "Status"]}
-                  minWidth={640}
+                  scrollable
+                  className="hidden lg:flex flex-1 border-0 shadow-none rounded-none"
+                  headers={[...TABLE_HEADERS]}
+                  columnWidths={[...TABLE_COLUMN_WIDTHS]}
+                  columnClassNames={[...TABLE_COLUMN_CLASS_NAMES]}
                 >
                   {filtered.map((p) => (
                     <TableRow key={p.playerId}>
-                      <TableCell className="w-10 pl-0">
+                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[0]}>
                         <input
                           type="checkbox"
                           checked={selectedIds.has(p.playerId)}
@@ -465,10 +530,10 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
                           className="w-4 h-4 accent-brand"
                         />
                       </TableCell>
-                      <TableCell className="pl-0">
-                        <div className="flex items-center gap-[11px]">
+                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[1]}>
+                        <div className="flex items-center gap-[11px] min-w-0">
                           <Avatar initials={p.initials} color={p.color} size="sm" />
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <div className="font-semibold text-[13px] text-ink truncate">
                               {p.name}
                             </div>
@@ -478,12 +543,16 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{p.sport}</TableCell>
-                      <TableCell>{p.district}</TableCell>
-                      <TableCell>
+                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[2]}>
+                        <span className="block truncate">{p.sport}</span>
+                      </TableCell>
+                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[3]}>
+                        <span className="block truncate">{p.district}</span>
+                      </TableCell>
+                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[4]}>
                         <b className="text-[#0E9B72]">{p.score}</b>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[5]}>
                         {rowSavingId === p.playerId ? (
                           <span className="text-[12px] text-muted">Saving…</span>
                         ) : (
@@ -492,7 +561,7 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
                             options={SCOUTING_STATUS_SELECT_OPTIONS}
                             onChange={(value) => handleStatusChange(p.playerId, value)}
                             variant="pill"
-                            className="max-w-[200px]"
+                            className="w-full max-w-full min-w-0"
                             aria-label={`Status for ${p.name}`}
                           />
                         )}
@@ -502,98 +571,54 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
                 </AcademyTable>
               </>
             )}
-          </div>
-
-          <AcademyCardList className="mt-0">
-            {filtered.length === 0 ? (
-              <div className="p-4">
-                <StateFilteredEmpty
-                  entity="prospects"
-                  description="Try changing filters or your search term."
-                />
-              </div>
-            ) : (
-              filtered.map((p) => (
-                <AcademyCardListItem key={p.playerId}>
-                  <div className="flex items-start gap-3 p-4 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(p.playerId)}
-                      onChange={() => toggleSelect(p.playerId)}
-                      aria-label={`Select ${p.name}`}
-                      className="w-4 h-4 accent-brand mt-1 shrink-0"
-                    />
-                    <Avatar initials={p.initials} color={p.color} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-[13px] text-ink truncate">{p.name}</div>
-                      <div className="text-[11.5px] text-muted truncate">
-                        {formatSportWeightLine(p.detail)}
-                      </div>
-                      <div className="text-[11.5px] text-muted mt-1">
-                        {p.sport} · {p.district}
-                      </div>
-                      <div className="text-[12px] font-semibold text-[#0E9B72] mt-1">
-                        Score {p.score}
-                      </div>
-                      <div className="mt-2">
-                        <InlineSelect
-                          value={p.scoutingStatus ?? ""}
-                          options={SCOUTING_STATUS_SELECT_OPTIONS}
-                          onChange={(value) => handleStatusChange(p.playerId, value)}
-                          variant="pill"
-                          className="w-full max-w-none"
-                          aria-label={`Status for ${p.name}`}
-                          disabled={rowSavingId === p.playerId}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </AcademyCardListItem>
-              ))
-            )}
-          </AcademyCardList>
+          </ScrollableListPanel>
         </div>
 
-        <div className="bg-card border border-line rounded-(--radius) px-[18px] py-4 min-w-0">
-          <SectionTitle title="Talent pipeline" />
-          {hasPipeline ? (
-            <>
-              <div className="mt-3.5">
-                {dashboard.pipeline.map((stage) => (
-                  <FillBarRow
-                    key={stage.label}
-                    label={stage.label}
-                    value={stage.value}
-                    percent={stage.percent}
-                    color={stage.color}
-                    labelWidth="w-24"
-                  />
-                ))}
-              </div>
-              <div className="border-t border-line2 pt-[11px] mt-3.5">
-                <div className="text-[11.5px] text-muted mb-2">By age group</div>
-                <div className="space-y-2">
-                  {dashboard.ageGroups.map((group) => (
-                    <div
-                      key={group.label}
-                      className="flex items-center gap-1.5 text-[11.5px] text-muted"
-                    >
-                      <span
-                        className="w-[7px] h-[7px] rounded-full shrink-0"
-                        style={{ background: group.color }}
-                      />
-                      {group.label}
-                      <b className="ml-auto text-text">{group.count.toLocaleString("en-IN")}</b>
-                    </div>
+        <div className="min-w-0 self-start h-fit lg:sticky lg:top-0">
+          <div className="bg-card border border-line rounded-(--radius) px-[18px] py-3.5 min-w-0">
+            <SectionTitle title="Talent pipeline" />
+            {hasPipeline ? (
+              <>
+                <div className="mt-3.5">
+                  {dashboard.pipeline.map((stage) => (
+                    <FillBarRow
+                      key={stage.label}
+                      label={stage.label}
+                      value={stage.value}
+                      percent={stage.percent}
+                      color={stage.color}
+                      labelWidth="w-24"
+                    />
                   ))}
                 </div>
-              </div>
-            </>
-          ) : (
-            <StateSectionEmpty screen="scouting" />
-          )}
+                <div className="border-t border-line2 pt-[11px] mt-3.5">
+                  <div className="text-[11.5px] text-muted mb-2">By age group</div>
+                  <div className="space-y-2">
+                    {dashboard.ageGroups.map((group) => (
+                      <div
+                        key={group.label}
+                        className="flex items-center gap-1.5 text-[11.5px] text-muted min-w-0"
+                      >
+                        <span
+                          className="w-[7px] h-[7px] rounded-full shrink-0"
+                          style={{ background: group.color }}
+                        />
+                        <span className="truncate">{group.label}</span>
+                        <b className="ml-auto text-text shrink-0">
+                          {group.count.toLocaleString("en-IN")}
+                        </b>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <StateSectionEmpty screen="scouting" />
+            )}
+          </div>
+        </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -47,7 +47,7 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Invalid feed item type." }, { status: 400 });
     }
 
-    const access = await getPlayerApiContext(academyId);
+    const access = await getPlayerApiContext(academyId, { writable: true });
     if (!access.ok) {
       return access.response;
     }

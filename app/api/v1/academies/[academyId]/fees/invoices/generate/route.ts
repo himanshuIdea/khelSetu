@@ -12,7 +12,7 @@ type RouteContext = {
 export async function POST(_request: Request, context: RouteContext) {
   try {
     const { academyId } = await context.params;
-    const accessError = await assertAcademyFeesAccess(academyId);
+    const accessError = await assertAcademyFeesAccess(academyId, { writable: true });
     if (accessError) {
       return accessError;
     }

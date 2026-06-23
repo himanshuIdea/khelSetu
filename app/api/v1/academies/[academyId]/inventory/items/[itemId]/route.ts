@@ -16,7 +16,7 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const { academyId, itemId } = await context.params;
-    const accessError = await assertAcademyInventoryAccess(academyId);
+    const accessError = await assertAcademyInventoryAccess(academyId, { writable: true });
     if (accessError) {
       return accessError;
     }
@@ -37,7 +37,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const { academyId, itemId } = await context.params;
-    const accessError = await assertAcademyInventoryAccess(academyId);
+    const accessError = await assertAcademyInventoryAccess(academyId, { writable: true });
     if (accessError) {
       return accessError;
     }

@@ -4,7 +4,7 @@ import {
   assertStateAdminAccess,
   handleStateRouteError,
 } from "@/app/api/v1/state/nurseries/_auth";
-import { getSchemeDetailWithBeneficiaries } from "@/lib/repositories/state-funds";
+import { getSchemeDetailHeader } from "@/lib/repositories/state-funds";
 
 export const runtime = "nodejs";
 
@@ -20,7 +20,7 @@ export async function GET(_request: Request, context: RouteContext) {
     if ("error" in auth) return auth.error;
 
     const { slug } = await context.params;
-    const detail = await getSchemeDetailWithBeneficiaries(slug);
+    const detail = await getSchemeDetailHeader(slug);
     if (!detail) {
       return NextResponse.json({ error: "Scheme not found." }, { status: 404 });
     }

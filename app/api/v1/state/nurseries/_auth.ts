@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
-import { AuthRequiredError, requireSessionUserId } from "@/lib/auth/server";
+import { AuthRequiredError, getSessionTokenPayload } from "@/lib/auth/server";
 import { isStateAdmin } from "@/lib/rbac";
-import { getAuthProfile } from "@/lib/repositories/auth";
 
 export async function assertStateAdminAccess() {
-  const userId = await requireSessionUserId();
-  const profile = await getAuthProfile(userId);
-
-  if (!profile) {
-    return { error: NextResponse.json({ error: "User not found." }, { status: 404 }) };
+  const session = await getSessionTokenPayload();
+  if (!session?.sub) {
+    return { error: NextResponse.json({ error: "Authentication required." }, { status: 401 }) };
   }
 
-  if (!isStateAdmin(profile.platformRole)) {
+  if (!isStateAdmin(session.platformRole)) {
     return {
       error: NextResponse.json(
         { error: "Only state administrators can access this resource." },
@@ -20,7 +17,7 @@ export async function assertStateAdminAccess() {
     };
   }
 
-  return { userId, profile };
+  return { userId: session.sub };
 }
 
 export function handleStateRouteError(error: unknown) {

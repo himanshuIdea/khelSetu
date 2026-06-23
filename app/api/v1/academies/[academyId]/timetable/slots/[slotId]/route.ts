@@ -15,7 +15,7 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const { academyId, slotId } = await context.params;
-    await requireAcademyAccess(academyId);
+    await requireAcademyAccess(academyId, { writable: true });
 
     const body = (await request.json()) as SlotPayload;
     const validationError = validateSlotPayload(body);
@@ -40,7 +40,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const { academyId, slotId } = await context.params;
-    await requireAcademyAccess(academyId);
+    await requireAcademyAccess(academyId, { writable: true });
 
     await deleteSlot(academyId, slotId);
     return NextResponse.json({ ok: true });

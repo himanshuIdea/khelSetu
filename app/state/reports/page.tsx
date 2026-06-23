@@ -1,31 +1,31 @@
+import { Suspense } from "react";
 import { ReportsWorkspace } from "@/components/state/ReportsWorkspace";
 import { StatePageBody } from "@/components/state/StatePageBody";
-import { getStateReportsDashboard } from "@/lib/repositories/state-reports";
-import {
-  getStateReportAvailability,
-  statePortalHasAnyData,
-} from "@/lib/repositories/state-report-data";
-import { STATE_REPORT_TYPES } from "@/lib/state-report-catalog";
+import { StateReportsLoading } from "@/components/state/StateRouteLoading";
+import { loadReportsPageData } from "@/lib/repositories/state-reports";
 
-export default async function StateReportsPage() {
-  const [dashboardBase, reportAvailability, hasPortalData] = await Promise.all([
-    getStateReportsDashboard(),
-    getStateReportAvailability(),
-    statePortalHasAnyData(),
-  ]);
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
-  const dashboard = {
-    ...dashboardBase,
-    scheduledExports: STATE_REPORT_TYPES.filter((type) => reportAvailability[type]).length,
-  };
+async function ReportsPageContent() {
+  const { dashboard, reportAvailability, hasPortalData } = await loadReportsPageData();
 
   return (
+    <ReportsWorkspace
+      dashboard={dashboard}
+      reportAvailability={reportAvailability}
+      hasPortalData={hasPortalData}
+    />
+  );
+}
+
+export default function StateReportsPage() {
+  return (
     <StatePageBody>
-      <ReportsWorkspace
-        dashboard={dashboard}
-        reportAvailability={reportAvailability}
-        hasPortalData={hasPortalData}
-      />
+      <Suspense fallback={<StateReportsLoading />}>
+        <ReportsPageContent />
+      </Suspense>
     </StatePageBody>
   );
 }

@@ -114,6 +114,10 @@ function resolveAdminPostAuthRedirect(profile: AuthProfile): string {
     return STATE_ROUTE_PREFIX;
   }
 
+  if (profile.requiresNurseryReregistration) {
+    return "/auth/onboarding";
+  }
+
   if (isCoachOnlyMember(profile)) {
     return coachRoutes.home;
   }

@@ -4,9 +4,13 @@ import { isCoachOnlyMember, isPlayerOnlyMember } from "@/lib/auth/membership-acc
 import { getSessionUserId } from "@/lib/auth/server";
 import { coachRoutes } from "@/lib/coach-nav";
 import { playerRoutes } from "@/lib/player-nav";
+import { MEMBERSHIP_ROLES } from "@/lib/rbac/membership-roles";
 import { getAuthProfile } from "@/lib/repositories/auth";
 import { resolveAcademy } from "@/lib/repositories/resolve-academy";
-import { getAcademyNurseryFlag } from "@/lib/repositories/state-nurseries";
+import {
+  getAcademyDeregistrationState,
+  getAcademyNurseryFlag,
+} from "@/lib/repositories/state-nurseries";
 
 type AcademyLayoutContentProps = {
   academyId: string;
@@ -22,6 +26,12 @@ export async function AcademyLayoutContent({ academyId, children }: AcademyLayou
     if (profile && profile.needsAcademyOnboarding) {
       redirect("/auth/onboarding");
     }
+    const isAdminOfAcademy = profile?.academies.some(
+      (academy) => academy.id === academyId && academy.role === MEMBERSHIP_ROLES.ADMIN
+    );
+    if (profile?.requiresNurseryReregistration && isAdminOfAcademy) {
+      redirect("/auth/onboarding");
+    }
     if (profile && isCoachOnlyMember(profile)) {
       redirect(coachRoutes.home);
     }
@@ -31,13 +41,17 @@ export async function AcademyLayoutContent({ academyId, children }: AcademyLayou
   }
 
   const academyMeta = await academyMetaPromise;
-  const nurseryFlag = await getAcademyNurseryFlag(academyId);
+  const [nurseryFlag, nurseryDeregistration] = await Promise.all([
+    getAcademyNurseryFlag(academyId),
+    getAcademyDeregistrationState(academyId),
+  ]);
 
   return (
     <AcademyLayoutClient
       academyId={academyId}
       academyMeta={academyMeta}
       nurseryFlag={nurseryFlag}
+      nurseryDeregistered={Boolean(nurseryDeregistration)}
     >
       {children}
     </AcademyLayoutClient>

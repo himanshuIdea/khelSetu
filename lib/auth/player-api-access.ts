@@ -4,6 +4,10 @@ import { canAccessPlayerPortal } from "@/lib/auth/membership-access";
 import { isStateAdmin } from "@/lib/rbac";
 import { getAuthProfile } from "@/lib/repositories/auth";
 import { resolvePlayerForUser } from "@/lib/repositories/players";
+import {
+  ACADEMY_READONLY_MESSAGE,
+  isAcademyNurseryDeregistered,
+} from "@/lib/repositories/state-nurseries";
 
 export type PlayerApiContext = {
   userId: string;
@@ -11,7 +15,14 @@ export type PlayerApiContext = {
   academyId: string;
 };
 
-export async function getPlayerApiContext(academyId: string): Promise<
+type PlayerApiAccessOptions = {
+  writable?: boolean;
+};
+
+export async function getPlayerApiContext(
+  academyId: string,
+  options?: PlayerApiAccessOptions
+): Promise<
   | { ok: true; context: PlayerApiContext }
   | { ok: false; response: NextResponse }
 > {
@@ -59,6 +70,13 @@ export async function getPlayerApiContext(academyId: string): Promise<
       return {
         ok: false,
         response: NextResponse.json({ error: "Player profile not found." }, { status: 403 }),
+      };
+    }
+
+    if (options?.writable && (await isAcademyNurseryDeregistered(academyId))) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: ACADEMY_READONLY_MESSAGE }, { status: 403 }),
       };
     }
 

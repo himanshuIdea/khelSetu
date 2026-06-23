@@ -28,5 +28,6 @@ export type AuthProfile = {
   mustChangePassword: boolean;
   academies: AuthAcademy[];
   needsAcademyOnboarding: boolean;
+  requiresNurseryReregistration: boolean;
   onboardingRequest: AcademyOnboardingRequestSummary | null;
 };

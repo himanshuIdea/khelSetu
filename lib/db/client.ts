@@ -36,7 +36,8 @@ function createClient() {
     prepare: false,
     max: resolvePoolMax(),
     idle_timeout: 20,
-    connect_timeout: 10,
+    connect_timeout: 20,
+    max_lifetime: process.env.VERCEL ? 60 * 5 : 60 * 30,
   });
 }
 

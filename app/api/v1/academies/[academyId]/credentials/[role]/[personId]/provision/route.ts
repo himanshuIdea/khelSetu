@@ -29,7 +29,7 @@ function parseRole(role: string): CredentialRoleSegment | null {
 export async function POST(_request: Request, context: RouteContext) {
   try {
     const { academyId, role, personId } = await context.params;
-    await requireAcademyAdminAccess(academyId);
+    await requireAcademyAdminAccess(academyId, { writable: true });
 
     const segment = parseRole(role);
     if (!segment) {

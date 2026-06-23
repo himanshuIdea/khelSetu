@@ -8,6 +8,10 @@ import { AuthRequiredError, requireSessionUserId } from "@/lib/auth/server";
 import { isStateAdmin } from "@/lib/rbac";
 import { getAuthProfile } from "@/lib/repositories/auth";
 import {
+  ACADEMY_READONLY_MESSAGE,
+  isAcademyNurseryDeregistered,
+} from "@/lib/repositories/state-nurseries";
+import {
   getStaffRosterForDate,
   saveStaffAttendance,
 } from "@/lib/repositories/staff-attendance";
@@ -20,7 +24,7 @@ type RouteContext = {
   params: Promise<{ academyId: string }>;
 };
 
-async function assertAcademyAccess(academyId: string) {
+async function assertAcademyAccess(academyId: string, options?: { writable?: boolean }) {
   const userId = await requireSessionUserId();
   const profile = await getAuthProfile(userId);
 
@@ -38,6 +42,10 @@ async function assertAcademyAccess(academyId: string) {
   const hasAccess = profile.academies.some((academy) => academy.id === academyId);
   if (!hasAccess) {
     return NextResponse.json({ error: "You do not have access to this academy." }, { status: 403 });
+  }
+
+  if (options?.writable && (await isAcademyNurseryDeregistered(academyId))) {
+    return NextResponse.json({ error: ACADEMY_READONLY_MESSAGE }, { status: 403 });
   }
 
   return null;
@@ -73,7 +81,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { academyId } = await context.params;
-    const accessError = await assertAcademyAccess(academyId);
+    const accessError = await assertAcademyAccess(academyId, { writable: true });
     if (accessError) {
       return accessError;
     }

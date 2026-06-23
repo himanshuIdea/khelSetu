@@ -8,12 +8,13 @@ import type {
   VerificationBreakdown,
 } from "@/lib/state-portal";
 import type { VerificationQueueItem } from "@/lib/state-verification-queue";
-import { listStateOnboardingRequests } from "@/lib/repositories/academy-onboarding";
+import { hasPendingOnboardingRequests } from "@/lib/repositories/academy-onboarding";
 import { getVerificationBreakdown } from "@/lib/repositories/state-aggregates";
 import { listStateDistrictRollup } from "@/lib/repositories/state-districts";
 import {
-  getSchemeDetailWithBeneficiaries,
+  fetchAllSchemeReportDetails,
   getStateFundsDashboard,
+  hasFundReportData,
 } from "@/lib/repositories/state-funds";
 import { getStateNurseryContext } from "@/lib/repositories/state-nursery-helpers";
 import { countShortlistReportRows, listShortlistReportRows } from "@/lib/repositories/state-scouting";
@@ -58,12 +59,10 @@ export async function fetchDistrictReportData(): Promise<DistrictReportData> {
 
 export async function fetchFundReportData(): Promise<FundReportData> {
   const dashboard = await getStateFundsDashboard();
-  const schemeDetails = await Promise.all(
-    dashboard.schemes.map((scheme) => getSchemeDetailWithBeneficiaries(scheme.slug))
-  );
+  const schemeDetails = await fetchAllSchemeReportDetails();
   return {
     dashboard,
-    schemeDetails: schemeDetails.filter((detail): detail is StateFundSchemeDetail => detail != null),
+    schemeDetails,
   };
 }
 
@@ -73,20 +72,16 @@ export async function fetchTalentPipelineReportData(): Promise<TalentPipelineRep
 }
 
 export async function fetchVerificationReportData(): Promise<VerificationReportData> {
-  const [breakdown, queue] = await Promise.all([
-    getVerificationBreakdown(),
-    listVerificationQueue(),
-  ]);
+  const breakdown = await getVerificationBreakdown();
+  const queue = await listVerificationQueue();
   return { breakdown, queue };
 }
 
 export async function fetchFullStateReportData(): Promise<FullStateReportData> {
-  const [districts, funds, talent, verification] = await Promise.all([
-    fetchDistrictReportData(),
-    fetchFundReportData(),
-    fetchTalentPipelineReportData(),
-    fetchVerificationReportData(),
-  ]);
+  const districts = await fetchDistrictReportData();
+  const funds = await fetchFundReportData();
+  const talent = await fetchTalentPipelineReportData();
+  const verification = await fetchVerificationReportData();
   return { districts, funds, talent, verification };
 }
 
@@ -168,49 +163,32 @@ export function reportDataHasContent(type: StateReportType, data: StateReportDat
   }
 }
 
-function fundDashboardHasReportData(dashboard: StateFundsDashboard): boolean {
-  return (
-    dashboard.schemes.some(
-      (scheme) => scheme.allocatedPaise > 0 || scheme.disbursedPaise > 0
-    ) || dashboard.pendingApproval > 0
-  );
-}
-
 function verificationHasReportData(
   breakdown: VerificationBreakdown,
   academyIds: string[],
-  onboardingRequests: Awaited<ReturnType<typeof listStateOnboardingRequests>>
+  hasPendingOnboarding: boolean
 ): boolean {
   return (
     breakdown.verified + breakdown.pending + breakdown.flagged > 0 ||
     academyIds.length > 0 ||
-    onboardingRequests.some((request) => request.status !== "approved")
+    hasPendingOnboarding
   );
 }
 
 export const getStateReportAvailability = cache(
   async (): Promise<Record<StateReportType, boolean>> => {
-    const [
-      { academyIds },
-      verification,
-      fundsDashboard,
-      shortlistCount,
-      onboardingRequests,
-    ] = await Promise.all([
-      getStateNurseryContext(),
-      getVerificationBreakdown(),
-      getStateFundsDashboard(),
-      countShortlistReportRows(),
-      listStateOnboardingRequests(),
-    ]);
+    const { academyIds } = await getStateNurseryContext();
+    const verification = await getVerificationBreakdown();
+    const fundAvailable = await hasFundReportData();
+    const shortlistCount = await countShortlistReportRows();
+    const hasPendingOnboarding = await hasPendingOnboardingRequests();
 
     const districtAvailable = academyIds.length > 0;
-    const fundAvailable = fundDashboardHasReportData(fundsDashboard);
     const talentAvailable = shortlistCount > 0;
     const verificationAvailable = verificationHasReportData(
       verification,
       academyIds,
-      onboardingRequests
+      hasPendingOnboarding
     );
 
     return {

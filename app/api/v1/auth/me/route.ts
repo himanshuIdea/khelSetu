@@ -30,6 +30,7 @@ export async function GET() {
       },
       academies: profile.academies,
       needsAcademyOnboarding: profile.needsAcademyOnboarding,
+      requiresNurseryReregistration: profile.requiresNurseryReregistration,
       onboardingRequest: profile.onboardingRequest,
       redirectTo: resolvePostAuthRedirect(profile),
     });

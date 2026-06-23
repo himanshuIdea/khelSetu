@@ -3,17 +3,17 @@
  * Run: pnpm tsx scripts/verify-verification-flow.ts
  */
 import { loadEnv } from "@/lib/load-env";
-import {
-  getOnboardingRequestById,
-  listStateOnboardingRequests,
-  reviewOnboardingRequest,
-  submitOnboardingRequest,
-} from "@/lib/repositories/academy-onboarding";
+import { getOnboardingRequestById, getOnboardingRequestByUserId, listStateOnboardingRequests, reviewOnboardingRequest, submitOnboardingRequest } from "@/lib/repositories/academy-onboarding";
+import { db } from "@/lib/db";
+import { academies, academyMemberships, stateNurseryRegistrations } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import {
   clearNurseryFlag,
+  deregisterStateNursery,
   flagStateNursery,
   getAcademyNurseryFlag,
   getStateNurseryDetail,
+  isAcademyNurseryDeregistered,
   listStateNurseries,
   respondToNurseryFlag,
 } from "@/lib/repositories/state-nurseries";
@@ -22,6 +22,7 @@ import { getVerificationBreakdown } from "@/lib/repositories/state-aggregates";
 import {
   verificationQueueStatusLabel,
   verificationQueueStatusVariant,
+  verificationQueueSortBand,
   isPendingReviewQueueItem,
   isReviewRequestedQueueItem,
 } from "@/lib/state-verification-queue";
@@ -55,6 +56,34 @@ async function main() {
     "onboarding rows should exclude approved"
   );
   assert(nurseryRows.length === nurseries.length, "nursery rows should match listStateNurseries count");
+  console.log("   OK\n");
+
+  console.log("1b. verification queue sort bands");
+  for (let i = 1; i < queue.length; i++) {
+    const prev = queue[i - 1]!;
+    const cur = queue[i]!;
+    assert(
+      verificationQueueSortBand(prev) <= verificationQueueSortBand(cur),
+      `queue bands non-decreasing at index ${i - 1}→${i}`
+    );
+  }
+
+  const firstBand0Idx = queue.findIndex((r) => verificationQueueSortBand(r) === 0);
+  const firstBand1Idx = queue.findIndex((r) => verificationQueueSortBand(r) === 1);
+  const firstBand2Idx = queue.findIndex((r) => verificationQueueSortBand(r) === 2);
+
+  const hasPendingNursery = nurseryRows.some((r) => r.verificationStatus === "pending");
+  const hasPureFlagged = nurseryRows.some(
+    (r) =>
+      r.verificationStatus === "flagged" && r.flagResponseStatus !== "review_requested"
+  );
+  const hasVerifiedNursery = nurseryRows.some((r) => r.verificationStatus === "verified");
+
+  if (hasPendingNursery && hasPureFlagged && hasVerifiedNursery) {
+    assert(firstBand0Idx >= 0 && firstBand1Idx >= 0 && firstBand2Idx >= 0, "all three bands present");
+    assert(firstBand0Idx < firstBand1Idx, "action-needed band before flagged band");
+    assert(firstBand1Idx < firstBand2Idx, "flagged band before verified band");
+  }
   console.log("   OK\n");
 
   console.log("2. getVerificationBreakdown");
@@ -123,6 +152,10 @@ async function main() {
     queueRow?.kind === "nursery" && verificationQueueStatusVariant(queueRow) === "amber",
     "queue variant amber for review_requested"
   );
+  assert(
+    queueRow?.kind === "nursery" && verificationQueueSortBand(queueRow) === 0,
+    "review-requested flagged nursery sorts in band 0"
+  );
 
   await clearNurseryFlag(testAcademyId, stateAdminId);
 
@@ -159,6 +192,10 @@ async function main() {
   assert(
     addressedRow?.kind === "nursery" && verificationQueueStatusVariant(addressedRow) === "amber",
     "queue variant amber for addressed"
+  );
+  assert(
+    addressedRow?.kind === "nursery" && verificationQueueSortBand(addressedRow) === 1,
+    "addressed flagged nursery sorts in band 1"
   );
 
   await clearNurseryFlag(testAcademyId, stateAdminId);
@@ -254,6 +291,72 @@ async function main() {
     );
     console.log("   helper + DB round-trip OK\n");
   }
+
+  console.log("5b. nursery deregister → read-only state → re-approve");
+  const deregisterTarget =
+    nurseries.find((n) => n.verificationStatus === "verified" && n.academyId !== testAcademyId) ??
+    verifiedNursery;
+  assert(deregisterTarget, "verified nursery for deregister test");
+
+  const deregisterAcademyId = deregisterTarget!.academyId;
+  const [adminMembership] = await db
+    .select({ userId: academyMemberships.userId })
+    .from(academyMemberships)
+    .where(
+      and(
+        eq(academyMemberships.academyId, deregisterAcademyId),
+        eq(academyMemberships.role, "admin")
+      )
+    )
+    .limit(1);
+  assert(adminMembership, "admin membership for deregister nursery");
+
+  await deregisterStateNursery(deregisterAcademyId, stateAdminId);
+
+  const [academyAfterDeregister] = await db
+    .select({ nurseryDeregisteredAt: academies.nurseryDeregisteredAt })
+    .from(academies)
+    .where(eq(academies.id, deregisterAcademyId))
+    .limit(1);
+  assert(academyAfterDeregister?.nurseryDeregisteredAt, "nurseryDeregisteredAt set");
+
+  const registrationRows = await db
+    .select({ id: stateNurseryRegistrations.id })
+    .from(stateNurseryRegistrations)
+    .where(eq(stateNurseryRegistrations.academyId, deregisterAcademyId));
+  assert(registrationRows.length === 0, "state registration removed");
+
+  const onboardingAfterDeregister = await getOnboardingRequestByUserId(adminMembership.userId);
+  assert(onboardingAfterDeregister?.status === "draft", "onboarding reset to draft");
+  assert(onboardingAfterDeregister?.requestType === "resubmission", "onboarding marked resubmission");
+  assert(onboardingAfterDeregister?.academyId === deregisterAcademyId, "onboarding keeps academyId");
+  assert(await isAcademyNurseryDeregistered(deregisterAcademyId), "isAcademyNurseryDeregistered true");
+
+  await submitOnboardingRequest(adminMembership.userId);
+  const submittedRereg = await getOnboardingRequestByUserId(adminMembership.userId);
+  assert(submittedRereg?.status === "submitted", "resubmission submitted");
+  assert(submittedRereg?.requestType === "resubmission", "resubmission type preserved");
+
+  await reviewOnboardingRequest({
+    requestId: submittedRereg!.id,
+    reviewerUserId: stateAdminId,
+    action: "approve",
+  });
+
+  const [academyAfterApprove] = await db
+    .select({ nurseryDeregisteredAt: academies.nurseryDeregisteredAt })
+    .from(academies)
+    .where(eq(academies.id, deregisterAcademyId))
+    .limit(1);
+  assert(!academyAfterApprove?.nurseryDeregisteredAt, "nurseryDeregisteredAt cleared after approve");
+
+  const registrationAfterApprove = await db
+    .select({ id: stateNurseryRegistrations.id })
+    .from(stateNurseryRegistrations)
+    .where(eq(stateNurseryRegistrations.academyId, deregisterAcademyId));
+  assert(registrationAfterApprove.length === 1, "state registration restored after approve");
+  assert(!(await isAcademyNurseryDeregistered(deregisterAcademyId)), "read-only cleared after approve");
+  console.log("   OK\n");
 
   console.log("=== All verification flow checks passed ===\n");
 

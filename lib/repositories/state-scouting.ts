@@ -16,6 +16,8 @@ import type {
 } from "@/lib/state-portal";
 import { getStateNurseryContext } from "./state-nursery-helpers";
 
+const SCOUTING_PROSPECT_LIMIT = 100;
+
 function nurseryPlayerConditions(academyIds: string[]) {
   return and(
     inArray(players.academyId, academyIds),
@@ -67,7 +69,8 @@ export const listStateScoutingProspects = cache(async (): Promise<StateScoutingP
     .innerJoin(sports, eq(players.sportId, sports.id))
     .leftJoin(batches, eq(players.batchId, batches.id))
     .where(nurseryPlayerConditions(academyIds))
-    .orderBy(desc(players.rating));
+    .orderBy(desc(players.rating))
+    .limit(SCOUTING_PROSPECT_LIMIT);
 
   return rows.map((row) => {
     const weight = row.weightCategory ? formatWeightKg(row.weightCategory) : "";

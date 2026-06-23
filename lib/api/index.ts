@@ -38,7 +38,15 @@ import type {
   StateNurseryListItem,
   StateNurserySearchResult,
 } from "@/lib/state-nurseries";
-import type { StateFundsDashboard, StateFundSchemeDetail } from "@/lib/state-portal";
+import type {
+  StateAthleteListItem,
+  StateFundsDashboard,
+  StateFundBeneficiaryListResult,
+  StateFundSchemeDetail,
+  StateFundSchemeHeader,
+  StateReportsDashboard,
+  VerificationBreakdown,
+} from "@/lib/state-portal";
 import type {
   ScheduleSettingsPayload,
   SlotPayload,
@@ -86,6 +94,7 @@ type AuthSessionResponse = {
   user: AuthUserResponse;
   academies: AuthAcademy[];
   needsAcademyOnboarding: boolean;
+  requiresNurseryReregistration: boolean;
   onboardingRequest: {
     id: string;
     status: AcademyOnboardingStatus;
@@ -817,7 +826,34 @@ export const api = {
           totalAllocatedAmountPaise,
         }),
       schemeDetail: (slug: string) =>
-        apiGet<{ detail: StateFundSchemeDetail }>(`/state/funds/schemes/${slug}`),
+        apiGet<{ detail: StateFundSchemeHeader }>(`/state/funds/schemes/${slug}`),
+      listBeneficiaries: (
+        slug: string,
+        params?: {
+          district?: string;
+          sport?: string;
+          grant?: string;
+          nursery?: string;
+          nis?: string;
+          search?: string;
+          offset?: number;
+          limit?: number;
+        }
+      ) => {
+        const search = new URLSearchParams();
+        if (params?.district && params.district !== "all") search.set("district", params.district);
+        if (params?.sport && params.sport !== "all") search.set("sport", params.sport);
+        if (params?.grant && params.grant !== "all") search.set("grant", params.grant);
+        if (params?.nursery && params.nursery !== "all") search.set("nursery", params.nursery);
+        if (params?.nis && params.nis !== "all") search.set("nis", params.nis);
+        if (params?.search?.trim()) search.set("search", params.search.trim());
+        if (params?.offset != null) search.set("offset", String(params.offset));
+        if (params?.limit != null) search.set("limit", String(params.limit));
+        const qs = search.toString();
+        return apiGet<StateFundBeneficiaryListResult>(
+          `/state/funds/schemes/${slug}/beneficiaries${qs ? `?${qs}` : ""}`
+        );
+      },
       updateAllocation: (slug: string, allocatedAmountPaise: number) =>
         apiPatch<{ ok: boolean }>(`/state/funds/schemes/${slug}/allocation`, {
           allocatedAmountPaise,
@@ -838,9 +874,42 @@ export const api = {
           disbursementId,
         }),
     },
+    athletes: {
+      list: (params?: {
+        sport?: string;
+        district?: string;
+        minRating?: number;
+        search?: string;
+        offset?: number;
+        limit?: number;
+      }) => {
+        const search = new URLSearchParams();
+        if (params?.sport && params.sport !== "all") search.set("sport", params.sport);
+        if (params?.district && params.district !== "all") search.set("district", params.district);
+        if (params?.minRating != null) search.set("minRating", String(params.minRating));
+        if (params?.search?.trim()) search.set("search", params.search.trim());
+        if (params?.offset != null) search.set("offset", String(params.offset));
+        if (params?.limit != null) search.set("limit", String(params.limit));
+        const qs = search.toString();
+        return apiGet<{ items: StateAthleteListItem[]; total: number }>(
+          `/state/athletes${qs ? `?${qs}` : ""}`
+        );
+      },
+      downloadRosterReport: (body: {
+        format: "xlsx" | "pdf";
+        sport?: string;
+        district?: string;
+        minRating?: number;
+        search?: string;
+      }) => apiPostBlob("/state/athletes/roster-report", body),
+    },
     reports: {
+      dashboard: () => apiGet<{ dashboard: StateReportsDashboard }>("/state/reports/dashboard"),
       generate: (reportType: string, format: "xlsx" | "pdf") =>
         apiPostBlob("/state/reports/generate", { reportType, format }),
+    },
+    verification: {
+      breakdown: () => apiGet<{ breakdown: VerificationBreakdown }>("/state/verification/breakdown"),
     },
   },
 };
