@@ -78,10 +78,12 @@ export async function fetchVerificationReportData(): Promise<VerificationReportD
 }
 
 export async function fetchFullStateReportData(): Promise<FullStateReportData> {
-  const districts = await fetchDistrictReportData();
-  const funds = await fetchFundReportData();
-  const talent = await fetchTalentPipelineReportData();
-  const verification = await fetchVerificationReportData();
+  const [districts, funds, talent, verification] = await Promise.all([
+    fetchDistrictReportData(),
+    fetchFundReportData(),
+    fetchTalentPipelineReportData(),
+    fetchVerificationReportData(),
+  ]);
   return { districts, funds, talent, verification };
 }
 

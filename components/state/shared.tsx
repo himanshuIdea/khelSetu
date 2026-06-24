@@ -65,20 +65,33 @@ export function FillBarRow({
   percent,
   color,
   labelWidth = "w-24",
+  compact = false,
 }: {
   label: string;
   value: string;
   percent: number;
   color: string;
   labelWidth?: string;
+  compact?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2.5 mb-2.5 last:mb-0">
-      <span className={`text-[12px] font-medium text-text shrink-0 ${labelWidth}`}>{label}</span>
-      <div className="flex-1 h-[18px] bg-line2 rounded-md overflow-hidden">
+    <div className={`flex items-center ${compact ? "gap-2 mb-1" : "gap-2.5 mb-2.5"} last:mb-0`}
+    >
+      <span
+        className={`${compact ? "text-[11px]" : "text-[12px]"} font-medium text-text shrink-0 ${labelWidth}`}
+      >
+        {label}
+      </span>
+      <div
+        className={`flex-1 bg-line2 rounded-md overflow-hidden ${compact ? "h-[12px]" : "h-[18px]"}`}
+      >
         <div className="h-full rounded-md" style={{ width: `${percent}%`, background: color }} />
       </div>
-      <span className="text-[11.5px] font-semibold text-text w-10 text-right shrink-0">{value}</span>
+      <span
+        className={`${compact ? "text-[10.5px]" : "text-[11.5px]"} font-semibold text-text w-8 text-right shrink-0`}
+      >
+        {value}
+      </span>
     </div>
   );
 }

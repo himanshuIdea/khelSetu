@@ -107,7 +107,7 @@ export function StateLandingPage() {
 
           <div className="hidden lg:flex lg:flex-col lg:items-center lg:justify-center lg:w-full lg:min-h-[min(58vh,560px)]">
             <MissionOlympicHeading className="w-full max-w-md xl:max-w-lg" />
-            <StateSignInButton className="mt-30 w-full max-w-md xl:max-w-lg" />
+            <StateSignInButton className="mt-20 w-full max-w-md xl:max-w-lg" />
           </div>
         </div>
 

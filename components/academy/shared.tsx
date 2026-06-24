@@ -283,21 +283,27 @@ export function ScrollableListPanel({
   header,
   children,
   className = "",
+  compactHeader = false,
 }: {
   header?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  compactHeader?: boolean;
 }) {
   return (
     <div
       className={`flex flex-col flex-1 min-h-0 min-w-0 bg-card border border-line rounded-(--radius) overflow-hidden ${className}`}
     >
       {header && (
-        <div className="shrink-0 px-[18px] pt-4 pb-3 bg-card border-b border-line">
+        <div
+          className={`shrink-0 bg-card border-b border-line ${
+            compactHeader ? "px-4 py-2.5" : "px-[18px] pt-4 pb-3"
+          }`}
+        >
           {header}
         </div>
       )}
-      <div className="flex flex-1 min-h-0 flex-col min-w-0">{children}</div>
+      <div className="flex flex-1 min-h-0 flex-col min-w-0 overflow-hidden">{children}</div>
     </div>
   );
 }

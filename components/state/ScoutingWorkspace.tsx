@@ -13,8 +13,6 @@ import {
   PageHeader,
   ScrollableListPanel,
   SectionTitle,
-  StatCard,
-  StatGrid,
   TableCell,
   TableRow,
 } from "@/components/academy/shared";
@@ -42,6 +40,85 @@ import { stateLayout } from "@/lib/state-layout";
 import { statePageMeta } from "@/lib/state-nav";
 import { matchesStateTextSearch } from "@/lib/state-search";
 import type { StateScoutingDashboard, StateScoutingProspect } from "@/lib/state-portal";
+
+function ScoutingStatTile({
+  value,
+  label,
+  valueColor,
+}: {
+  value: React.ReactNode;
+  label: string;
+  valueColor?: string;
+}) {
+  return (
+    <div className="bg-card border border-line rounded-(--radius) px-3 py-2 min-w-0">
+      <div
+        className="font-bold text-[19px] text-ink tracking-tight leading-none"
+        style={valueColor ? { color: valueColor } : undefined}
+      >
+        {value}
+      </div>
+      <div className="text-[10.5px] text-muted mt-1 leading-snug">{label}</div>
+    </div>
+  );
+}
+
+function TalentPipelinePanel({
+  dashboard,
+  hasPipeline,
+  className = "",
+}: {
+  dashboard: StateScoutingDashboard;
+  hasPipeline: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`bg-card border border-line rounded-(--radius) px-3 py-2 min-w-0 w-full h-full ${className}`}
+    >
+      <div className="text-[12.5px] font-bold text-ink">Talent pipeline</div>
+      {hasPipeline ? (
+        <>
+          <div className="mt-2">
+            {dashboard.pipeline.map((stage) => (
+              <FillBarRow
+                key={stage.label}
+                label={stage.label}
+                value={stage.value}
+                percent={stage.percent}
+                color={stage.color}
+                labelWidth="w-[4rem]"
+                compact
+              />
+            ))}
+          </div>
+          <div className="border-t border-line2 pt-1.5 mt-2">
+            <div className="text-[10px] text-muted mb-0.5">By age group</div>
+            <div className="space-y-0.5">
+              {dashboard.ageGroups.map((group) => (
+                <div
+                  key={group.label}
+                  className="flex items-center gap-1 text-[10px] text-muted min-w-0"
+                >
+                  <span
+                    className="w-[5px] h-[5px] rounded-full shrink-0"
+                    style={{ background: group.color }}
+                  />
+                  <span className="truncate">{group.label}</span>
+                  <b className="ml-auto text-text shrink-0 text-[10px]">
+                    {group.count.toLocaleString("en-IN")}
+                  </b>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <StateSectionEmpty screen="scouting" />
+      )}
+    </div>
+  );
+}
 
 type ScoutingWorkspaceProps = {
   dashboard: StateScoutingDashboard;
@@ -298,7 +375,7 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
             ? "Mark athletes as Khelo India or shortlisted to generate a report"
             : undefined
         }
-        className="inline-flex items-center justify-center gap-[7px] bg-brand text-white font-semibold text-[13px] py-[11px] px-4 rounded-[10px] w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+        className="inline-flex items-center justify-center gap-[7px] bg-brand text-white font-semibold text-[13px] py-[8px] px-4 rounded-[10px] w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <UpIcon />
         {meta.actionLabel}
@@ -330,137 +407,158 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
   return (
     <div className={stateLayout.listWorkspace}>
       <div className={stateLayout.listChrome}>
-        <PageHeader title={meta.title} subtitle={subtitle} action={runShortlistAction} />
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,248px)] gap-2 mb-2 items-stretch min-w-0">
+          <div className="min-w-0 flex flex-col gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-[22px] font-bold text-ink tracking-[-0.3px]">
+                  {meta.title}
+                </h1>
+                <p className="text-[13px] text-muted mt-[3px]">{subtitle}</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-start w-full xl:w-auto min-w-0 shrink-0">
+                
+                <button
+                    type="button"
+                    onClick={toggleKheloReady}
+                    className={`shrink-0 inline-flex items-center min-h-[36px] w-full sm:w-auto px-3 py-2 rounded-xl text-[12.5px] font-semibold border transition-colors ${
+                      kheloReadyOnly
+                        ? "bg-brand-soft text-brand-d border-brand/30"
+                        : "bg-card border-line text-muted"
+                    }`}
+                  >
+                    Khelo India ready
+                  </button>
+                  {runShortlistAction}
+              </div>
+            </div>
+            
 
-        {error && (
-          <div className="mb-3 text-[13px] text-[#D63B3B] bg-red-soft border border-[#F5C2C2] rounded-[10px] px-3 py-2">
-            {error}
+            {error && (
+              <div className="text-[13px] text-[#D63B3B] bg-red-soft border border-[#F5C2C2] rounded-[10px] px-3 py-2">
+                {error}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2 min-w-0">
+              <FilterPills>
+                <InlineSelect
+                  value={sportFilter}
+                  options={SPORT_OPTIONS}
+                  onChange={setSportFilter}
+                  variant="pill"
+                  filterPill
+                  className="shrink-0"
+                />
+                <InlineSelect
+                  value={ageFilter}
+                  options={AGE_OPTIONS}
+                  onChange={setAgeFilter}
+                  variant="pill"
+                  filterPill
+                  className="shrink-0"
+                />
+                <InlineSelect
+                  value={districtFilter}
+                  options={DISTRICT_OPTIONS}
+                  onChange={setDistrictFilter}
+                  variant="pill"
+                  filterPill
+                  className="shrink-0"
+                />
+                <RatingFilterSlider value={minRating} onChange={setMinRating} />
+                <InlineSelect
+                  value={statusFilter}
+                  options={SCOUTING_STATUS_FILTER_OPTIONS}
+                  onChange={(value) => {
+                    setStatusFilter(value);
+                    setKheloReadyOnly(value === "khelo_india");
+                  }}
+                  variant="pill"
+                  filterPill
+                  active={statusFilter !== "all"}
+                  className="shrink-0"
+                />
+                
+              </FilterPills>
+            </div>
+
+            {selectedIds.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 p-3 bg-surface border border-line rounded-[12px] min-w-0">
+                <span className="text-[13px] font-semibold text-ink shrink-0">
+                  {selectedIds.size} selected
+                </span>
+                <InlineSelect
+                  value={bulkStatus}
+                  options={SCOUTING_STATUS_OPTIONS.map((o) => ({
+                    value: o.value,
+                    label: o.label,
+                  }))}
+                  onChange={setBulkStatus}
+                  variant="pill"
+                  className="shrink-0"
+                  aria-label="Bulk scouting status"
+                />
+                <button
+                  type="button"
+                  onClick={handleBulkApply}
+                  disabled={bulkSaving}
+                  className="inline-flex items-center justify-center bg-brand text-white font-semibold text-[13px] py-[9px] px-3.5 rounded-[10px] disabled:opacity-60 min-h-[44px]"
+                >
+                  {bulkSaving ? "Applying…" : "Apply to selected"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-[13px] font-medium text-muted min-h-[44px] px-2"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 min-w-0">
+              <ScoutingStatTile
+                value={dashboard.prospectsIdentified.toLocaleString("en-IN")}
+                label="Prospects identified"
+              />
+              <ScoutingStatTile
+                value={dashboard.shortlistedCount.toLocaleString("en-IN")}
+                label="Shortlisted · Khelo India"
+                valueColor={hasIdentified ? "#C77F12" : undefined}
+              />
+              <ScoutingStatTile
+                value={dashboard.inCampsCount.toLocaleString("en-IN")}
+                label="In state training camps"
+              />
+              <ScoutingStatTile
+                value={hasIdentified ? `${dashboard.nationalCampRate}%` : "—"}
+                label="Reached national camp"
+                valueColor={hasIdentified ? "#0E9B72" : undefined}
+              />
+            </div>
           </div>
-        )}
 
-        <div className="flex flex-wrap gap-2 mb-3.5 min-w-0">
-          <FilterPills>
-            <InlineSelect
-              value={sportFilter}
-              options={SPORT_OPTIONS}
-              onChange={setSportFilter}
-              variant="pill"
-              filterPill
-              className="shrink-0"
-            />
-            <InlineSelect
-              value={ageFilter}
-              options={AGE_OPTIONS}
-              onChange={setAgeFilter}
-              variant="pill"
-              filterPill
-              className="shrink-0"
-            />
-            <InlineSelect
-              value={districtFilter}
-              options={DISTRICT_OPTIONS}
-              onChange={setDistrictFilter}
-              variant="pill"
-              filterPill
-              className="shrink-0"
-            />
-            <RatingFilterSlider value={minRating} onChange={setMinRating} />
-            <InlineSelect
-              value={statusFilter}
-              options={SCOUTING_STATUS_FILTER_OPTIONS}
-              onChange={(value) => {
-                setStatusFilter(value);
-                setKheloReadyOnly(value === "khelo_india");
-              }}
-              variant="pill"
-              filterPill
-              active={statusFilter !== "all"}
-              className="shrink-0"
-            />
-            <button
-              type="button"
-              onClick={toggleKheloReady}
-              className={`shrink-0 inline-flex items-center min-h-[36px] px-3 py-2 rounded-full text-[12.5px] font-semibold border transition-colors ${
-                kheloReadyOnly
-                  ? "bg-brand-soft text-brand-d border-brand/30"
-                  : "bg-card border-line text-muted"
-              }`}
-            >
-              Khelo India ready
-            </button>
-          </FilterPills>
+          <TalentPipelinePanel
+            dashboard={dashboard}
+            hasPipeline={hasPipeline}
+            className="self-stretch"
+          />
         </div>
-
-        {selectedIds.size > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mb-3.5 p-3 bg-surface border border-line rounded-[12px] min-w-0">
-            <span className="text-[13px] font-semibold text-ink shrink-0">
-              {selectedIds.size} selected
-            </span>
-            <InlineSelect
-              value={bulkStatus}
-              options={SCOUTING_STATUS_OPTIONS.map((o) => ({
-                value: o.value,
-                label: o.label,
-              }))}
-              onChange={setBulkStatus}
-              variant="pill"
-              className="shrink-0"
-              aria-label="Bulk scouting status"
-            />
-            <button
-              type="button"
-              onClick={handleBulkApply}
-              disabled={bulkSaving}
-              className="inline-flex items-center justify-center bg-brand text-white font-semibold text-[13px] py-[9px] px-3.5 rounded-[10px] disabled:opacity-60 min-h-[44px]"
-            >
-              {bulkSaving ? "Applying…" : "Apply to selected"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedIds(new Set())}
-              className="text-[13px] font-medium text-muted min-h-[44px] px-2"
-            >
-              Clear
-            </button>
-          </div>
-        )}
-
-        <StatGrid>
-          <StatCard
-            compact
-            value={dashboard.prospectsIdentified.toLocaleString("en-IN")}
-            label="Prospects identified"
-          />
-          <StatCard
-            compact
-            value={dashboard.shortlistedCount.toLocaleString("en-IN")}
-            label="Shortlisted · Khelo India"
-            valueColor={hasIdentified ? "#C77F12" : undefined}
-          />
-          <StatCard
-            compact
-            value={dashboard.inCampsCount.toLocaleString("en-IN")}
-            label="In state training camps"
-          />
-          <StatCard
-            compact
-            value={hasIdentified ? `${dashboard.nationalCampRate}%` : "—"}
-            label="Reached national camp"
-            valueColor={hasIdentified ? "#0E9B72" : undefined}
-          />
-        </StatGrid>
       </div>
 
-      <div className={stateLayout.listScrollRegion}>
-        <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-3.5 min-w-0 min-h-0 flex-1 overflow-x-hidden">
-        <div className="min-w-0 min-h-0 flex flex-col">
+      <div className={`${stateLayout.listScrollRegion} overflow-hidden`}>
+        <div className="min-w-0 min-h-0 flex flex-col flex-1 overflow-hidden">
           <ScrollableListPanel
+            compactHeader
             className="flex-1 min-h-0"
             header={
+              <div className="flex flex-col sm:flex-row items-center gap-2">
               <SectionTitle
                 title="Top prospects this quarter"
-                subtitle="ranked by KhelSetu score"
               />
+              <p className="text-[13px] text-muted">ranked by KhelSetu score</p>
+              </div>
             }
           >
             {filtered.length === 0 ? (
@@ -572,51 +670,6 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
               </>
             )}
           </ScrollableListPanel>
-        </div>
-
-        <div className="min-w-0 self-start h-fit lg:sticky lg:top-0">
-          <div className="bg-card border border-line rounded-(--radius) px-[18px] py-3.5 min-w-0">
-            <SectionTitle title="Talent pipeline" />
-            {hasPipeline ? (
-              <>
-                <div className="mt-3.5">
-                  {dashboard.pipeline.map((stage) => (
-                    <FillBarRow
-                      key={stage.label}
-                      label={stage.label}
-                      value={stage.value}
-                      percent={stage.percent}
-                      color={stage.color}
-                      labelWidth="w-24"
-                    />
-                  ))}
-                </div>
-                <div className="border-t border-line2 pt-[11px] mt-3.5">
-                  <div className="text-[11.5px] text-muted mb-2">By age group</div>
-                  <div className="space-y-2">
-                    {dashboard.ageGroups.map((group) => (
-                      <div
-                        key={group.label}
-                        className="flex items-center gap-1.5 text-[11.5px] text-muted min-w-0"
-                      >
-                        <span
-                          className="w-[7px] h-[7px] rounded-full shrink-0"
-                          style={{ background: group.color }}
-                        />
-                        <span className="truncate">{group.label}</span>
-                        <b className="ml-auto text-text shrink-0">
-                          {group.count.toLocaleString("en-IN")}
-                        </b>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <StateSectionEmpty screen="scouting" />
-            )}
-          </div>
-        </div>
         </div>
       </div>
     </div>

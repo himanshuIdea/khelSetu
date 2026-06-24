@@ -1,47 +1,44 @@
 import { StatePageBody } from "@/components/state/StatePageBody";
 import { stateLayout } from "@/lib/state-layout";
 
-function PageHeaderSkeleton() {
+function ChromeSkeleton() {
   return (
-    <div className="mb-[18px] animate-pulse">
-      <div className="h-7 w-48 bg-line rounded-md" />
-      <div className="h-4 w-72 bg-line rounded-md mt-2" />
-    </div>
-  );
-}
-
-function FilterPillsSkeleton() {
-  return (
-    <div className="flex flex-wrap gap-2 mb-3.5 animate-pulse">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-9 w-28 bg-line rounded-full" />
-      ))}
-    </div>
-  );
-}
-
-function StatGridSkeleton() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 animate-pulse">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-[88px] bg-card border border-line rounded-(--radius)" />
-      ))}
-    </div>
-  );
-}
-
-function ScoutingSplitSkeleton() {
-  return (
-    <div className={stateLayout.listScrollRegion}>
-      <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-3.5 min-w-0 min-h-0 flex-1 overflow-x-hidden animate-pulse">
-      <div className="min-w-0 min-h-0 flex flex-col flex-1">
-        <div className="flex flex-col flex-1 min-h-0 bg-card border border-line rounded-(--radius) overflow-hidden">
-          <div className="shrink-0 px-4 py-3 border-b border-line">
-            <div className="h-4 w-52 bg-line rounded-md" />
-            <div className="h-3 w-40 bg-line rounded-md mt-1.5" />
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,248px)] gap-2 mb-2 items-stretch animate-pulse">
+      <div className="min-w-0 flex flex-col gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div>
+            <div className="h-7 w-48 bg-line rounded-md" />
+            <div className="h-4 w-72 bg-line rounded-md mt-2" />
           </div>
-          <div className="flex-1 min-h-0 p-4 space-y-3">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="h-11 w-full sm:w-32 bg-line rounded-[10px] shrink-0" />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-9 w-28 bg-line rounded-full" />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-[58px] bg-card border border-line rounded-(--radius)" />
+          ))}
+        </div>
+      </div>
+      <div className="h-[180px] lg:h-auto lg:min-h-[180px] bg-card border border-line rounded-(--radius)" />
+    </div>
+  );
+}
+
+function ScoutingListSkeleton() {
+  return (
+    <div className={`${stateLayout.listScrollRegion} overflow-hidden`}>
+      <div className="min-w-0 min-h-0 flex flex-col flex-1 overflow-hidden animate-pulse">
+        <div className="flex flex-col flex-1 min-h-0 bg-card border border-line rounded-(--radius) overflow-hidden">
+          <div className="shrink-0 px-4 py-2.5 border-b border-line">
+            <div className="h-4 w-52 bg-line rounded-md" />
+            <div className="h-3 w-40 bg-line rounded-md mt-1" />
+          </div>
+          <div className="flex-1 min-h-0 p-4 space-y-3 overflow-hidden">
+            {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-line rounded shrink-0" />
                 <div className="w-9 h-9 rounded-[9px] bg-line shrink-0" />
@@ -55,10 +52,6 @@ function ScoutingSplitSkeleton() {
           </div>
         </div>
       </div>
-      <div className="min-w-0 self-start h-fit">
-        <div className="bg-card border border-line rounded-(--radius) px-[18px] py-3.5 h-[200px]" />
-      </div>
-      </div>
     </div>
   );
 }
@@ -68,11 +61,9 @@ export default function ScoutingLoading() {
     <StatePageBody variant="list">
       <div className={stateLayout.listWorkspace}>
         <div className={stateLayout.listChrome}>
-          <PageHeaderSkeleton />
-          <FilterPillsSkeleton />
-          <StatGridSkeleton />
+          <ChromeSkeleton />
         </div>
-        <ScoutingSplitSkeleton />
+        <ScoutingListSkeleton />
       </div>
     </StatePageBody>
   );
