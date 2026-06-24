@@ -41,6 +41,7 @@ import type {
 import type {
   StateAthleteListItem,
   StateFundsDashboard,
+  StateOverviewData,
   StateFundBeneficiaryListResult,
   StateFundSchemeDetail,
   StateFundSchemeHeader,
@@ -130,7 +131,7 @@ export const api = {
       otp?: string;
       portal?: "player" | "coach" | "staff" | "admin" | "state";
       next?: string;
-    }) => apiPost<AuthSessionResponse>("/auth/login", body),
+    }) => apiPost<AuthSessionResponse>("/auth/login", body, { timeoutMs: 20_000 }),
     changePassword: (body: { currentPassword: string; newPassword: string }) =>
       apiPost<AuthSessionResponse>("/auth/change-password", body),
     me: () => apiGet<AuthSessionResponse>("/auth/me"),
@@ -722,6 +723,9 @@ export const api = {
   },
 
   state: {
+    overview: {
+      get: () => apiGet<{ data: StateOverviewData }>("/state/overview"),
+    },
     nurseries: {
       list: (filters?: StateNurseryFilters) => {
         const search = new URLSearchParams();

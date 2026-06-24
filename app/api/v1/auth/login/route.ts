@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadEnv } from "@/lib/load-env";
 import { createAuthResponse } from "@/lib/auth/response";
+import type { PortalKind } from "@/lib/auth/portal-login";
 import {
   AuthError,
   InvalidCredentialsError,
@@ -9,10 +10,10 @@ import {
 } from "@/lib/repositories/auth";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 loadEnv();
-
-import type { PortalKind } from "@/lib/auth/portal-login";
 
 type LoginBody = {
   mode: "password" | "otp";

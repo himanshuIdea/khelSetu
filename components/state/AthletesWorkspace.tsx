@@ -32,6 +32,7 @@ type AthletesWorkspaceProps = {
   initialItems: StateAthleteListItem[];
   initialTotal: number;
   defaultMinRating: number;
+  fetchOnMount?: boolean;
 };
 
 const meta = statePageMeta.athletes;
@@ -51,6 +52,7 @@ export function AthletesWorkspace({
   initialItems,
   initialTotal,
   defaultMinRating,
+  fetchOnMount = false,
 }: AthletesWorkspaceProps) {
   const searchQuery = useStatePageSearch();
   const [items, setItems] = useState(initialItems);
@@ -58,7 +60,7 @@ export function AthletesWorkspace({
   const [districtFilter, setDistrictFilter] = useState("all");
   const [sportFilter, setSportFilter] = useState("all");
   const [minRating, setMinRating] = useState(defaultMinRating);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(fetchOnMount);
   const [loadingMore, setLoadingMore] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -138,6 +140,11 @@ export function AthletesWorkspace({
       setLoadingMore(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!fetchOnMount) return;
+    void fetchPage(0, false);
+  }, [fetchOnMount, fetchPage]);
 
   useEffect(() => {
     if (skipInitialRefetchRef.current) {

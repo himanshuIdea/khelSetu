@@ -81,6 +81,11 @@ async function main() {
     });
   });
 
+  await time("getStateOverview", async () => {
+    const { getStateOverview } = await import("@/lib/repositories/state-aggregates");
+    await getStateOverview();
+  });
+
   console.log(`TOTAL: ${Date.now() - totalStart}ms`);
 }
 

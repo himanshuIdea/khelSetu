@@ -10,6 +10,24 @@ export class ApiError extends Error {
   }
 }
 
+export type ApiRequestOptions = {
+  timeoutMs?: number;
+};
+
+function isTimeoutError(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    (error.name === "TimeoutError" || error.name === "AbortError")
+  );
+}
+
+function mapFetchError(error: unknown, timeoutMessage: string): ApiError {
+  if (isTimeoutError(error)) {
+    return new ApiError(timeoutMessage, 408);
+  }
+  return new ApiError("Cannot reach the API. Check your connection and try again.", 503);
+}
+
 /** Browser calls same-origin Next.js routes; server components call the gateway. */
 function resolveApiRoot(): string {
   if (typeof window !== "undefined") return "";
@@ -39,7 +57,11 @@ export async function apiGet<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function apiJson<T>(path: string, init: RequestInit): Promise<T> {
+async function apiJson<T>(
+  path: string,
+  init: RequestInit,
+  options?: ApiRequestOptions
+): Promise<T> {
   let response: Response;
 
   try {
@@ -51,11 +73,12 @@ async function apiJson<T>(path: string, init: RequestInit): Promise<T> {
         "content-type": "application/json",
         ...init.headers,
       },
+      signal: options?.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
     });
-  } catch {
-    throw new ApiError(
-      "Cannot reach the API. Check your connection and try again.",
-      503
+  } catch (error) {
+    throw mapFetchError(
+      error,
+      "The request is taking too long. Check your connection and try again."
     );
   }
 
@@ -71,8 +94,12 @@ async function apiJson<T>(path: string, init: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  return apiJson<T>(path, { method: "POST", body: JSON.stringify(body) });
+export async function apiPost<T>(
+  path: string,
+  body: unknown,
+  options?: ApiRequestOptions
+): Promise<T> {
+  return apiJson<T>(path, { method: "POST", body: JSON.stringify(body) }, options);
 }
 
 export async function apiPatch<T>(path: string, body: unknown): Promise<T> {

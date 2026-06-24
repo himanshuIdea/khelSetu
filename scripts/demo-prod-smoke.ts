@@ -33,15 +33,26 @@ async function login(
   identifier: string,
   password: string
 ) {
+  const t0 = Date.now();
   const res = await fetch(`${base}/api/v1/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ mode: "password", identifier, password, portal }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const ms = Date.now() - t0;
+  const cookies = res.headers.getSetCookie?.() ?? [];
+  console.log(`login-${portal}\t${res.status}\t${ms}ms`);
+  return { cookie: cookies.map((c) => c.split(";")[0]).join("; "), ok: res.ok, ms };
+}
+
+async function logout(cookie: string) {
+  await fetch(`${base}/api/v1/auth/logout`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: "{}",
     signal: AbortSignal.timeout(15_000),
   });
-  const cookies = res.headers.getSetCookie?.() ?? [];
-  console.log(`login-${portal}\t${res.status}`);
-  return { cookie: cookies.map((c) => c.split(";")[0]).join("; "), ok: res.ok };
 }
 
 async function resolveAcademyId(cookie: string): Promise<string | null> {
@@ -69,8 +80,37 @@ async function main() {
   const stateEmail = process.env.STATE_ADMIN_EMAIL?.trim();
   const statePassword = process.env.STATE_ADMIN_PASSWORD?.trim();
   if (stateEmail && statePassword) {
-    const { cookie, ok } = await login("state", stateEmail, statePassword);
+    const { cookie, ok, ms: loginMs } = await login("state", stateEmail, statePassword);
     if (ok) {
+      results.push({
+        label: "state-login",
+        ok: loginMs < 20_000,
+      });
+
+      const overviewShell = await probe(
+        "state overview shell",
+        cookie,
+        "/state/overview",
+        undefined,
+        15_000
+      );
+      results.push({
+        label: overviewShell.label,
+        ok: overviewShell.ok && overviewShell.ms < 15_000,
+      });
+
+      const overviewApi = await probe(
+        "state overview api",
+        cookie,
+        "/api/v1/state/overview",
+        undefined,
+        55_000
+      );
+      results.push({
+        label: overviewApi.label,
+        ok: overviewApi.ok && overviewApi.ms < 55_000,
+      });
+
       for (const path of [
         "/state/overview",
         "/state/reports",
@@ -87,6 +127,13 @@ async function main() {
         body: JSON.stringify({ reportType: "district-performance", format: "xlsx" }),
       }, 90_000);
       results.push({ label: report.label, ok: report.ok });
+
+      await logout(cookie);
+      const relogin = await login("state", stateEmail, statePassword);
+      results.push({
+        label: "state-relogin",
+        ok: relogin.ok && relogin.ms < 20_000,
+      });
     } else {
       results.push({ label: "state-login", ok: false });
     }

@@ -54,7 +54,7 @@ export function useStatePageSearch(): string {
   useEffect(() => {
     if (!ctx) return;
     return ctx.register();
-  }, [ctx]);
+  }, [ctx?.register]);
 
   return ctx?.query ?? "";
 }

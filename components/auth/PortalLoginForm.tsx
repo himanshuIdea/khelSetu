@@ -85,10 +85,15 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
       completeAuthRedirect(result.redirectTo);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        setError(
+          err.status === 408
+            ? "Sign-in is taking too long. Check your connection and try again."
+            : err.message
+        );
       } else {
         setError("Something went wrong. Please try again.");
       }
+    } finally {
       setIsSubmitting(false);
     }
   }

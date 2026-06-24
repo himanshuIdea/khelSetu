@@ -37,51 +37,44 @@ The state portal on Vercel fails in **two independent ways** that look similar i
 
 ## Request flow maps
 
-### A. State login (current — server action)
+### A. State login (current — API + completeAuthRedirect)
 
 ```
 Browser /auth/state/login
-  → form action=portalLoginAction (useActionState)
-  → Node server action: loginWithIdentifier → cookies().set → redirect("/state")
-  → Browser follows redirect
+  → fetch POST /api/v1/auth/login (20s client timeout, maxDuration=30)
+  → Set-Cookie on JSON response
+  → completeAuthRedirect(redirectTo) → window.location.assign("/state")
   → Edge middleware: verify JWT from cookie → allow/deny /state
   → Node RSC: StateLayoutContent → getStateAdminShellMeta → render shell
 ```
 
 **Failure points:**
 
-1. Cookie from server action not visible to **Edge middleware** on next request (timing / RSC navigation).
+1. Login API hangs → client shows timeout error after 20s (`PortalLoginForm` `finally` resets submitting).
 2. JWT missing `platformRole: "state_admin"` → middleware redirects to login while login page `redirectIfAuthenticated` (DB profile) sends user back to `/state` → **loop**.
 3. `JWT_SECRET` missing on Edge → verify returns null → always login.
 
-### B. State login (previous — API + completeAuthRedirect)
+### B. State login (deprecated — server action)
 
 ```
-Browser → fetch POST /api/v1/auth/login (credentials: include)
-  → Route handler: Set-Cookie on JSON response
-  → completeAuthRedirect(redirectTo) → window.location.assign("/state")
-  → Edge middleware → Node RSC (same as above)
+Browser → portalLoginAction (removed) — do not reintroduce without Vercel smoke test
 ```
 
-**Documented in** `lib/auth/complete-auth-redirect.ts` as the fix for Set-Cookie + middleware race. **Still used by** signup and change-password; **not used by** portal login after `69a9046`.
+**Documented in** `lib/auth/complete-auth-redirect.ts`. Portal login uses API path again (LOG-VERCEL-002 resolved).
 
-### C. State page SSR (after auth passes)
+### C. State page load (after auth passes)
 
 ```
-GET /state/nurseries (_rsc= soft nav or full load)
+GET /state/overview
   → middleware 200
-  → app/state/layout.tsx (force-dynamic, maxDuration=60)
-    → Suspense → StateLayoutContent → getStateAdminShellMeta (1 DB query)
-    → Suspense → page → listStateNurseries / etc.
-      → getStateNurseryContext → cacheStateNurseryVerification (in-memory TTL)
-      → multiple cross-academy DB queries (pool max=1 on Vercel)
+  → app/state/layout.tsx → getStateAdminShellMeta only (fast shell)
+  → OverviewWorkspace (client) → GET /api/v1/state/overview (maxDuration=60)
+      → getStateOverview() in separate serverless invocation
+
+GET /state/scouting | /state/athletes
+  → layout shell + light SSR (scouting dashboard only)
+  → client fetch via /api/v1/state/scouting/prospects | /api/v1/state/athletes
 ```
-
-**Failure points:**
-
-1. Total SSR > 60s → Status 0, skeleton forever (`app/state/layout.tsx` `maxDuration = 60`).
-2. `unstable_cache` on dynamic routes → Runtime Cache hang until 60s (**mitigated** by in-memory cache).
-3. Remote DB latency (Mumbai `bom1` → DB region) × serial queries on one connection.
 
 ---
 
@@ -103,12 +96,22 @@ GET /state/nurseries (_rsc= soft nav or full load)
 
 | Field | Value |
 |-------|-------|
-| **Status** | **Open** — introduced `69a9046` |
-| **Symptom** | Submit login → stays on `/auth/state/login` or brief flash then back |
-| **Log signature** | Login API may not be called at all (server action); middleware 302 to login on `/state` |
-| **Root cause** | Portal login moved to `portalLoginAction` + `useActionState`; inconsistent with proven `completeAuthRedirect` path used elsewhere |
-| **Recommended fix** | Revert portal login to `api.auth.login` + `completeAuthRedirect` (P0) |
-| **Files** | `PortalLoginForm.tsx`, `portal-login-action.ts`, `session-cookie.ts`, `complete-auth-redirect.ts` |
+| **Status** | **Resolved** (2026-06-24) — reverted to API login + `completeAuthRedirect` |
+| **Symptom** | Submit login → stays on `/auth/state/login` or "Signing in…" forever |
+| **Fix applied** | `PortalLoginForm.tsx` → `api.auth.login` + `completeAuthRedirect`; removed `portal-login-action.ts`; login `timeoutMs: 20_000`; `finally` resets submitting; `app/api/v1/auth/login/route.ts` `maxDuration=30` |
+| **Files** | `PortalLoginForm.tsx`, `lib/api/http.ts`, `app/api/v1/auth/login/route.ts`, `complete-auth-redirect.ts` |
+
+### LOG-VERCEL-013 — Overview SSR 60s timeout on cold login
+
+| Field | Value |
+|-------|-------|
+| **Status** | **Mitigated** (2026-06-24) |
+| **Symptom** | First login → `/state/overview` skeleton 60s then fails; reload works |
+| **Log signature** | `GET /state/overview` Execution **1m/1m**; request ID e.g. `vgnfj-1782293913282-d60c5662147f` |
+| **Root cause** | `getStateOverview()` bundled in same RSC invocation as layout auth; 6 aggregate loaders × pool max=1 on cold Vercel |
+| **Fix applied** | Client `OverviewWorkspace` + `GET /api/v1/state/overview` (`maxDuration=60`); scouting/athletes slim SSR + client list fetch |
+| **Verify** | `pnpm qa:demo-prod` — overview shell &lt;15s, overview API &lt;55s, relogin &lt;20s |
+| **Files** | `app/api/v1/state/overview/route.ts`, `components/state/OverviewWorkspace.tsx`, `app/state/overview/page.tsx`, `app/state/scouting/page.tsx`, `app/state/athletes/page.tsx` |
 
 ### LOG-VERCEL-003 — Middleware ↔ login page redirect loop
 
@@ -303,7 +306,7 @@ Set in **Production** (and Preview if used for demos):
 1. **One login transport for all portals** — `POST /api/v1/auth/login` + `completeAuthRedirect`. Do not mix server actions for login until Vercel-smoke proven.
 2. **Never add `unstable_cache` to `force-dynamic` state read paths** — use React `cache()` + short in-memory TTL only.
 3. **Password login only** on Vercel demo — no OTP unless `OTP_STUB_ENABLED=true`.
-4. **Smoke test after every deploy** — login + one state list page + one XLSX report.
+4. **Smoke test after every deploy** — login + `/state/overview` shell (&lt;15s) + `/api/v1/state/overview` (&lt;55s) + one XLSX report.
 5. **One prod DB, one `next start` instance** during local prod QA — avoids `57014` timeouts.
 6. **Avoid full-state PDF** on Hobby / under time pressure — use district XLSX.
 7. **Keep env minimal** — no `localhost` URLs in Vercel env vars.
@@ -317,11 +320,11 @@ Set in **Production** (and Preview if used for demos):
 
 | Priority | Item | Effort | Stabilizes |
 |----------|------|--------|------------|
-| **P0** | Revert portal login to API + `completeAuthRedirect` | Small | LOG-VERCEL-002 |
-| **P0** | Vercel post-deploy smoke script (login + nurseries) | Small | Regression detection |
+| **P0** | ~~Revert portal login to API + `completeAuthRedirect`~~ | Done | LOG-VERCEL-002 |
+| **P0** | ~~Overview client/API split~~ | Done | LOG-VERCEL-013 |
+| **P0** | Vercel post-deploy smoke script (login + overview shell + API) | Done | Regression detection |
 | **P0** | Document + verify prod DB seed for state admin | Ops | LOG-VERCEL-004 |
 | **P1** | `Promise.all` in `fetchFullStateReportData()` | Small | LOG-VERCEL-008 |
-| **P1** | Stream overview sections with nested Suspense | Medium | Layout timeout margin |
 | **P1** | Align middleware + layout auth (single source) | Medium | LOG-VERCEL-003, 011 |
 | **P2** | Remove redundant `loadEnv()` imports from API routes | Low | Noise |
 | **P2** | Split `getAcademyMeta` cache (academy microservice vs Next) | Medium | LOG-VERCEL-012 |

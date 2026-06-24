@@ -123,6 +123,7 @@ type ScoutingWorkspaceProps = {
   initialTotal: number;
   scopeTotal: number;
   defaultMinRating: number;
+  fetchProspectsOnMount?: boolean;
 };
 
 const meta = statePageMeta.scouting;
@@ -160,14 +161,16 @@ export function ScoutingWorkspace({
   dashboard,
   initialProspects,
   initialTotal,
-  scopeTotal,
+  scopeTotal: scopeTotalProp,
   defaultMinRating,
+  fetchProspectsOnMount = false,
 }: ScoutingWorkspaceProps) {
   const router = useRouter();
   const searchQuery = useStatePageSearch();
 
   const [items, setItems] = useState(initialProspects);
   const [total, setTotal] = useState(initialTotal);
+  const [scopeTotal, setScopeTotal] = useState(scopeTotalProp);
   const [statusOverrides, setStatusOverrides] = useState<
     Record<string, ScoutingStatus | null | undefined>
   >({});
@@ -183,7 +186,8 @@ export function ScoutingWorkspace({
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(fetchProspectsOnMount);
+  const [initializing, setInitializing] = useState(fetchProspectsOnMount);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const [shortlistOpen, setShortlistOpen] = useState(false);
@@ -288,6 +292,31 @@ export function ScoutingWorkspace({
       setLoadingMore(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!fetchProspectsOnMount) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      setInitializing(true);
+      await fetchPage(0, false);
+      if (cancelled) return;
+
+      try {
+        const scope = await api.state.scouting.listProspects({ offset: 0, limit: 1 });
+        if (!cancelled) setScopeTotal(scope.total);
+      } catch {
+        if (!cancelled) setScopeTotal(0);
+      } finally {
+        if (!cancelled) setInitializing(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchProspectsOnMount, fetchPage]);
 
   useEffect(() => {
     if (skipInitialRefetchRef.current) {
@@ -542,7 +571,7 @@ export function ScoutingWorkspace({
     </div>
   );
 
-  if (!hasAnyData) {
+  if (!hasAnyData && !initializing && !loading) {
     return (
       <div className={stateLayout.listWorkspace}>
         <div className={stateLayout.listChrome}>
