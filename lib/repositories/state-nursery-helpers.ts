@@ -1,12 +1,10 @@
 import { cache } from "react";
-import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  academyOnboardingRequests,
   academySports,
   players,
   sports,
-  stateNurseryRegistrations,
 } from "@/db/schema";
 import type { NurseryVerificationStatus } from "@/lib/state-nurseries";
 import { cacheStateNurseryVerification } from "./state-portal-cache";
@@ -67,38 +65,24 @@ export const getAthleteCountByAcademy = cache(async (academyIds: string[]) => {
 async function fetchNurseryVerificationEntries(): Promise<
   [string, NurseryVerificationStatus][]
 > {
-  const [registrationRows, approvedRows] = await Promise.all([
-    db
-      .select({
-        academyId: stateNurseryRegistrations.academyId,
-        verificationStatus: stateNurseryRegistrations.verificationStatus,
-      })
-      .from(stateNurseryRegistrations),
-    db
-      .select({ academyId: academyOnboardingRequests.academyId })
-      .from(academyOnboardingRequests)
-      .where(
-        and(
-          eq(academyOnboardingRequests.status, "approved"),
-          isNotNull(academyOnboardingRequests.academyId)
-        )
-      ),
-  ]);
+  const rows = await db.execute<{
+    academy_id: string;
+    status: string;
+  }>(sql`
+    SELECT r.academy_id, r.verification_status::text AS status
+    FROM platform.state_nursery_registrations r
+    UNION ALL
+    SELECT o.academy_id, 'verified' AS status
+    FROM platform.academy_onboarding_requests o
+    WHERE o.status = 'approved'
+      AND o.academy_id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM platform.state_nursery_registrations r2
+        WHERE r2.academy_id = o.academy_id
+      )
+  `);
 
-  const map = new Map<string, NurseryVerificationStatus>(
-    registrationRows.map((row) => [
-      row.academyId,
-      row.verificationStatus as NurseryVerificationStatus,
-    ])
-  );
-
-  for (const row of approvedRows) {
-    if (row.academyId && !map.has(row.academyId)) {
-      map.set(row.academyId, "verified");
-    }
-  }
-
-  return [...map.entries()];
+  return rows.map((row) => [row.academy_id, row.status as NurseryVerificationStatus]);
 }
 
 export const getNurseryVerificationByAcademy = cache(async (): Promise<

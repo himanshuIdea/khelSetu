@@ -724,7 +724,10 @@ export const api = {
 
   state: {
     overview: {
-      get: () => apiGet<{ data: StateOverviewData }>("/state/overview"),
+      get: () =>
+        apiGet<{ data: StateOverviewData }>("/state/overview", {
+          timeoutMs: 55_000,
+        }),
     },
     nurseries: {
       list: (filters?: StateNurseryFilters) => {
@@ -939,7 +942,7 @@ export const api = {
     reports: {
       dashboard: () => apiGet<{ dashboard: StateReportsDashboard }>("/state/reports/dashboard"),
       generate: (reportType: string, format: "xlsx" | "pdf") =>
-        apiPostBlob("/state/reports/generate", { reportType, format }),
+        apiPostBlob("/state/reports/generate", { reportType, format }, { timeoutMs: 90_000 }),
     },
     verification: {
       breakdown: () => apiGet<{ breakdown: VerificationBreakdown }>("/state/verification/breakdown"),

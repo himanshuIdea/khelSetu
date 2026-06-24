@@ -51,7 +51,9 @@ async function run(base: string, tag: string) {
   const cookie = await login(base);
   const paths = [
     "/state/overview",
+    "/api/v1/state/overview",
     "/state/reports",
+    "/api/v1/state/reports/dashboard",
     "/state/funds",
     "/api/v1/state/nurseries",
     "/api/v1/state/funds",

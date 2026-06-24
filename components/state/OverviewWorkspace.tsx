@@ -11,7 +11,6 @@ import {
   TableCell,
   TableRow,
 } from "@/components/academy/shared";
-import { StatePageBody } from "@/components/state/StatePageBody";
 import { StateSectionEmpty } from "@/components/state/StateEmptyStates";
 import { StateOverviewLoading } from "@/components/state/StateRouteLoading";
 import {
@@ -76,7 +75,7 @@ export function OverviewWorkspace() {
 
   if (loading && !data) {
     return (
-      <StatePageBody>
+      <>
         {slow && (
           <div className="mb-3 text-[13px] text-muted bg-surface border border-line rounded-[10px] px-3 py-2">
             Dashboard is taking longer than usual.{" "}
@@ -99,25 +98,23 @@ export function OverviewWorkspace() {
           </div>
         )}
         <StateOverviewLoading />
-      </StatePageBody>
+      </>
     );
   }
 
   if (error && !data) {
     return (
-      <StatePageBody>
-        <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-          <h2 className="text-lg font-bold text-ink">Could not load dashboard</h2>
-          <p className="text-[13px] text-muted mt-2 max-w-md">{error}</p>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="mt-6 min-h-[44px] px-5 rounded-[10px] bg-brand text-white text-[13px] font-semibold"
-          >
-            Try again
-          </button>
-        </div>
-      </StatePageBody>
+      <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+        <h2 className="text-lg font-bold text-ink">Could not load dashboard</h2>
+        <p className="text-[13px] text-muted mt-2 max-w-md">{error}</p>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="mt-6 min-h-[44px] px-5 rounded-[10px] bg-brand text-white text-[13px] font-semibold"
+        >
+          Try again
+        </button>
+      </div>
     );
   }
 
@@ -134,7 +131,7 @@ export function OverviewWorkspace() {
   const hasFundUtilisation = fundUtilisation.rows.length > 0;
 
   return (
-    <StatePageBody>
+    <>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-3.5">
         <div>
           <h1 className="text-xl sm:text-[21px] font-bold text-ink tracking-[-0.3px]">{meta.title}</h1>
@@ -387,6 +384,6 @@ export function OverviewWorkspace() {
           )}
         </div>
       </div>
-    </StatePageBody>
+    </>
   );
 }

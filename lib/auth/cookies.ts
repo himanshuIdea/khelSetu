@@ -1,12 +1,28 @@
 export const SESSION_COOKIE_NAME = "khelsetu_session";
 
-function resolveCookieSecure(): boolean {
+function isLocalHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "::1";
+}
+
+/** Secure only when the app is served over HTTPS (Vercel or explicit https APP_URL). */
+export function resolveCookieSecure(requestUrl?: string | null): boolean {
   const override = process.env.COOKIE_SECURE;
   if (override === "true") return true;
   if (override === "false") return false;
 
   // Vercel always serves over HTTPS — Secure cookies must be set in production.
   if (process.env.VERCEL) return true;
+
+  if (requestUrl) {
+    try {
+      const { protocol, hostname } = new URL(requestUrl);
+      if (isLocalHost(hostname)) return false;
+      return protocol === "https:";
+    } catch {
+      // fall through
+    }
+  }
 
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
@@ -15,20 +31,23 @@ function resolveCookieSecure(): boolean {
 
   if (appUrl) {
     try {
-      return new URL(appUrl).protocol === "https:";
+      const { protocol, hostname } = new URL(appUrl);
+      if (isLocalHost(hostname)) return false;
+      return protocol === "https:";
     } catch {
-      // fall through to NODE_ENV fallback
+      // fall through
     }
   }
 
-  return process.env.NODE_ENV === "production";
+  // Local `next start` on HTTP — never force Secure (browser would drop the cookie).
+  return false;
 }
 
-export function getSessionCookieOptions(maxAgeSeconds: number) {
+export function getSessionCookieOptions(maxAgeSeconds: number, requestUrl?: string | null) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: resolveCookieSecure(),
+    secure: resolveCookieSecure(requestUrl),
     path: "/",
     maxAge: maxAgeSeconds,
   };

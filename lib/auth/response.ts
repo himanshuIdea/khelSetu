@@ -21,7 +21,8 @@ export type AuthResponseOptions = {
 
 export async function createAuthResponse(
   profile: AuthProfile,
-  options: AuthResponseOptions = {}
+  options: AuthResponseOptions = {},
+  requestUrl?: string | null
 ) {
   const redirectTo =
     options.portal != null
@@ -48,15 +49,15 @@ export async function createAuthResponse(
     redirectTo,
   });
 
-  attachSessionCookie(response, token);
+  attachSessionCookie(response, token, requestUrl);
 
   return response;
 }
 
-export function createLogoutResponse() {
+export function createLogoutResponse(requestUrl?: string | null) {
   const response = NextResponse.json({ ok: true });
   response.cookies.set(SESSION_COOKIE_NAME, "", {
-    ...getSessionCookieOptions(0),
+    ...getSessionCookieOptions(0, requestUrl),
     maxAge: 0,
   });
   return response;

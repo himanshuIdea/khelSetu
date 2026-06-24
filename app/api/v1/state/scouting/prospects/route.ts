@@ -11,6 +11,7 @@ import {
 import type { StateScoutingFilters } from "@/lib/state-portal";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 loadEnv();
 

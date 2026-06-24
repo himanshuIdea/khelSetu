@@ -1,15 +1,6 @@
 import { cache } from "react";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import {
-  academies,
-  batches,
-  coaches,
-  players,
-  sports,
-  stateFundDisbursements,
-  stateFundSchemes,
-} from "@/db/schema";
 import { formatCompactCount, formatPaise } from "@/lib/format";
 import type {
   DistrictSportBar,
@@ -22,16 +13,57 @@ import type {
 } from "@/lib/state-portal";
 import type { NurseryVerificationStatus } from "@/lib/state-nurseries";
 import { getStateNurseryContext } from "./state-nursery-helpers";
-import { getActiveFiscalYear } from "./state-funds";
+import {
+  activeNurseryPlayersCte,
+  listedNurseriesCte,
+} from "./state-overview-sql";
 import { cacheStateOverviewSnapshot } from "./state-portal-cache";
 
 const SEGMENT_COLORS = ["#FF6B2C", "#2F6BFF", "#7C5CFC", "#12B886", "#9AA4B8"];
+const TALENT_PIPELINE_LIMIT = 8;
 
 type DistrictSportRow = {
   district: string;
   sportName: string;
   count: number;
 };
+
+type DistrictSportJson = {
+  district: string;
+  sportName: string;
+  count: number;
+};
+
+type TalentPipelineJson = {
+  fullName: string;
+  rating: string | null;
+  avatarColor: string;
+  weightCategory: string | null;
+  sportName: string;
+  district: string;
+  batchName: string | null;
+};
+
+type FundSchemeRow = {
+  name: string;
+  color: string;
+  allocated_amount_paise: number;
+  paid_paise: number;
+};
+
+function parseJsonColumn<T>(value: unknown): T[] {
+  if (value == null) return [];
+  if (Array.isArray(value)) return value as T[];
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Array.isArray(parsed) ? (parsed as T[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
 
 function verificationFromMap(
   verificationMap: Map<string, NurseryVerificationStatus>
@@ -135,149 +167,134 @@ function buildDistrictBars(
   });
 }
 
-const nurseryPlayerScope = (academyIds: string[]) =>
-  and(
-    inArray(players.academyId, academyIds),
-    inArray(players.status, ["active", "on_hold"]),
-    isNull(academies.deletedAt)
-  );
-
-async function fetchDistrictSportRows(academyIds: string[]): Promise<DistrictSportRow[]> {
-  const rows = await db
-    .select({
-      district: academies.district,
-      sportName: sports.name,
-      count: sql<number>`count(*)`,
-    })
-    .from(players)
-    .innerJoin(academies, eq(players.academyId, academies.id))
-    .innerJoin(sports, eq(players.sportId, sports.id))
-    .where(nurseryPlayerScope(academyIds))
-    .groupBy(academies.district, sports.name);
-
-  return rows.map((row) => ({
-    district: row.district,
-    sportName: row.sportName,
-    count: Number(row.count),
-  }));
-}
-
-async function fetchAthleteCoachCounts(academyIds: string[]) {
-  const [athleteRow, coachRow] = await Promise.all([
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(players)
-      .where(
-        and(
-          inArray(players.academyId, academyIds),
-          inArray(players.status, ["active", "on_hold"])
-        )
-      ),
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(coaches)
-      .where(inArray(coaches.academyId, academyIds)),
-  ]);
-
-  return {
-    athletes: Number(athleteRow[0]?.count ?? 0),
-    coaches: Number(coachRow[0]?.count ?? 0),
-  };
-}
-
-async function fetchTalentPipelineRows(
-  academyIds: string[],
-  limit: number
-): Promise<TalentPipelineRow[]> {
-  const rows = await db
-    .select({
-      fullName: players.fullName,
-      rating: players.rating,
-      avatarColor: players.avatarColor,
-      weightCategory: players.weightCategory,
-      sportName: sports.name,
-      district: academies.district,
-      batchName: batches.name,
-    })
-    .from(players)
-    .innerJoin(academies, eq(players.academyId, academies.id))
-    .innerJoin(sports, eq(players.sportId, sports.id))
-    .leftJoin(batches, eq(players.batchId, batches.id))
-    .where(nurseryPlayerScope(academyIds))
-    .orderBy(desc(players.rating))
-    .limit(limit);
-
-  return rows.map((row) => ({
-    name: row.fullName,
-    sport: row.weightCategory
-      ? `${row.sportName} · ${row.weightCategory}`
-      : row.sportName,
-    district: row.district,
-    category: row.batchName ?? "—",
-    score: row.rating ?? "—",
-    avatarColor: row.avatarColor,
-  }));
-}
-
 function utilPercent(paid: number, allocated: number): number {
   if (allocated <= 0) return 0;
   return Math.round((paid / allocated) * 100);
 }
 
-/** Two-query fund panel for overview (schemes + paid totals). */
-async function fetchFundUtilisationSummaryFast(): Promise<StateFundUtilisationSummary> {
-  const fy = await getActiveFiscalYear();
-  if (!fy) {
-    return { rows: [], totalDisbursed: "₹0" };
+/**
+ * One round-trip for player panels — joins `listed_nurseries` instead of IN(uuid[]).
+ * Avoids large academy id lists and duplicate player table scans.
+ */
+async function fetchPlayerOverviewBundle() {
+  const rows = await db.execute<{
+    athlete_count: number;
+    coach_count: number;
+    district_sport: unknown;
+    talent: unknown;
+  }>(sql`
+    WITH ${listedNurseriesCte},
+    ${activeNurseryPlayersCte},
+    district_sport AS (
+      SELECT district, sport_name, COUNT(*)::int AS cnt
+      FROM scoped_players
+      GROUP BY district, sport_name
+    ),
+    talent AS (
+      SELECT * FROM scoped_players
+      ORDER BY rating DESC NULLS LAST
+      LIMIT ${TALENT_PIPELINE_LIMIT}
+    )
+    SELECT
+      (SELECT COUNT(*)::int FROM scoped_players) AS athlete_count,
+      (
+        SELECT COUNT(*)::int
+        FROM people.coaches c
+        INNER JOIN listed_nurseries ln ON ln.academy_id = c.academy_id
+      ) AS coach_count,
+      (
+        SELECT COALESCE(json_agg(json_build_object(
+          'district', ds.district,
+          'sportName', ds.sport_name,
+          'count', ds.cnt
+        )), '[]'::json)
+        FROM district_sport ds
+      ) AS district_sport,
+      (
+        SELECT COALESCE(json_agg(json_build_object(
+          'fullName', t.full_name,
+          'rating', t.rating,
+          'avatarColor', t.avatar_color,
+          'weightCategory', t.weight_category,
+          'sportName', t.sport_name,
+          'district', t.district,
+          'batchName', t.batch_name
+        )), '[]'::json)
+        FROM talent t
+      ) AS talent
+  `);
+
+  const row = rows[0];
+  if (!row) {
+    return {
+      athletes: 0,
+      coaches: 0,
+      districtSportRows: [] as DistrictSportRow[],
+      talentPipeline: [] as TalentPipelineRow[],
+    };
   }
 
-  const [schemeRows, paidRows] = await Promise.all([
-    db
-      .select({
-        id: stateFundSchemes.id,
-        name: stateFundSchemes.name,
-        color: stateFundSchemes.color,
-        allocatedAmountPaise: stateFundSchemes.allocatedAmountPaise,
-      })
-      .from(stateFundSchemes)
-      .where(eq(stateFundSchemes.fiscalYearId, fy.id))
-      .orderBy(stateFundSchemes.sortOrder),
-    db
-      .select({
-        schemeId: stateFundDisbursements.schemeId,
-        total: sql<number>`coalesce(sum(${stateFundDisbursements.amountPaise}), 0)`,
-      })
-      .from(stateFundDisbursements)
-      .innerJoin(stateFundSchemes, eq(stateFundDisbursements.schemeId, stateFundSchemes.id))
-      .where(
-        and(eq(stateFundSchemes.fiscalYearId, fy.id), eq(stateFundDisbursements.status, "paid"))
-      )
-      .groupBy(stateFundDisbursements.schemeId),
-  ]);
-
-  if (schemeRows.length === 0) {
-    return { rows: [], totalDisbursed: "₹0" };
-  }
-
-  const paidByScheme = new Map(paidRows.map((row) => [row.schemeId, Number(row.total ?? 0)]));
-  let totalPaise = 0;
-
-  const rows = schemeRows
-    .map((scheme) => {
-      const disbursedPaise = paidByScheme.get(scheme.id) ?? 0;
-      totalPaise += disbursedPaise;
-      const util = utilPercent(disbursedPaise, scheme.allocatedAmountPaise);
-      return {
-        label: scheme.name,
-        value: `${util}%`,
-        percent: util,
-        color: scheme.color,
-      };
-    })
-    .slice(0, 5);
+  const districtSport = parseJsonColumn<DistrictSportJson>(row.district_sport);
+  const talentRows = parseJsonColumn<TalentPipelineJson>(row.talent);
 
   return {
-    rows,
+    athletes: Number(row.athlete_count ?? 0),
+    coaches: Number(row.coach_count ?? 0),
+    districtSportRows: districtSport.map((entry) => ({
+      district: entry.district,
+      sportName: entry.sportName,
+      count: Number(entry.count),
+    })),
+    talentPipeline: talentRows.map((entry) => ({
+      name: entry.fullName,
+      sport: entry.weightCategory
+        ? `${entry.sportName} · ${entry.weightCategory}`
+        : entry.sportName,
+      district: entry.district,
+      category: entry.batchName ?? "—",
+      score: entry.rating ?? "—",
+      avatarColor: entry.avatarColor,
+    })),
+  };
+}
+
+/** One round-trip: active FY schemes + paid disbursement totals. */
+async function fetchFundUtilisationSummaryFast(): Promise<StateFundUtilisationSummary> {
+  const rows = await db.execute<FundSchemeRow>(sql`
+    SELECT
+      s.name,
+      s.color,
+      s.allocated_amount_paise,
+      COALESCE(SUM(d.amount_paise) FILTER (WHERE d.status = 'paid'), 0)::bigint AS paid_paise
+    FROM platform.state_fiscal_years fy
+    INNER JOIN platform.state_fund_schemes s ON s.fiscal_year_id = fy.id
+    LEFT JOIN platform.state_fund_disbursements d ON d.scheme_id = s.id
+    WHERE fy.is_active = true
+    GROUP BY s.id, s.name, s.color, s.allocated_amount_paise, s.sort_order
+    ORDER BY s.sort_order
+    LIMIT 5
+  `);
+
+  if (rows.length === 0) {
+    return { rows: [], totalDisbursed: "₹0" };
+  }
+
+  let totalPaise = 0;
+  const fundRows = rows.map((scheme) => {
+    const disbursedPaise = Number(scheme.paid_paise ?? 0);
+    const allocated = Number(scheme.allocated_amount_paise ?? 0);
+    totalPaise += disbursedPaise;
+    const util = utilPercent(disbursedPaise, allocated);
+    return {
+      label: scheme.name,
+      value: `${util}%`,
+      percent: util,
+      color: scheme.color,
+    };
+  });
+
+  return {
+    rows: fundRows,
     totalDisbursed: formatPaise(totalPaise),
   };
 }
@@ -294,7 +311,7 @@ function emptySummary(verification: VerificationBreakdown): StateSummary {
   };
 }
 
-/** Consolidated overview fetch — minimal DB round-trips (no duplicate sport scans). */
+/** Cold path: 3 serial round-trips (nursery map cache, player bundle, funds). */
 async function fetchStateOverviewUncached(): Promise<StateOverviewData> {
   const { verificationByAcademy, academyIds } = await getStateNurseryContext();
   const verification = verificationFromMap(verificationByAcademy);
@@ -312,13 +329,10 @@ async function fetchStateOverviewUncached(): Promise<StateOverviewData> {
     };
   }
 
-  const [counts, districtSportRows, talentPipeline, fundUtilisation] = await Promise.all([
-    fetchAthleteCoachCounts(academyIds),
-    fetchDistrictSportRows(academyIds),
-    fetchTalentPipelineRows(academyIds, 8),
-    fetchFundUtilisationSummaryFast(),
-  ]);
+  const playerBundle = await fetchPlayerOverviewBundle();
+  const fundUtilisation = await fetchFundUtilisationSummaryFast();
 
+  const { districtSportRows, talentPipeline } = playerBundle;
   const rankedSports = rankSportsByCount(districtSportRows);
   const topSports = rankedSports.slice(0, 4).map((row) => row.sportName);
   const sportLegend = buildSportLegend(rankedSports);
@@ -326,8 +340,8 @@ async function fetchStateOverviewUncached(): Promise<StateOverviewData> {
 
   const summary: StateSummary = {
     nurseryCount: academyIds.length,
-    athleteCount: counts.athletes,
-    coachCount: counts.coaches,
+    athleteCount: playerBundle.athletes,
+    coachCount: playerBundle.coaches,
     verifiedCount: verification.verified,
     pendingCount: verification.pending,
     flaggedCount: verification.flagged,

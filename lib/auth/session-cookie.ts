@@ -18,11 +18,15 @@ export async function createSessionTokenForProfile(profile: AuthProfile): Promis
   });
 }
 
-export function attachSessionCookie(response: NextResponse, token: string) {
+export function attachSessionCookie(
+  response: NextResponse,
+  token: string,
+  requestUrl?: string | null
+) {
   response.cookies.set(
     SESSION_COOKIE_NAME,
     token,
-    getSessionCookieOptions(getSessionMaxAgeSeconds())
+    getSessionCookieOptions(getSessionMaxAgeSeconds(), requestUrl)
   );
 }
 

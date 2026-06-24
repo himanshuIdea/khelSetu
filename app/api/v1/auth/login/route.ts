@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         password: body.password,
       });
 
-      return createAuthResponse(profile, authOptions);
+      return createAuthResponse(profile, authOptions, request.url);
     }
 
     if (!body.phone?.trim() || !body.otp?.trim()) {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       otp: body.otp,
     });
 
-    return createAuthResponse(profile, authOptions);
+    return createAuthResponse(profile, authOptions, request.url);
   } catch (error) {
     if (error instanceof InvalidCredentialsError || error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: 401 });

@@ -25,6 +25,8 @@ export function handleStateRouteError(error: unknown) {
     return NextResponse.json({ error: error.message }, { status: 401 });
   }
 
+  console.error("[state-api]", error);
+
   const message = error instanceof Error ? error.message : "State request failed.";
   return NextResponse.json({ error: message }, { status: 500 });
 }

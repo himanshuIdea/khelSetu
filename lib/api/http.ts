@@ -34,18 +34,19 @@ function resolveApiRoot(): string {
   return gatewayUrl;
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
+export async function apiGet<T>(path: string, options?: ApiRequestOptions): Promise<T> {
   let response: Response;
 
   try {
     response = await fetch(`${resolveApiRoot()}/api/v1${path}`, {
       cache: "no-store",
       credentials: "include",
+      signal: options?.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
     });
-  } catch {
-    throw new ApiError(
-      "Cannot reach the API. Check your connection and try again.",
-      503
+  } catch (error) {
+    throw mapFetchError(
+      error,
+      "The request is taking too long. Check your connection and try again."
     );
   }
 
@@ -144,7 +145,8 @@ export async function apiPostFormData<T>(path: string, formData: FormData): Prom
 
 export async function apiPostBlob(
   path: string,
-  body: unknown
+  body: unknown,
+  options?: ApiRequestOptions
 ): Promise<{ blob: Blob; filename: string }> {
   let response: Response;
 
@@ -155,11 +157,12 @@ export async function apiPostBlob(
       cache: "no-store",
       credentials: "include",
       headers: { "content-type": "application/json" },
+      signal: options?.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
     });
-  } catch {
-    throw new ApiError(
-      "Cannot reach the API. Check your connection and try again.",
-      503
+  } catch (error) {
+    throw mapFetchError(
+      error,
+      "Report generation is taking too long. Try a smaller report or Excel format."
     );
   }
 
