@@ -26,6 +26,7 @@ import type {
 } from "@/lib/state-portal";
 import type { GrantStatusFilter } from "@/lib/state-fund-filters";
 import { getAthleteCountByAcademy, getPrimarySportByAcademy, getStateNurseryContext } from "./state-nursery-helpers";
+import { cacheStateActiveFiscalYear, revalidateStateActiveFiscalYearCache } from "./state-portal-cache";
 import { listStateNurseries } from "./state-nurseries";
 import { countDistinctPaidBeneficiariesForFiscalYear } from "./state-fund-disbursements";
 
@@ -132,7 +133,7 @@ async function aggregateSchemeStats(fiscalYearId: string, schemeIds: string[]) {
   return { paidByScheme, beneficiariesByScheme, pendingByScheme };
 }
 
-export const getActiveFiscalYear = cache(async () => {
+async function fetchActiveFiscalYearRow() {
   const [row] = await db
     .select()
     .from(stateFiscalYears)
@@ -140,6 +141,10 @@ export const getActiveFiscalYear = cache(async () => {
     .orderBy(desc(stateFiscalYears.startDate))
     .limit(1);
   return row ?? null;
+}
+
+export const getActiveFiscalYear = cache(async () => {
+  return cacheStateActiveFiscalYear(fetchActiveFiscalYearRow);
 });
 
 export const getFundsHeaderFyMeta = cache(async () => {
@@ -273,6 +278,7 @@ export async function updateFiscalYearTotalAllocation(totalAllocatedAmountPaise:
     .returning();
 
   if (!updated) throw new Error("Fiscal year not found.");
+  revalidateStateActiveFiscalYearCache();
   return updated;
 }
 

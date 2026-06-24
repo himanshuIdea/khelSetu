@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { portalCrossLinks, type CuratedPortalId } from "@/lib/auth-config";
 
@@ -6,16 +9,30 @@ type PortalLoginCrossLinksProps = {
 };
 
 export function PortalLoginCrossLinks({ current }: PortalLoginCrossLinksProps) {
+  const [isHidden, setIsHidden] = useState(false);
   const links = portalCrossLinks.filter((link) => link.id !== current);
+
+  if (isHidden) {
+    return null;
+  }
 
   return (
     <nav
       aria-label="Other sign-in portals"
       className="pt-4 border-t border-line2 min-w-0"
     >
-      <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted2 mb-3">
-        Sign in as(demo only)
-      </p>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted2">
+          Sign in as(demo only)
+        </p>
+        <button
+          type="button"
+          onClick={() => setIsHidden(true)}
+          className="shrink-0 text-[11.5px] font-semibold text-muted2 hover:text-ink transition-colors"
+        >
+          Hide
+        </button>
+      </div>
       <ul className="flex flex-wrap gap-2 min-w-0">
         {links.map((link) => (
           <li key={link.id}>

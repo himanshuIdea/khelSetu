@@ -1,13 +1,9 @@
-import { redirect } from "next/navigation";
-import { getAcademyBySlug } from "@/lib/repositories/academy";
-import { SEED_ACADEMY_SLUG } from "@/lib/seed-constants";
+import { PortalLandingPage } from "@/components/marketing/PortalLandingPage";
+import { redirectIfAuthenticated } from "@/lib/auth/redirect";
 
 export const dynamic = "force-dynamic";
 
 export default async function AcademyIndex() {
-  const academy = await getAcademyBySlug(SEED_ACADEMY_SLUG);
-  if (!academy) {
-    redirect("/auth/login");
-  }
-  redirect(`/academy/${academy.id}/dashboard`);
+  await redirectIfAuthenticated("admin");
+  return <PortalLandingPage portal="admin" />;
 }

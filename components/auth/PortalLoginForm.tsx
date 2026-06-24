@@ -12,6 +12,7 @@ import { authConfig, type AuthMode, type CuratedPortalId } from "@/lib/auth-conf
 import type { PortalKind } from "@/lib/auth/portal-login";
 import { api, ApiError } from "@/lib/api";
 import { completeAuthRedirect } from "@/lib/auth/complete-auth-redirect";
+import { getPortalBrandHref } from "@/lib/portal-landing-config";
 
 type PortalLoginFormProps = {
   portal: PortalKind;
@@ -99,6 +100,8 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
         ? copy.signUpHref
         : "/auth/login";
 
+  const brandHref = crossLinkPortal ? getPortalBrandHref(crossLinkPortal) : undefined;
+
   return (
     <AuthShell
       headline={copy.headline}
@@ -107,6 +110,7 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
       progressPercent={sidePanel.progressPercent}
       steps={sidePanel.steps}
       showProgress={sidePanel.showProgress}
+      brandHref={brandHref}
     >
       <form onSubmit={handleSubmit} className="flex flex-col flex-1 max-w-lg min-w-0">
         <h3 className="text-xl sm:text-[23px] font-bold text-ink tracking-tight">

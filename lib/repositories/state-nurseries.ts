@@ -28,6 +28,7 @@ import {
   getSportsByAcademy,
   getStateNurseryContext,
 } from "./state-nursery-helpers";
+import { revalidateStateNurseryContextCache } from "./state-portal-cache";
 import { resetOnboardingForNurseryReregistration } from "@/lib/repositories/academy-onboarding";
 
 function applyListFilters(
@@ -346,6 +347,7 @@ export async function ensureStateNurseryRegistered(
         .update(stateNurseryRegistrations)
         .set({ verificationStatus, updatedAt: new Date() })
         .where(eq(stateNurseryRegistrations.id, existing.id));
+      revalidateStateNurseryContextCache();
     }
     return;
   }
@@ -355,6 +357,7 @@ export async function ensureStateNurseryRegistered(
     registeredByUserId,
     verificationStatus,
   });
+  revalidateStateNurseryContextCache();
 }
 
 export async function registerStateNursery(academyId: string, registeredByUserId: string) {
@@ -383,6 +386,7 @@ export async function registerStateNursery(academyId: string, registeredByUserId
     registeredByUserId,
     verificationStatus: "verified",
   });
+  revalidateStateNurseryContextCache();
 }
 
 export async function isAcademyNurseryDeregistered(academyId: string): Promise<boolean> {
@@ -456,6 +460,7 @@ export async function deregisterStateNursery(academyId: string, _deregisteredByU
   if (isVerifiedNurseryReset && adminRow) {
     await resetOnboardingForNurseryReregistration(adminRow.userId, academyId);
   }
+  revalidateStateNurseryContextCache();
 }
 
 export async function approveStateNursery(
@@ -494,6 +499,7 @@ export async function approveStateNursery(
   if (!updated) {
     throw new Error("Could not load updated nursery.");
   }
+  revalidateStateNurseryContextCache();
   return updated;
 }
 
@@ -552,6 +558,7 @@ export async function flagStateNursery(
   if (!updated) {
     throw new Error("Could not load updated nursery.");
   }
+  revalidateStateNurseryContextCache();
   return updated;
 }
 
@@ -589,6 +596,7 @@ export async function clearNurseryFlag(
   if (!updated) {
     throw new Error("Could not load updated nursery.");
   }
+  revalidateStateNurseryContextCache();
   return updated;
 }
 

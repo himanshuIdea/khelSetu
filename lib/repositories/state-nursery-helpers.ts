@@ -9,6 +9,7 @@ import {
   stateNurseryRegistrations,
 } from "@/db/schema";
 import type { NurseryVerificationStatus } from "@/lib/state-nurseries";
+import { cacheStateNurseryVerification } from "./state-portal-cache";
 
 export const getPrimarySportByAcademy = cache(async (academyIds: string[]) => {
   if (academyIds.length === 0) return new Map<string, string>();
@@ -63,9 +64,9 @@ export const getAthleteCountByAcademy = cache(async (academyIds: string[]) => {
   return new Map(rows.map((row) => [row.academyId, Number(row.count)]));
 });
 
-export const getNurseryVerificationByAcademy = cache(async (): Promise<
-  Map<string, NurseryVerificationStatus>
-> => {
+async function fetchNurseryVerificationEntries(): Promise<
+  [string, NurseryVerificationStatus][]
+> {
   const [registrationRows, approvedRows] = await Promise.all([
     db
       .select({
@@ -97,7 +98,14 @@ export const getNurseryVerificationByAcademy = cache(async (): Promise<
     }
   }
 
-  return map;
+  return [...map.entries()];
+}
+
+export const getNurseryVerificationByAcademy = cache(async (): Promise<
+  Map<string, NurseryVerificationStatus>
+> => {
+  const entries = await cacheStateNurseryVerification(fetchNurseryVerificationEntries);
+  return new Map(entries);
 });
 
 export const getListedNurseryAcademyIds = cache(async (): Promise<string[]> => {

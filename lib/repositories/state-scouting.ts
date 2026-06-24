@@ -26,25 +26,51 @@ function nurseryPlayerConditions(academyIds: string[]) {
   );
 }
 
-async function countByStatus(
-  academyIds: string[],
-  status: ScoutingStatus | "identified"
-): Promise<number> {
-  const conditions = [nurseryPlayerConditions(academyIds)];
+type ScoutingStatusCounts = {
+  identified: number;
+  kheloIndia: number;
+  inTrials: number;
+  stateCamp: number;
+  nationalCamp: number;
+  shortlistReport: number;
+};
 
-  if (status === "identified") {
-    conditions.push(isNotNull(players.scoutingStatus));
-  } else {
-    conditions.push(eq(players.scoutingStatus, status));
-  }
-
+/** Single round-trip for all scouting stat cards + shortlist count. */
+async function fetchScoutingStatusCounts(academyIds: string[]): Promise<ScoutingStatusCounts> {
   const [row] = await db
-    .select({ count: sql<number>`count(*)` })
+    .select({
+      identified: sql<number>`count(*) filter (where ${players.scoutingStatus} is not null)`,
+      kheloIndia: sql<number>`count(*) filter (where ${players.scoutingStatus} = 'khelo_india')`,
+      inTrials: sql<number>`count(*) filter (where ${players.scoutingStatus} = 'in_trials')`,
+      stateCamp: sql<number>`count(*) filter (where ${players.scoutingStatus} = 'shortlisted_for_states')`,
+      nationalCamp: sql<number>`count(*) filter (where ${players.scoutingStatus} = 'shortlisted_for_nationals')`,
+      shortlistReport: sql<number>`count(*) filter (where ${players.scoutingStatus} in ('khelo_india', 'shortlisted_for_nationals', 'shortlisted_for_states'))`,
+    })
     .from(players)
     .innerJoin(academies, eq(players.academyId, academies.id))
-    .where(and(...conditions));
+    .where(nurseryPlayerConditions(academyIds));
 
-  return Number(row?.count ?? 0);
+  return {
+    identified: Number(row?.identified ?? 0),
+    kheloIndia: Number(row?.kheloIndia ?? 0),
+    inTrials: Number(row?.inTrials ?? 0),
+    stateCamp: Number(row?.stateCamp ?? 0),
+    nationalCamp: Number(row?.nationalCamp ?? 0),
+    shortlistReport: Number(row?.shortlistReport ?? 0),
+  };
+}
+
+async function fetchScoutingAgeGroupCounts(academyIds: string[]) {
+  return db
+    .select({
+      batchName: batches.name,
+      count: sql<number>`count(*)`,
+    })
+    .from(players)
+    .innerJoin(batches, eq(players.batchId, batches.id))
+    .innerJoin(academies, eq(players.academyId, academies.id))
+    .where(and(nurseryPlayerConditions(academyIds), isNotNull(players.scoutingStatus)))
+    .groupBy(batches.name);
 }
 
 export const listStateScoutingProspects = cache(async (): Promise<StateScoutingProspect[]> => {
@@ -202,21 +228,19 @@ export const getStateScoutingDashboard = cache(async (): Promise<StateScoutingDa
 
   if (academyIds.length === 0) return empty;
 
-  const [
+  const [counts, batchRows] = await Promise.all([
+    fetchScoutingStatusCounts(academyIds),
+    fetchScoutingAgeGroupCounts(academyIds),
+  ]);
+
+  const {
     identified,
     kheloIndia,
     inTrials,
-    stateCamp,
+    stateCamp: stateCampCount,
     nationalCamp,
-    shortlistReportCount,
-  ] = await Promise.all([
-    countByStatus(academyIds, "identified"),
-    countByStatus(academyIds, "khelo_india"),
-    countByStatus(academyIds, "in_trials"),
-    countByStatus(academyIds, "shortlisted_for_states"),
-    countByStatus(academyIds, "shortlisted_for_nationals"),
-    countShortlistReportRows(),
-  ]);
+    shortlistReport: shortlistReportCount,
+  } = counts;
 
   const pipelineBase = identified || 1;
   const pipeline: ScoutingPipelineStage[] = [
@@ -236,9 +260,9 @@ export const getStateScoutingDashboard = cache(async (): Promise<StateScoutingDa
     },
     {
       label: "State camp",
-      value: stateCamp.toLocaleString("en-IN"),
-      count: stateCamp,
-      percent: Math.round((stateCamp / pipelineBase) * 100),
+      value: stateCampCount.toLocaleString("en-IN"),
+      count: stateCampCount,
+      percent: Math.round((stateCampCount / pipelineBase) * 100),
       color: "#2F6BFF",
     },
     {
@@ -249,17 +273,6 @@ export const getStateScoutingDashboard = cache(async (): Promise<StateScoutingDa
       color: "#12B886",
     },
   ];
-
-  const batchRows = await db
-    .select({
-      batchName: batches.name,
-      count: sql<number>`count(*)`,
-    })
-    .from(players)
-    .innerJoin(batches, eq(players.batchId, batches.id))
-    .innerJoin(academies, eq(players.academyId, academies.id))
-    .where(and(nurseryPlayerConditions(academyIds), isNotNull(players.scoutingStatus)))
-    .groupBy(batches.name);
 
   const ageGroupMap: Record<string, { label: string; color: string }> = {
     "Sub-junior": { label: "Sub-junior (U-15)", color: "var(--brand)" },
@@ -283,7 +296,7 @@ export const getStateScoutingDashboard = cache(async (): Promise<StateScoutingDa
   return {
     prospectsIdentified: identified,
     shortlistedCount: kheloIndia,
-    inCampsCount: stateCamp,
+    inCampsCount: stateCampCount,
     nationalCampRate,
     pipeline,
     ageGroups,

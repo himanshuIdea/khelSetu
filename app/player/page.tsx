@@ -1,6 +1,9 @@
-import { redirect } from "next/navigation";
-import { playerRoutes } from "@/lib/player-nav";
+import { PortalLandingPage } from "@/components/marketing/PortalLandingPage";
+import { redirectIfAuthenticated } from "@/lib/auth/redirect";
 
-export default function PlayerIndex() {
-  redirect(playerRoutes.home);
+export const dynamic = "force-dynamic";
+
+export default async function PlayerIndex() {
+  await redirectIfAuthenticated("player");
+  return <PortalLandingPage portal="player" />;
 }

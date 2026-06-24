@@ -1,6 +1,9 @@
-import { redirect } from "next/navigation";
-import { coachRoutes } from "@/lib/coach-nav";
+import { PortalLandingPage } from "@/components/marketing/PortalLandingPage";
+import { redirectIfAuthenticated } from "@/lib/auth/redirect";
 
-export default function CoachIndexPage() {
-  redirect(coachRoutes.home);
+export const dynamic = "force-dynamic";
+
+export default async function CoachIndexPage() {
+  await redirectIfAuthenticated("coach");
+  return <PortalLandingPage portal="coach" />;
 }

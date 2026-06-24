@@ -9,7 +9,7 @@ import {
 } from "@/lib/state-nav";
 import { StateSearchProvider, useStateSearch } from "./StateSearchContext";
 import { StateShellClient } from "./StateShellClient";
-import { FundsHeaderFyBadge } from "./funds/FundsHeaderFyBadge";
+import { FundsHeaderFyBadgeLoader } from "./funds/FundsHeaderFyBadgeLoader";
 import type { StateAdminMeta } from "./StateAdminMenu";
 
 const topBarSubtitles: Partial<Record<ReturnType<typeof getActiveStateNavItem>, string>> = {
@@ -24,11 +24,10 @@ export type StateFundsFyMeta = {
 
 type StateLayoutClientProps = {
   adminMeta: StateAdminMeta;
-  fundsFyMeta: StateFundsFyMeta;
   children: React.ReactNode;
 };
 
-function StateLayoutInner({ adminMeta, fundsFyMeta, children }: StateLayoutClientProps) {
+function StateLayoutInner({ adminMeta, children }: StateLayoutClientProps) {
   const pathname = usePathname();
   const search = useStateSearch();
   const activeItem = getActiveStateNavItem(pathname);
@@ -46,10 +45,10 @@ function StateLayoutInner({ adminMeta, fundsFyMeta, children }: StateLayoutClien
       );
     }
     if (activeItem === "funds") {
-      return <FundsHeaderFyBadge {...fundsFyMeta} />;
+      return <FundsHeaderFyBadgeLoader />;
     }
     return undefined;
-  }, [activeItem, fundsFyMeta]);
+  }, [activeItem]);
 
   useEffect(() => {
     search?.setQuery("");
@@ -69,12 +68,10 @@ function StateLayoutInner({ adminMeta, fundsFyMeta, children }: StateLayoutClien
   );
 }
 
-export function StateLayoutClient({ adminMeta, fundsFyMeta, children }: StateLayoutClientProps) {
+export function StateLayoutClient({ adminMeta, children }: StateLayoutClientProps) {
   return (
     <StateSearchProvider>
-      <StateLayoutInner adminMeta={adminMeta} fundsFyMeta={fundsFyMeta}>
-        {children}
-      </StateLayoutInner>
+      <StateLayoutInner adminMeta={adminMeta}>{children}</StateLayoutInner>
     </StateSearchProvider>
   );
 }

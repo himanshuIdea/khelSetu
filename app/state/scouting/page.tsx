@@ -5,6 +5,8 @@ import {
   listStateScoutingProspects,
 } from "@/lib/repositories/state-scouting";
 
+export const dynamic = "force-dynamic";
+
 export default async function ScoutingPage() {
   const [dashboard, prospects] = await Promise.all([
     getStateScoutingDashboard(),

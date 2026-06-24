@@ -332,6 +332,34 @@ export function MenuIcon({ className }: IconProps) {
   );
 }
 
+export function ChevronLeftIcon({ className }: IconProps) {
+  return (
+    <Svg defaultClass="w-5 h-5" className={className}>
+      <path
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 18l-6-6 6-6"
+      />
+    </Svg>
+  );
+}
+
+export function ChevronRightIcon({ className }: IconProps) {
+  return (
+    <Svg defaultClass="w-5 h-5" className={className}>
+      <path
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 18l6-6-6-6"
+      />
+    </Svg>
+  );
+}
+
 export function PencilIcon({ className }: IconProps) {
   return (
     <Svg defaultClass="w-[16px] h-[16px]" className={className}>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { StateSidebar, type StateNavItem } from "./StateSidebar";
 import { StateTopBar } from "./StateTopBar";
 import type { StateAdminMeta } from "./StateAdminMenu";
+import { useStateSidebarCollapsed } from "./useStateSidebarCollapsed";
 
 type StateShellClientProps = {
   activeItem: StateNavItem;
@@ -25,6 +26,7 @@ export function StateShellClient({
   children,
 }: StateShellClientProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { collapsed, toggle } = useStateSidebarCollapsed();
 
   useEffect(() => {
     if (menuOpen) {
@@ -42,8 +44,13 @@ export function StateShellClient({
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-surface">
-      <StateSidebar activeItem={activeItem} adminMeta={adminMeta} className="hidden lg:flex" />
+    <div className="flex h-dvh overflow-hidden bg-surface min-w-0">
+      <StateSidebar
+        activeItem={activeItem}
+        adminMeta={adminMeta}
+        collapsed={collapsed}
+        className="hidden lg:flex h-full min-h-0"
+      />
 
       {menuOpen && (
         <button
@@ -71,6 +78,8 @@ export function StateShellClient({
           badge={topBarBadge}
           onMenuToggle={() => setMenuOpen((open) => !open)}
           menuOpen={menuOpen}
+          sidebarCollapsed={collapsed}
+          onSidebarToggle={toggle}
         />
         {children}
       </div>

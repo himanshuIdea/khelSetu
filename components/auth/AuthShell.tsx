@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   AuthMarketingHero,
   AuthStepList,
@@ -29,6 +30,7 @@ type AuthShellProps = {
   progressPercent: number;
   steps?: readonly string[];
   showProgress?: boolean;
+  brandHref?: string;
   children: React.ReactNode;
 };
 
@@ -39,9 +41,27 @@ export function AuthShell({
   progressPercent,
   steps = authConfig.steps,
   showProgress = true,
+  brandHref,
   children,
 }: AuthShellProps) {
   const { brand } = authConfig;
+
+  const mobileBrandContent = (
+    <>
+      <div
+        className="w-[42px] h-[42px] rounded-xl flex items-center justify-center shrink-0"
+        style={{
+          background: "linear-gradient(135deg, #FF6B2C, #FF9152)",
+        }}
+      >
+        <BoltIcon />
+      </div>
+      <div className="text-xl font-bold tracking-tight text-ink">
+        {brand.name}
+        <span className="text-brand">{brand.accentWord}</span>
+      </div>
+    </>
+  );
 
   return (
     <div className="min-h-screen flex bg-white">
@@ -50,26 +70,25 @@ export function AuthShell({
         subcopy={subcopy}
         activeStep={activeStep}
         steps={steps}
+        brandHref={brandHref}
         className="hidden lg:flex w-[430px] shrink-0 px-[42px] py-[46px]"
         innerClassName="h-full"
-        stepsClassName="mt-auto"
+        stepsClassName="mt-auto gap-5"
       />
 
       <div className="flex-1 flex flex-col min-h-screen lg:min-h-0 px-6 py-10 sm:px-10 lg:px-14 lg:py-[46px] min-w-0">
-        <div className="lg:hidden flex items-center gap-3 mb-6 z-[1]">
-          <div
-            className="w-[42px] h-[42px] rounded-xl flex items-center justify-center shrink-0"
-            style={{
-              background: "linear-gradient(135deg, #FF6B2C, #FF9152)",
-            }}
+        {brandHref ? (
+          <Link
+            href={brandHref}
+            className="lg:hidden flex items-center gap-3 mb-6 z-[1] w-fit rounded-lg hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/50"
           >
-            <BoltIcon />
+            {mobileBrandContent}
+          </Link>
+        ) : (
+          <div className="lg:hidden flex items-center gap-3 mb-6 z-[1]">
+            {mobileBrandContent}
           </div>
-          <div className="text-xl font-bold tracking-tight text-ink">
-            {brand.name}
-            <span className="text-brand">{brand.accentWord}</span>
-          </div>
-        </div>
+        )}
 
         {!showProgress ? (
           <div className="lg:hidden mb-6 min-w-0">

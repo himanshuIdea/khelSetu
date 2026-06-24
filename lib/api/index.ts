@@ -821,6 +821,10 @@ export const api = {
     },
     funds: {
       dashboard: () => apiGet<{ dashboard: StateFundsDashboard }>("/state/funds"),
+      fyMeta: () =>
+        apiGet<{ meta: { fiscalYearLabel: string; fyTotalAllocatedPaise: number } }>(
+          "/state/funds/fy/meta"
+        ),
       updateFyAllocation: (totalAllocatedAmountPaise: number) =>
         apiPatch<{ ok: boolean }>("/state/funds/fy/allocation", {
           totalAllocatedAmountPaise,

@@ -11,6 +11,8 @@ type StateTopBarProps = {
   badge?: React.ReactNode;
   onMenuToggle?: () => void;
   menuOpen?: boolean;
+  sidebarCollapsed?: boolean;
+  onSidebarToggle?: () => void;
 };
 
 function SearchField({
@@ -57,17 +59,32 @@ export function StateTopBar({
   badge,
   onMenuToggle,
   menuOpen,
+  sidebarCollapsed = false,
+  onSidebarToggle,
 }: StateTopBarProps) {
   return (
-    <header className="shrink-0 bg-card border-b border-line">
+    <header className="sticky top-0 z-30 shrink-0 bg-card border-b border-line">
       <div className="flex items-center gap-3 md:gap-[18px] px-4 md:px-[26px] min-h-[66px] py-3">
         {onMenuToggle && (
           <button
             type="button"
             onClick={onMenuToggle}
-            className="lg:hidden w-[38px] h-[38px] rounded-[10px] bg-surface border border-line flex items-center justify-center text-muted shrink-0"
+            className="lg:hidden w-[38px] h-[38px] rounded-[10px] bg-surface border border-line flex items-center justify-center text-muted shrink-0 min-h-[44px] min-w-[44px]"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
+          >
+            <MenuIcon />
+          </button>
+        )}
+
+        {onSidebarToggle && (
+          <button
+            type="button"
+            onClick={onSidebarToggle}
+            className="hidden lg:flex w-[38px] h-[38px] rounded-[10px] bg-surface border border-line items-center justify-center text-muted shrink-0 min-h-[44px] min-w-[44px] hover:text-ink transition-colors"
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!sidebarCollapsed}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             <MenuIcon />
           </button>

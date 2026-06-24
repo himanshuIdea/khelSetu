@@ -204,6 +204,13 @@
       "when": 1781244405608,
       "tag": "0028_academy_nursery_deregistered",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1781244405708,
+      "tag": "0029_players_scouting_status_idx",
+      "breakpoints": true
     }
   ]
 }

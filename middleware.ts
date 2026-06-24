@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/cookies";
 import { verifySessionToken } from "@/lib/auth/jwt";
 import { loginRouteForPathname } from "@/lib/auth/portal-login";
+import { PUBLIC_PORTAL_LANDING_PATHS } from "@/lib/portal-landing-config";
 import {
   canAccessRoute,
   isStateAdmin,
@@ -16,6 +17,10 @@ export async function middleware(request: NextRequest) {
   const session = token ? await verifySessionToken(token) : null;
 
   if (!session) {
+    if (PUBLIC_PORTAL_LANDING_PATHS.has(pathname)) {
+      return NextResponse.next();
+    }
+
     const loginUrl = new URL(loginRouteForPathname(pathname), request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);

@@ -13,6 +13,7 @@ export type StateAdminMeta = {
 type StateAdminMenuProps = {
   adminMeta: StateAdminMeta;
   onLoggedOut?: () => void;
+  collapsed?: boolean;
 };
 
 type MenuPosition = {
@@ -23,7 +24,7 @@ type MenuPosition = {
 
 const MENU_GAP = 6;
 
-export function StateAdminMenu({ adminMeta, onLoggedOut }: StateAdminMenuProps) {
+export function StateAdminMenu({ adminMeta, onLoggedOut, collapsed = false }: StateAdminMenuProps) {
   const { logout, loggingOut } = usePortalLogout(portalLoginRoutes.state);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -116,19 +117,24 @@ export function StateAdminMenu({ adminMeta, onLoggedOut }: StateAdminMenuProps) 
       <button
         ref={buttonRef}
         type="button"
-        aria-label="Account menu"
+        aria-label={`Account menu — ${adminMeta.fullName}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="mt-auto flex w-full items-center gap-2.5 p-2.5 rounded-xl bg-white/5 text-left transition-colors hover:bg-white/10"
+        title={collapsed ? adminMeta.fullName : undefined}
+        className={`mt-auto flex w-full items-center rounded-xl bg-white/5 text-left transition-colors hover:bg-white/10 ${
+          collapsed ? "justify-center p-2.5 min-h-[44px]" : "gap-2.5 p-2.5"
+        }`}
       >
         <div className="w-[34px] h-[34px] rounded-[9px] bg-green flex items-center justify-center shrink-0">
           <ShieldIcon className="w-[18px] h-[18px] text-white" />
         </div>
-        <div className="min-w-0">
-          <div className="text-[12.5px] font-semibold text-white truncate">{adminMeta.fullName}</div>
-          <div className="text-[11px] text-[#8c97b3]">State Administrator</div>
-        </div>
+        {!collapsed && (
+          <div className="min-w-0">
+            <div className="text-[12.5px] font-semibold text-white truncate">{adminMeta.fullName}</div>
+            <div className="text-[11px] text-[#8c97b3]">State Administrator</div>
+          </div>
+        )}
       </button>
 
       {mounted && menu ? createPortal(menu, document.body) : null}

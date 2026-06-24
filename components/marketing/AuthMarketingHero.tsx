@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { authConfig } from "@/lib/auth-config";
 
 function BoltIcon() {
@@ -52,7 +53,7 @@ export function AuthStepList({
   className = "",
 }: AuthStepListProps) {
   return (
-    <div className={`flex flex-col gap-5 z-[1] ${className}`}>
+    <div className={`flex flex-col z-[1] ${className}`}>
       {steps.map((label, index) => {
         const state = getStepState(index, activeStep);
         return (
@@ -105,9 +106,11 @@ type AuthMarketingHeroProps = {
   activeStep: number;
   steps?: readonly string[];
   glowVariant?: "auth" | "landing";
+  brandHref?: string;
   className?: string;
   innerClassName?: string;
   stepsClassName?: string;
+  headlineClassName?: string;
   children?: React.ReactNode;
 };
 
@@ -117,12 +120,31 @@ export function AuthMarketingHero({
   activeStep,
   steps,
   glowVariant = "auth",
+  brandHref,
   className = "",
   innerClassName = "",
-  stepsClassName = "mt-auto",
+  stepsClassName = "mt-auto gap-5",
+  headlineClassName = "text-[27px] font-bold leading-tight tracking-tight sm:text-[32px]",
   children,
 }: AuthMarketingHeroProps) {
   const { brand } = authConfig;
+
+  const brandContent = (
+    <>
+      <div
+        className="w-[42px] h-[42px] rounded-xl flex items-center justify-center shrink-0"
+        style={{
+          background: "linear-gradient(135deg, #FF6B2C, #FF9152)",
+        }}
+      >
+        <BoltIcon />
+      </div>
+      <div className="text-[23px] font-bold tracking-tight">
+        {brand.name}
+        <span className="text-brand">{brand.accentWord}</span>
+      </div>
+    </>
+  );
 
   return (
     <div
@@ -147,21 +169,17 @@ export function AuthMarketingHero({
         />
       )}
       <div className={`flex flex-col flex-1 z-[1] ${innerClassName}`}>
-        <div className="flex items-center gap-3 mb-[46px]">
-          <div
-            className="w-[42px] h-[42px] rounded-xl flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg, #FF6B2C, #FF9152)",
-            }}
+        {brandHref ? (
+          <Link
+            href={brandHref}
+            className="flex items-center gap-3 mb-[46px] w-fit rounded-lg hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
           >
-            <BoltIcon />
-          </div>
-          <div className="text-[23px] font-bold tracking-tight">
-            {brand.name}
-            <span className="text-brand">{brand.accentWord}</span>
-          </div>
-        </div>
-        <h2 className="text-[27px] font-bold leading-tight tracking-tight sm:text-[32px]">
+            {brandContent}
+          </Link>
+        ) : (
+          <div className="flex items-center gap-3 mb-[46px]">{brandContent}</div>
+        )}
+        <h2 className={headlineClassName}>
           {Array.isArray(headline) ? (
             headline.map((line, i) => (
               <span key={line}>
