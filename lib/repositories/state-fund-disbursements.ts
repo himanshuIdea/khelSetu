@@ -11,6 +11,7 @@ import {
 import type { StateFundDisbursementStatus } from "@/lib/state-fund-schemes";
 import { getSchemeBySlug } from "./state-funds";
 import { getListedNurseryAcademyIdSet } from "./state-nursery-helpers";
+import { revalidateStateOverviewCache } from "./state-portal-cache";
 
 export type CreateDisbursementInput = {
   schemeSlug: string;
@@ -101,6 +102,7 @@ export async function createDisbursement(input: CreateDisbursementInput) {
     })
     .returning();
 
+  revalidateStateOverviewCache();
   return row!;
 }
 
@@ -142,6 +144,7 @@ export async function releasePendingDisbursements(options: {
       )
     );
 
+  revalidateStateOverviewCache();
   return { released: pending.length };
 }
 

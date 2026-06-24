@@ -17,6 +17,7 @@ import type {
   StateScoutingProspectListResult,
 } from "@/lib/state-portal";
 import { getStateNurseryContext } from "./state-nursery-helpers";
+import { revalidateStateOverviewCache } from "./state-portal-cache";
 
 export const DEFAULT_SCOUTING_PAGE_SIZE = 100;
 
@@ -256,6 +257,8 @@ export async function updatePlayerScoutingStatus(
       updatedAt: new Date(),
     })
     .where(eq(players.id, playerId));
+
+  revalidateStateOverviewCache();
 }
 
 export async function bulkUpdatePlayerScoutingStatus(
@@ -292,6 +295,7 @@ export async function bulkUpdatePlayerScoutingStatus(
     })
     .where(inArray(players.id, scopedIds));
 
+  revalidateStateOverviewCache();
   return scopedIds.length;
 }
 

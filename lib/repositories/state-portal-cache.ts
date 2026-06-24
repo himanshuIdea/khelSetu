@@ -9,14 +9,17 @@
 
 export const STATE_NURSERY_CONTEXT_TAG = "state-nursery-context";
 export const STATE_FISCAL_YEAR_TAG = "state-fiscal-year";
+export const STATE_OVERVIEW_TAG = "state-overview";
 
 type CacheSlot<T> = { value: T; expiresAt: number };
 
 const NURSERY_TTL_MS = 30_000;
 const FY_TTL_MS = 60_000;
+const OVERVIEW_TTL_MS = 120_000;
 
 const nurserySlot: { current?: CacheSlot<unknown> } = {};
 const fiscalYearSlot: { current?: CacheSlot<unknown> } = {};
+const overviewSlot: { current?: CacheSlot<unknown> } = {};
 
 function readSlot<T>(slot: { current?: CacheSlot<unknown> }): T | undefined {
   const entry = slot.current;
@@ -48,10 +51,26 @@ export async function cacheStateActiveFiscalYear<T>(fetcher: () => Promise<T>): 
   return value;
 }
 
+/** State overview dashboard — 120s TTL on warm serverless instances. */
+export async function cacheStateOverviewSnapshot<T>(fetcher: () => Promise<T>): Promise<T> {
+  const cached = readSlot<T>(overviewSlot);
+  if (cached !== undefined) return cached;
+
+  const value = await fetcher();
+  writeSlot(overviewSlot, value, OVERVIEW_TTL_MS);
+  return value;
+}
+
+export function revalidateStateOverviewCache() {
+  overviewSlot.current = undefined;
+}
+
 export function revalidateStateActiveFiscalYearCache() {
   fiscalYearSlot.current = undefined;
+  revalidateStateOverviewCache();
 }
 
 export function revalidateStateNurseryContextCache() {
   nurserySlot.current = undefined;
+  revalidateStateOverviewCache();
 }
