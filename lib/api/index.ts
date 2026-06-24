@@ -45,6 +45,7 @@ import type {
   StateFundSchemeDetail,
   StateFundSchemeHeader,
   StateReportsDashboard,
+  StateScoutingProspect,
   VerificationBreakdown,
 } from "@/lib/state-portal";
 import type {
@@ -806,6 +807,30 @@ export const api = {
         `/api/v1/state/nurseries/requests/${requestId}/documents/${type}`,
     },
     scouting: {
+      listProspects: (params?: {
+        sport?: string;
+        district?: string;
+        ageGroup?: string;
+        minRating?: number;
+        search?: string;
+        status?: string;
+        offset?: number;
+        limit?: number;
+      }) => {
+        const search = new URLSearchParams();
+        if (params?.sport && params.sport !== "all") search.set("sport", params.sport);
+        if (params?.district && params.district !== "all") search.set("district", params.district);
+        if (params?.ageGroup && params.ageGroup !== "all") search.set("ageGroup", params.ageGroup);
+        if (params?.status && params.status !== "all") search.set("status", params.status);
+        if (params?.minRating != null) search.set("minRating", String(params.minRating));
+        if (params?.search?.trim()) search.set("search", params.search.trim());
+        if (params?.offset != null) search.set("offset", String(params.offset));
+        if (params?.limit != null) search.set("limit", String(params.limit));
+        const qs = search.toString();
+        return apiGet<{ items: StateScoutingProspect[]; total: number }>(
+          `/state/scouting/prospects${qs ? `?${qs}` : ""}`
+        );
+      },
       updateStatus: (playerId: string, status: string | null) =>
         apiPatch<{ ok: boolean; playerId: string; status: string | null }>(
           `/state/scouting/players/${playerId}`,

@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { academies, batches, players, sports } from "@/db/schema";
 import { formatWeightKg, getInitials } from "@/lib/format";
@@ -12,11 +12,13 @@ import type {
   ScoutingPipelineStage,
   ScoutingShortlistReportRow,
   StateScoutingDashboard,
+  StateScoutingFilters,
   StateScoutingProspect,
+  StateScoutingProspectListResult,
 } from "@/lib/state-portal";
 import { getStateNurseryContext } from "./state-nursery-helpers";
 
-const SCOUTING_PROSPECT_LIMIT = 100;
+export const DEFAULT_SCOUTING_PAGE_SIZE = 100;
 
 function nurseryPlayerConditions(academyIds: string[]) {
   return and(
@@ -73,50 +75,148 @@ async function fetchScoutingAgeGroupCounts(academyIds: string[]) {
     .groupBy(batches.name);
 }
 
-export const listStateScoutingProspects = cache(async (): Promise<StateScoutingProspect[]> => {
-  const { academyIds } = await getStateNurseryContext();
-  if (academyIds.length === 0) return [];
+type ProspectRow = {
+  id: string;
+  fullName: string;
+  avatarColor: string;
+  rating: string | null;
+  weightCategory: string | null;
+  scoutingStatus: string | null;
+  sportName: string;
+  batchName: string | null;
+  district: string | null;
+  nurseryName: string;
+};
 
-  const rows = await db
-    .select({
-      id: players.id,
-      fullName: players.fullName,
-      avatarColor: players.avatarColor,
-      rating: players.rating,
-      weightCategory: players.weightCategory,
-      scoutingStatus: players.scoutingStatus,
-      sportName: sports.name,
-      batchName: batches.name,
-      district: academies.district,
-      nurseryName: academies.name,
-    })
+function mapProspectRow(row: ProspectRow): StateScoutingProspect {
+  const weight = row.weightCategory ? formatWeightKg(row.weightCategory) : "";
+  const detail = weight ? `${row.sportName} · ${weight}` : row.sportName;
+
+  return {
+    playerId: row.id,
+    initials: getInitials(row.fullName),
+    color: row.avatarColor,
+    name: row.fullName,
+    detail,
+    sport: row.sportName,
+    sportName: row.sportName,
+    batchName: row.batchName,
+    district: row.district ?? "—",
+    nurseryName: row.nurseryName,
+    score: row.rating ?? "—",
+    scoutingStatus: row.scoutingStatus as ScoutingStatus | null,
+  };
+}
+
+function prospectSelect() {
+  return {
+    id: players.id,
+    fullName: players.fullName,
+    avatarColor: players.avatarColor,
+    rating: players.rating,
+    weightCategory: players.weightCategory,
+    scoutingStatus: players.scoutingStatus,
+    sportName: sports.name,
+    batchName: batches.name,
+    district: academies.district,
+    nurseryName: academies.name,
+  };
+}
+
+function prospectFromClause() {
+  return db
+    .select(prospectSelect())
     .from(players)
     .innerJoin(academies, eq(players.academyId, academies.id))
     .innerJoin(sports, eq(players.sportId, sports.id))
-    .leftJoin(batches, eq(players.batchId, batches.id))
-    .where(nurseryPlayerConditions(academyIds))
-    .orderBy(desc(players.rating))
-    .limit(SCOUTING_PROSPECT_LIMIT);
+    .leftJoin(batches, eq(players.batchId, batches.id));
+}
 
-  return rows.map((row) => {
-    const weight = row.weightCategory ? formatWeightKg(row.weightCategory) : "";
-    const detail = weight ? `${row.sportName} · ${weight}` : row.sportName;
+async function buildScoutingConditions(filters?: StateScoutingFilters) {
+  const { academyIds } = await getStateNurseryContext();
+  if (academyIds.length === 0) return null;
 
-    return {
-      playerId: row.id,
-      initials: getInitials(row.fullName),
-      color: row.avatarColor,
-      name: row.fullName,
-      detail,
-      sport: row.sportName,
-      sportName: row.sportName,
-      batchName: row.batchName,
-      district: row.district,
-      nurseryName: row.nurseryName,
-      score: row.rating ?? "—",
-      scoutingStatus: row.scoutingStatus,
-    };
+  const conditions = [nurseryPlayerConditions(academyIds)];
+
+  if (filters?.district && filters.district !== "all") {
+    conditions.push(eq(academies.district, filters.district));
+  }
+
+  if (filters?.sport && filters.sport !== "all") {
+    conditions.push(eq(sports.name, filters.sport));
+  }
+
+  if (filters?.ageGroup && filters.ageGroup !== "all") {
+    conditions.push(eq(batches.name, filters.ageGroup));
+  }
+
+  if (filters?.minRating != null) {
+    conditions.push(gte(players.rating, filters.minRating.toFixed(1)));
+  }
+
+  const status = filters?.status;
+  if (status && status !== "all") {
+    if (status === "unmarked") {
+      conditions.push(isNull(players.scoutingStatus));
+    } else {
+      conditions.push(eq(players.scoutingStatus, status as ScoutingStatus));
+    }
+  }
+
+  const search = filters?.search?.trim();
+  if (search) {
+    const pattern = `%${search}%`;
+    conditions.push(
+      or(
+        ilike(players.fullName, pattern),
+        ilike(sports.name, pattern),
+        ilike(academies.district, pattern),
+        ilike(academies.name, pattern)
+      )!
+    );
+  }
+
+  return and(...conditions);
+}
+
+function prospectOrderBy() {
+  return [desc(players.rating), asc(players.id)] as const;
+}
+
+export async function listStateScoutingProspectsPage(options: {
+  filters?: StateScoutingFilters;
+  offset?: number;
+  limit?: number;
+}): Promise<StateScoutingProspectListResult> {
+  const where = await buildScoutingConditions(options.filters);
+  if (!where) return { items: [], total: 0 };
+
+  const offset = options.offset ?? 0;
+  const limit = options.limit ?? DEFAULT_SCOUTING_PAGE_SIZE;
+
+  const [countRow, rows] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(players)
+      .innerJoin(academies, eq(players.academyId, academies.id))
+      .innerJoin(sports, eq(players.sportId, sports.id))
+      .leftJoin(batches, eq(players.batchId, batches.id))
+      .where(where),
+    prospectFromClause().where(where).orderBy(...prospectOrderBy()).offset(offset).limit(limit),
+  ]);
+
+  return {
+    items: rows.map(mapProspectRow),
+    total: Number(countRow[0]?.count ?? 0),
+  };
+}
+
+export const listStateScoutingProspects = cache(async (): Promise<StateScoutingProspect[]> => {
+  const { items } = await listStateScoutingProspectsPage({
+    offset: 0,
+    limit: DEFAULT_SCOUTING_PAGE_SIZE,
   });
+  return items;
 });
 
 export async function assertPlayerInStateScope(playerId: string): Promise<boolean> {

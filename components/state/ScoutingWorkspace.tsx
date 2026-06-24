@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UpIcon } from "@/components/academy/icons";
 import { InlineSelect } from "@/components/academy/InlineSelect";
@@ -22,10 +22,8 @@ import {
   type ReportFormat,
 } from "@/components/state/ReportFormatPopover";
 import { StateFilteredEmpty, StateSectionEmpty } from "@/components/state/StateEmptyStates";
-import {
-  parseAthleteRating,
-  RatingFilterSlider,
-} from "@/components/state/RatingFilterSlider";
+import { StateLoadMoreFooter } from "@/components/state/StateLoadMoreFooter";
+import { RatingFilterSlider } from "@/components/state/RatingFilterSlider";
 import { useStatePageSearch } from "@/components/state/StateSearchContext";
 import { api } from "@/lib/api";
 import { formatSportWeightLine } from "@/lib/format";
@@ -38,7 +36,6 @@ import {
 import { HARYANA_DISTRICTS, HARYANA_FEATURED_SPORTS } from "@/lib/state-catalog";
 import { stateLayout } from "@/lib/state-layout";
 import { statePageMeta } from "@/lib/state-nav";
-import { matchesStateTextSearch } from "@/lib/state-search";
 import type { StateScoutingDashboard, StateScoutingProspect } from "@/lib/state-portal";
 
 function ScoutingStatTile({
@@ -122,10 +119,14 @@ function TalentPipelinePanel({
 
 type ScoutingWorkspaceProps = {
   dashboard: StateScoutingDashboard;
-  prospects: StateScoutingProspect[];
+  initialProspects: StateScoutingProspect[];
+  initialTotal: number;
+  scopeTotal: number;
+  defaultMinRating: number;
 };
 
 const meta = statePageMeta.scouting;
+const PAGE_SIZE = 100;
 
 const SPORT_OPTIONS = [
   { value: "all", label: "Sport: All" },
@@ -144,8 +145,6 @@ const AGE_OPTIONS = [
   { value: "Senior", label: "Age: Senior" },
 ];
 
-const DEFAULT_MIN_RATING = 8;
-
 const TABLE_HEADERS = ["", "Athlete", "Sport", "District", "Score", "Status"] as const;
 const TABLE_COLUMN_WIDTHS = ["4%", "32%", "16%", "16%", "10%", "22%"] as const;
 const TABLE_COLUMN_CLASS_NAMES = [
@@ -157,19 +156,18 @@ const TABLE_COLUMN_CLASS_NAMES = [
   "min-w-0",
 ] as const;
 
-function matchesScoutingSearch(prospect: StateScoutingProspect, query: string): boolean {
-  return matchesStateTextSearch(query, [
-    prospect.name,
-    prospect.sport,
-    prospect.district,
-    prospect.nurseryName,
-  ]);
-}
-
-export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspaceProps) {
+export function ScoutingWorkspace({
+  dashboard,
+  initialProspects,
+  initialTotal,
+  scopeTotal,
+  defaultMinRating,
+}: ScoutingWorkspaceProps) {
   const router = useRouter();
   const searchQuery = useStatePageSearch();
 
+  const [items, setItems] = useState(initialProspects);
+  const [total, setTotal] = useState(initialTotal);
   const [statusOverrides, setStatusOverrides] = useState<
     Record<string, ScoutingStatus | null | undefined>
   >({});
@@ -177,76 +175,227 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
   const [districtFilter, setDistrictFilter] = useState("all");
   const [ageFilter, setAgeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [minRating, setMinRating] = useState(DEFAULT_MIN_RATING);
+  const [minRating, setMinRating] = useState(defaultMinRating);
   const [kheloReadyOnly, setKheloReadyOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<string>(SCOUTING_STATUS_OPTIONS[0]!.value);
   const [bulkSaving, setBulkSaving] = useState(false);
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const [shortlistOpen, setShortlistOpen] = useState(false);
   const [reportFormat, setReportFormat] = useState<ReportFormat>("xlsx");
   const [reportDownloading, setReportDownloading] = useState(false);
   const shortlistRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const cardScrollRef = useRef<HTMLDivElement>(null);
+  const fetchGenerationRef = useRef(0);
+  const skipInitialRefetchRef = useRef(true);
+  const searchDebounceRef = useRef<number | null>(null);
+  const prevFilterSnapshotRef = useRef({
+    sportFilter,
+    districtFilter,
+    ageFilter,
+    minRating,
+    statusFilter,
+    kheloReadyOnly,
+    searchQuery,
+  });
 
   const displayProspects = useMemo(
     () =>
-      prospects.map((p) =>
+      items.map((p) =>
         p.playerId in statusOverrides
           ? { ...p, scoutingStatus: statusOverrides[p.playerId] ?? null }
           : p
       ),
-    [prospects, statusOverrides]
+    [items, statusOverrides]
   );
 
-  const filtered = useMemo(() => {
-    return displayProspects.filter((p) => {
-      if (!matchesScoutingSearch(p, searchQuery)) return false;
-      if (districtFilter !== "all" && p.district !== districtFilter) return false;
-      if (sportFilter !== "all" && p.sportName !== sportFilter) return false;
-      if (ageFilter !== "all" && p.batchName !== ageFilter) return false;
+  const listIds = useMemo(() => displayProspects.map((p) => p.playerId), [displayProspects]);
+  const allListSelected = listIds.length > 0 && listIds.every((id) => selectedIds.has(id));
 
-      const rating = parseAthleteRating(p.score);
-      if (rating != null && rating < minRating) return false;
-
-      if (kheloReadyOnly && p.scoutingStatus !== "khelo_india") return false;
-
-      if (statusFilter === "unmarked" && p.scoutingStatus != null) return false;
-      if (
-        statusFilter !== "all" &&
-        statusFilter !== "unmarked" &&
-        p.scoutingStatus !== statusFilter
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [
-    displayProspects,
-    searchQuery,
-    districtFilter,
-    sportFilter,
-    ageFilter,
-    minRating,
-    kheloReadyOnly,
-    statusFilter,
-  ]);
-
-  const filteredIds = useMemo(() => filtered.map((p) => p.playerId), [filtered]);
-  const allFilteredSelected =
-    filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
-
-  const hasAnyData = prospects.length > 0;
+  const hasAnyData = scopeTotal > 0;
+  const hasMore = items.length < total;
   const hasIdentified = dashboard.prospectsIdentified > 0;
   const hasPipeline = dashboard.pipeline.length > 0;
 
-  const subtitle = hasIdentified
-    ? `${dashboard.prospectsIdentified.toLocaleString("en-IN")} prospects identified statewide`
-    : hasAnyData
-      ? `${prospects.length.toLocaleString("en-IN")} athletes available for scouting`
-      : "Scouting shortlists populate from live athlete performance across Haryana";
+  const effectiveStatusFilter = kheloReadyOnly ? "khelo_india" : statusFilter;
+
+  const listParams = useCallback(
+    () => ({
+      sport: sportFilter,
+      district: districtFilter,
+      ageGroup: ageFilter,
+      minRating,
+      status: effectiveStatusFilter,
+      search: searchQuery,
+      limit: PAGE_SIZE,
+    }),
+    [sportFilter, districtFilter, ageFilter, minRating, effectiveStatusFilter, searchQuery]
+  );
+
+  const listParamsRef = useRef(listParams);
+  listParamsRef.current = listParams;
+
+  const fetchPage = useCallback(async (offset: number, append: boolean) => {
+    if (!append) {
+      fetchGenerationRef.current += 1;
+    }
+    const requestGeneration = fetchGenerationRef.current;
+
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+      setListError(null);
+    }
+
+    try {
+      const result = await api.state.scouting.listProspects({
+        ...listParamsRef.current(),
+        offset,
+      });
+      if (requestGeneration !== fetchGenerationRef.current) return;
+
+      setTotal(result.total);
+      setItems((current) => {
+        if (!append) return result.items;
+        const seen = new Set(current.map((item) => item.playerId));
+        const next = result.items.filter((item) => !seen.has(item.playerId));
+        return [...current, ...next];
+      });
+    } catch (err) {
+      if (requestGeneration !== fetchGenerationRef.current) return;
+
+      const message = err instanceof Error ? err.message : "Failed to load prospects.";
+      if (!append) {
+        setListError(message);
+        setItems([]);
+        setTotal(0);
+      } else {
+        setListError(message);
+      }
+    } finally {
+      if (requestGeneration !== fetchGenerationRef.current) {
+        if (append) setLoadingMore(false);
+        return;
+      }
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (skipInitialRefetchRef.current) {
+      skipInitialRefetchRef.current = false;
+      prevFilterSnapshotRef.current = {
+        sportFilter,
+        districtFilter,
+        ageFilter,
+        minRating,
+        statusFilter,
+        kheloReadyOnly,
+        searchQuery,
+      };
+      return;
+    }
+
+    const prev = prevFilterSnapshotRef.current;
+    const filtersChanged =
+      prev.sportFilter !== sportFilter ||
+      prev.districtFilter !== districtFilter ||
+      prev.ageFilter !== ageFilter ||
+      prev.minRating !== minRating ||
+      prev.statusFilter !== statusFilter ||
+      prev.kheloReadyOnly !== kheloReadyOnly;
+    const searchChanged = prev.searchQuery !== searchQuery;
+
+    prevFilterSnapshotRef.current = {
+      sportFilter,
+      districtFilter,
+      ageFilter,
+      minRating,
+      statusFilter,
+      kheloReadyOnly,
+      searchQuery,
+    };
+
+    if (searchDebounceRef.current) {
+      window.clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
+
+    const runRefetch = () => {
+      void fetchPage(0, false);
+    };
+
+    if (filtersChanged) {
+      runRefetch();
+      return;
+    }
+
+    if (searchChanged) {
+      searchDebounceRef.current = window.setTimeout(runRefetch, 300);
+    }
+
+    return () => {
+      if (searchDebounceRef.current) {
+        window.clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
+    };
+  }, [
+    sportFilter,
+    districtFilter,
+    ageFilter,
+    minRating,
+    statusFilter,
+    kheloReadyOnly,
+    searchQuery,
+    fetchPage,
+  ]);
+
+  const handleLoadMore = useCallback(() => {
+    if (!hasMore || loadingMore || loading) return;
+    void fetchPage(items.length, true);
+  }, [fetchPage, hasMore, items.length, loading, loadingMore]);
+
+  const loadMoreFooter = hasMore ? (
+    <StateLoadMoreFooter
+      loaded={items.length}
+      total={total}
+      entityLabel="prospects"
+      loading={loadingMore}
+      disabled={loading || loadingMore}
+      scrollRootRef={tableScrollRef}
+      onLoadMore={handleLoadMore}
+    />
+  ) : undefined;
+
+  const loadMoreFooterMobile = hasMore ? (
+    <StateLoadMoreFooter
+      loaded={items.length}
+      total={total}
+      entityLabel="prospects"
+      loading={loadingMore}
+      disabled={loading || loadingMore}
+      scrollRootRef={cardScrollRef}
+      onLoadMore={handleLoadMore}
+    />
+  ) : undefined;
+
+  const subtitle =
+    total > 0
+      ? `Showing ${items.length.toLocaleString("en-IN")} of ${total.toLocaleString("en-IN")} prospects`
+      : hasIdentified
+        ? `${dashboard.prospectsIdentified.toLocaleString("en-IN")} prospects identified statewide`
+        : hasAnyData
+          ? `${scopeTotal.toLocaleString("en-IN")} athletes available for scouting`
+          : "Scouting shortlists populate from live athlete performance across Haryana";
 
   const toggleKheloReady = useCallback(() => {
     setKheloReadyOnly((prev) => {
@@ -259,16 +408,16 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
 
   const toggleSelectAll = useCallback(() => {
     setSelectedIds((prev) => {
-      if (allFilteredSelected) {
+      if (allListSelected) {
         const next = new Set(prev);
-        for (const id of filteredIds) next.delete(id);
+        for (const id of listIds) next.delete(id);
         return next;
       }
       const next = new Set(prev);
-      for (const id of filteredIds) next.add(id);
+      for (const id of listIds) next.add(id);
       return next;
     });
-  }, [allFilteredSelected, filteredIds]);
+  }, [allListSelected, listIds]);
 
   const toggleSelect = useCallback((playerId: string) => {
     setSelectedIds((prev) => {
@@ -561,39 +710,113 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
               </div>
             }
           >
-            {filtered.length === 0 ? (
+            {listError && displayProspects.length === 0 ? (
+              <StateFilteredEmpty entity="prospects" description={listError} />
+            ) : displayProspects.length === 0 && !loading ? (
               <StateFilteredEmpty
                 entity="prospects"
                 description="Try changing filters or your search term."
               />
             ) : (
-              <>
-                <AcademyCardList scrollable className="flex-1 border-0 shadow-none rounded-none">
-                  {filtered.map((p) => (
-                    <AcademyCardListItem key={p.playerId}>
-                      <div className="flex items-start gap-3 p-4 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(p.playerId)}
-                          onChange={() => toggleSelect(p.playerId)}
-                          aria-label={`Select ${p.name}`}
-                          className="w-4 h-4 accent-brand mt-1 shrink-0"
-                        />
-                        <Avatar initials={p.initials} color={p.color} size="sm" />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-[13px] text-ink truncate">
-                            {p.name}
+              <div className="relative flex flex-col min-h-0 flex-1">
+                <div
+                  className={`flex flex-col min-h-0 flex-1 transition-opacity ${
+                    loading && displayProspects.length > 0 ? "opacity-50 pointer-events-none" : ""
+                  }`}
+                >
+                  <AcademyCardList
+                    scrollable
+                    scrollContainerRef={cardScrollRef}
+                    footer={loadMoreFooterMobile}
+                    className="flex-1 border-0 shadow-none rounded-none"
+                  >
+                    {displayProspects.map((p) => (
+                      <AcademyCardListItem key={p.playerId}>
+                        <div className="flex items-start gap-3 p-4 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(p.playerId)}
+                            onChange={() => toggleSelect(p.playerId)}
+                            aria-label={`Select ${p.name}`}
+                            className="w-4 h-4 accent-brand mt-1 shrink-0"
+                          />
+                          <Avatar initials={p.initials} color={p.color} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-[13px] text-ink truncate">
+                              {p.name}
+                            </div>
+                            <div className="text-[11.5px] text-muted truncate">
+                              {formatSportWeightLine(p.detail)}
+                            </div>
+                            <div className="text-[11.5px] text-muted mt-1 truncate">
+                              {p.sport} · {p.district}
+                            </div>
+                            <div className="text-[12px] font-semibold text-[#0E9B72] mt-1">
+                              Score {p.score}
+                            </div>
+                            <div className="mt-2 min-w-0">
+                              <InlineSelect
+                                value={p.scoutingStatus ?? ""}
+                                options={SCOUTING_STATUS_SELECT_OPTIONS}
+                                onChange={(value) => handleStatusChange(p.playerId, value)}
+                                variant="pill"
+                                className="w-full max-w-full min-w-0"
+                                aria-label={`Status for ${p.name}`}
+                                disabled={rowSavingId === p.playerId}
+                              />
+                            </div>
                           </div>
-                          <div className="text-[11.5px] text-muted truncate">
-                            {formatSportWeightLine(p.detail)}
+                        </div>
+                      </AcademyCardListItem>
+                    ))}
+                  </AcademyCardList>
+
+                  <AcademyTable
+                    scrollable
+                    scrollContainerRef={tableScrollRef}
+                    footer={loadMoreFooter}
+                    className="hidden lg:flex flex-1 border-0 shadow-none rounded-none"
+                    headers={[...TABLE_HEADERS]}
+                    columnWidths={[...TABLE_COLUMN_WIDTHS]}
+                    columnClassNames={[...TABLE_COLUMN_CLASS_NAMES]}
+                  >
+                    {displayProspects.map((p) => (
+                      <TableRow key={p.playerId}>
+                        <TableCell className={TABLE_COLUMN_CLASS_NAMES[0]}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(p.playerId)}
+                            onChange={() => toggleSelect(p.playerId)}
+                            aria-label={`Select ${p.name}`}
+                            className="w-4 h-4 accent-brand"
+                          />
+                        </TableCell>
+                        <TableCell className={TABLE_COLUMN_CLASS_NAMES[1]}>
+                          <div className="flex items-center gap-[11px] min-w-0">
+                            <Avatar initials={p.initials} color={p.color} size="sm" />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-semibold text-[13px] text-ink truncate">
+                                {p.name}
+                              </div>
+                              <div className="text-[11.5px] text-muted truncate">
+                                {formatSportWeightLine(p.detail)}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-[11.5px] text-muted mt-1 truncate">
-                            {p.sport} · {p.district}
-                          </div>
-                          <div className="text-[12px] font-semibold text-[#0E9B72] mt-1">
-                            Score {p.score}
-                          </div>
-                          <div className="mt-2 min-w-0">
+                        </TableCell>
+                        <TableCell className={TABLE_COLUMN_CLASS_NAMES[2]}>
+                          <span className="block truncate">{p.sport}</span>
+                        </TableCell>
+                        <TableCell className={TABLE_COLUMN_CLASS_NAMES[3]}>
+                          <span className="block truncate">{p.district}</span>
+                        </TableCell>
+                        <TableCell className={TABLE_COLUMN_CLASS_NAMES[4]}>
+                          <b className="text-[#0E9B72]">{p.score}</b>
+                        </TableCell>
+                        <TableCell className={TABLE_COLUMN_CLASS_NAMES[5]}>
+                          {rowSavingId === p.playerId ? (
+                            <span className="text-[12px] text-muted">Saving…</span>
+                          ) : (
                             <InlineSelect
                               value={p.scoutingStatus ?? ""}
                               options={SCOUTING_STATUS_SELECT_OPTIONS}
@@ -601,73 +824,22 @@ export function ScoutingWorkspace({ dashboard, prospects }: ScoutingWorkspacePro
                               variant="pill"
                               className="w-full max-w-full min-w-0"
                               aria-label={`Status for ${p.name}`}
-                              disabled={rowSavingId === p.playerId}
                             />
-                          </div>
-                        </div>
-                      </div>
-                    </AcademyCardListItem>
-                  ))}
-                </AcademyCardList>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </AcademyTable>
+                </div>
 
-                <AcademyTable
-                  scrollable
-                  className="hidden lg:flex flex-1 border-0 shadow-none rounded-none"
-                  headers={[...TABLE_HEADERS]}
-                  columnWidths={[...TABLE_COLUMN_WIDTHS]}
-                  columnClassNames={[...TABLE_COLUMN_CLASS_NAMES]}
-                >
-                  {filtered.map((p) => (
-                    <TableRow key={p.playerId}>
-                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[0]}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(p.playerId)}
-                          onChange={() => toggleSelect(p.playerId)}
-                          aria-label={`Select ${p.name}`}
-                          className="w-4 h-4 accent-brand"
-                        />
-                      </TableCell>
-                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[1]}>
-                        <div className="flex items-center gap-[11px] min-w-0">
-                          <Avatar initials={p.initials} color={p.color} size="sm" />
-                          <div className="min-w-0 flex-1">
-                            <div className="font-semibold text-[13px] text-ink truncate">
-                              {p.name}
-                            </div>
-                            <div className="text-[11.5px] text-muted truncate">
-                              {formatSportWeightLine(p.detail)}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[2]}>
-                        <span className="block truncate">{p.sport}</span>
-                      </TableCell>
-                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[3]}>
-                        <span className="block truncate">{p.district}</span>
-                      </TableCell>
-                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[4]}>
-                        <b className="text-[#0E9B72]">{p.score}</b>
-                      </TableCell>
-                      <TableCell className={TABLE_COLUMN_CLASS_NAMES[5]}>
-                        {rowSavingId === p.playerId ? (
-                          <span className="text-[12px] text-muted">Saving…</span>
-                        ) : (
-                          <InlineSelect
-                            value={p.scoutingStatus ?? ""}
-                            options={SCOUTING_STATUS_SELECT_OPTIONS}
-                            onChange={(value) => handleStatusChange(p.playerId, value)}
-                            variant="pill"
-                            className="w-full max-w-full min-w-0"
-                            aria-label={`Status for ${p.name}`}
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </AcademyTable>
-              </>
+                {loading && displayProspects.length > 0 ? (
+                  <div className="absolute inset-x-0 top-0 z-10 flex justify-center pt-3 pointer-events-none">
+                    <span className="text-[12px] font-medium text-muted bg-card/95 border border-line rounded-full px-3 py-1 shadow-sm">
+                      Updating list…
+                    </span>
+                  </div>
+                ) : null}
+              </div>
             )}
           </ScrollableListPanel>
         </div>

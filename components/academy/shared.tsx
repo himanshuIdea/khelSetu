@@ -498,19 +498,27 @@ export function AcademyCardList({
   children,
   scrollable = false,
   className = "",
+  footer,
+  scrollContainerRef,
 }: {
   children: React.ReactNode;
   scrollable?: boolean;
   className?: string;
+  footer?: React.ReactNode;
+  scrollContainerRef?: React.Ref<HTMLDivElement>;
 }) {
   const baseClass = `lg:hidden min-w-0 w-full max-w-full bg-card border border-line rounded-(--radius) shadow-card overflow-hidden divide-y divide-line2 ${className}`;
 
   if (scrollable) {
     return (
       <div className={`${baseClass} flex flex-1 flex-col min-h-0`}>
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain divide-y divide-line2 [-webkit-overflow-scrolling:touch]">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain divide-y divide-line2 [-webkit-overflow-scrolling:touch]"
+        >
           {children}
         </div>
+        {footer}
       </div>
     );
   }

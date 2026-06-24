@@ -126,6 +126,21 @@ export type StateScoutingProspect = {
   scoutingStatus: ScoutingStatus | null;
 };
 
+export type StateScoutingFilters = {
+  sport?: string;
+  district?: string;
+  ageGroup?: string;
+  minRating?: number;
+  search?: string;
+  /** `all` | `unmarked` | a scouting status value */
+  status?: string;
+};
+
+export type StateScoutingProspectListResult = {
+  items: StateScoutingProspect[];
+  total: number;
+};
+
 export type ScoutingShortlistReportRow = {
   playerId: string;
   athlete: string;
