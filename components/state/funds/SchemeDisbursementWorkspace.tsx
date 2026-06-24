@@ -416,6 +416,7 @@ export function SchemeDisbursementWorkspace({
           action={
             <Link
               href="/state/funds"
+              prefetch={false}
               className="inline-flex items-center justify-center gap-[7px] bg-card border border-line text-ink font-semibold text-[13px] py-[11px] px-4 rounded-[10px] w-full sm:w-auto shrink-0"
             >
               Back to funds

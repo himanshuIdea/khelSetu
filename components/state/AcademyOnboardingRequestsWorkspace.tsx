@@ -114,6 +114,7 @@ export function AcademyOnboardingRequestsWorkspace({
           action={
             <Link
               href="/state/nurseries"
+              prefetch={false}
               className="inline-flex items-center justify-center gap-[7px] border border-line bg-card text-ink font-semibold text-[13px] py-[11px] px-4 rounded-[10px] w-full sm:w-auto shrink-0"
             >
               Back to nurseries

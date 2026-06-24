@@ -301,6 +301,7 @@ export function OverviewWorkspace() {
               {verification.flagged > 0 && (
                 <Link
                   href="/state/verification?status=flagged"
+                  prefetch={false}
                   className="mt-3 bg-red-soft border border-[#F6D4D4] rounded-[10px] px-[11px] py-[9px] flex items-center gap-2 hover:bg-[#FEF2F2] transition-colors"
                 >
                   <BellIcon className="w-[15px] h-[15px] text-[#D63B3B]" />

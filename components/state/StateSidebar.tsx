@@ -68,6 +68,7 @@ function NavLink({
   return (
     <Link
       href={entry.href}
+      prefetch={false}
       onClick={onNavigate}
       title={collapsed ? entry.label : undefined}
       aria-label={collapsed ? entry.label : undefined}
