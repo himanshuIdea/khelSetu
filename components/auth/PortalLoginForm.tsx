@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
@@ -10,8 +10,7 @@ import { AuthContinueButton } from "@/components/auth/AuthButton";
 import { PortalLoginCrossLinks } from "@/components/auth/PortalLoginCrossLinks";
 import { authConfig, type AuthMode, type CuratedPortalId } from "@/lib/auth-config";
 import type { PortalKind } from "@/lib/auth/portal-login";
-import { api, ApiError } from "@/lib/api";
-import { completeAuthRedirect } from "@/lib/auth/complete-auth-redirect";
+import { portalLoginAction, type PortalLoginState } from "@/lib/auth/portal-login-action";
 import { getPortalBrandHref } from "@/lib/portal-landing-config";
 
 type PortalLoginFormProps = {
@@ -29,6 +28,10 @@ function curatedPortalId(portal: PortalKind): CuratedPortalId | null {
 export function PortalLoginForm({ portal }: PortalLoginFormProps) {
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
+  const [loginState, submitLogin, isSubmitting] = useActionState<PortalLoginState, FormData>(
+    portalLoginAction,
+    {}
+  );
 
   const copy = useMemo(() => {
     if (portal === "admin") {
@@ -49,47 +52,15 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit =
     mode === "password"
       ? identifier.trim() !== "" && password.trim() !== ""
       : phone.trim() !== "" && otp.trim() !== "";
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!canSubmit || isSubmitting) return;
-
-    setError(null);
-    setIsSubmitting(true);
-
-    try {
-      const result =
-        mode === "password"
-          ? await api.auth.login({
-              mode: "password",
-              identifier: identifier.trim(),
-              password,
-              portal,
-              next: next ?? undefined,
-            })
-          : await api.auth.login({
-              mode: "otp",
-              phone: phone.trim(),
-              otp: otp.trim(),
-              portal,
-              next: next ?? undefined,
-            });
-
-      completeAuthRedirect(result.redirectTo);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
-      setIsSubmitting(false);
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    if (!canSubmit || isSubmitting) {
+      e.preventDefault();
     }
   }
 
@@ -112,15 +83,23 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
       showProgress={sidePanel.showProgress}
       brandHref={brandHref}
     >
-      <form onSubmit={handleSubmit} className="flex flex-col flex-1 max-w-lg min-w-0">
+      <form
+        action={submitLogin}
+        onSubmit={handleSubmit}
+        className="flex flex-col flex-1 max-w-lg min-w-0"
+      >
+        <input type="hidden" name="portal" value={portal} />
+        <input type="hidden" name="mode" value={mode} />
+        {next ? <input type="hidden" name="next" value={next} /> : null}
+
         <h3 className="text-xl sm:text-[23px] font-bold text-ink tracking-tight">
           {copy.title}
         </h3>
         <p className="text-[13.5px] text-muted mt-1.5 mb-7">{copy.subtitle}</p>
 
-        {error && (
+        {loginState.error && (
           <p className="text-[13px] font-medium text-red mb-4" role="alert">
-            {error}
+            {loginState.error}
           </p>
         )}
 
@@ -136,6 +115,7 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
         {mode === "password" ? (
           <>
             <AuthField
+              name="identifier"
               label={copy.modes.password.identifierLabel}
               placeholder={copy.modes.password.identifierPlaceholder}
               value={identifier}
@@ -143,6 +123,7 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
               autoComplete="username"
             />
             <AuthField
+              name="password"
               label={copy.modes.password.passwordLabel}
               type="password"
               placeholder={copy.modes.password.passwordPlaceholder}
@@ -163,6 +144,7 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
           "otp" in copy.modes && (
             <>
               <AuthField
+                name="phone"
                 label={copy.modes.otp.phoneLabel}
                 type="tel"
                 placeholder={copy.modes.otp.phonePlaceholder}
@@ -171,6 +153,7 @@ export function PortalLoginForm({ portal }: PortalLoginFormProps) {
                 autoComplete="tel"
               />
               <AuthField
+                name="otp"
                 label={copy.modes.otp.otpLabel}
                 placeholder={copy.modes.otp.otpPlaceholder}
                 value={otp}

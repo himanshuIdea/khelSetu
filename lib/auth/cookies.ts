@@ -5,6 +5,9 @@ function resolveCookieSecure(): boolean {
   if (override === "true") return true;
   if (override === "false") return false;
 
+  // Vercel always serves over HTTPS — Secure cookies must be set in production.
+  if (process.env.VERCEL) return true;
+
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.APP_URL ||

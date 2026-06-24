@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import {
   getSessionCookieOptions,
-  getSessionMaxAgeSeconds,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/cookies";
-import { signSessionToken } from "@/lib/auth/jwt";
 import type { PortalKind } from "@/lib/auth/portal-login";
 import {
   resolvePostAuthRedirect,
   resolvePostAuthRedirectForPortal,
 } from "@/lib/auth/redirect";
+import {
+  attachSessionCookie,
+  createSessionTokenForProfile,
+} from "@/lib/auth/session-cookie";
 import type { AuthProfile } from "@/lib/auth/types";
 
 export type AuthResponseOptions = {
@@ -26,13 +28,7 @@ export async function createAuthResponse(
       ? await resolvePostAuthRedirectForPortal(profile, options.portal, options.next)
       : resolvePostAuthRedirect(profile);
 
-  const token = await signSessionToken({
-    userId: profile.id,
-    email: profile.email,
-    phone: profile.phone,
-    platformRole: profile.platformRole,
-    mustChangePassword: profile.mustChangePassword,
-  });
+  const token = await createSessionTokenForProfile(profile);
 
   const response = NextResponse.json({
     user: {
@@ -52,11 +48,7 @@ export async function createAuthResponse(
     redirectTo,
   });
 
-  response.cookies.set(
-    SESSION_COOKIE_NAME,
-    token,
-    getSessionCookieOptions(getSessionMaxAgeSeconds())
-  );
+  attachSessionCookie(response, token);
 
   return response;
 }
