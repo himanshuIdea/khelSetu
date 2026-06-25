@@ -64,10 +64,10 @@ function RatingTrendChart({ points }: { points: PlayerPortalRatingPoint[] }) {
   if (points.length === 0) return null;
 
   const width = 320;
-  const paddingLeft = 72;
+  const paddingLeft = 56;
   const paddingRight = 12;
   const paddingTop = 8;
-  const paddingBottom = 22;
+  const paddingBottom = 28;
   const rowHeight = 36;
   const chartWidth = width - paddingLeft - paddingRight;
   const plotHeight = points.length * rowHeight;
@@ -86,100 +86,122 @@ function RatingTrendChart({ points }: { points: PlayerPortalRatingPoint[] }) {
   const areaPath = `${linePath} L${coords[coords.length - 1]!.x} ${baselineY} L${coords[0]!.x} ${baselineY} Z`;
 
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      width="100%"
-      height={height}
-      className="min-w-0"
-      role="img"
-      aria-label={`Coach rating trend across ${points.length} review${points.length === 1 ? "" : "s"}`}
-    >
-      {xAxisTicks.map((tick) => {
-        const x = ratingToChartX(tick, paddingLeft, chartWidth);
-        return (
-          <g key={tick}>
-            <line x1={x} y1={paddingTop} x2={x} y2={baselineY} stroke="#EDF0F6" strokeWidth="1" />
+    <div className="min-w-0">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width="100%"
+        height={height}
+        className="min-w-0"
+        role="img"
+        aria-label={`Coach rating trend across ${points.length} review${points.length === 1 ? "" : "s"}`}
+      >
+        {xAxisTicks.map((tick) => {
+          const x = ratingToChartX(tick, paddingLeft, chartWidth);
+          return (
+            <g key={tick}>
+              <line x1={x} y1={paddingTop} x2={x} y2={baselineY} stroke="#EDF0F6" strokeWidth="1" />
+              <text
+                x={x}
+                y={height - 14}
+                textAnchor="middle"
+                fontSize="9"
+                fill="#9AA5BC"
+                fontFamily="Poppins"
+              >
+                {tick}
+              </text>
+            </g>
+          );
+        })}
+
+        <text
+          x={paddingLeft + chartWidth / 2}
+          y={height - 2}
+          textAnchor="middle"
+          fontSize="9"
+          fill="#62708C"
+          fontFamily="Poppins"
+          fontWeight="600"
+        >
+          Rating (out of 10)
+        </text>
+
+        {coords.map((coord) => (
+          <line
+            key={`row-${coord.point.reviewedAt}`}
+            x1={paddingLeft}
+            y1={coord.y}
+            x2={width - paddingRight}
+            y2={coord.y}
+            stroke="#F4F6FA"
+            strokeWidth="1"
+          />
+        ))}
+
+        <line
+          x1={paddingLeft}
+          y1={baselineY}
+          x2={width - paddingRight}
+          y2={baselineY}
+          stroke="#EDF0F6"
+          strokeWidth="1"
+        />
+
+        <defs>
+          <linearGradient id="playerRatingGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#FF6B2C" stopOpacity="0.18" />
+            <stop offset="1" stopColor="#FF6B2C" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {points.length > 1 && <path d={areaPath} fill="url(#playerRatingGradient)" />}
+        {points.length > 1 && (
+          <path
+            d={linePath}
+            fill="none"
+            stroke="#FF6B2C"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+
+        {coords.map((coord) => (
+          <g key={coord.point.reviewedAt}>
             <text
-              x={x}
-              y={height - 6}
-              textAnchor="middle"
+              x={paddingLeft - 6}
+              y={coord.y + 3.5}
+              textAnchor="end"
               fontSize="9"
               fill="#9AA5BC"
               fontFamily="Poppins"
             >
-              {tick}
+              {coord.reviewNumber}
+            </text>
+            <circle cx={coord.x} cy={coord.y} r="5" fill="#FF6B2C" stroke="#fff" strokeWidth="2" />
+            <text
+              x={coord.x}
+              y={coord.y - 10}
+              textAnchor="middle"
+              fontSize="10"
+              fontWeight="700"
+              fill="#0E1B33"
+              fontFamily="Poppins"
+            >
+              {coord.point.rating}
             </text>
           </g>
-        );
-      })}
-
-      {coords.map((coord) => (
-        <line
-          key={`row-${coord.point.reviewedAt}`}
-          x1={paddingLeft}
-          y1={coord.y}
-          x2={width - paddingRight}
-          y2={coord.y}
-          stroke="#F4F6FA"
-          strokeWidth="1"
-        />
-      ))}
-
-      <line
-        x1={paddingLeft}
-        y1={baselineY}
-        x2={width - paddingRight}
-        y2={baselineY}
-        stroke="#EDF0F6"
-        strokeWidth="1"
-      />
-
-      <defs>
-        <linearGradient id="playerRatingGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FF6B2C" stopOpacity="0.18" />
-          <stop offset="1" stopColor="#FF6B2C" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      {points.length > 1 && <path d={areaPath} fill="url(#playerRatingGradient)" />}
-      {points.length > 1 && (
-        <path
-          d={linePath}
-          fill="none"
-          stroke="#FF6B2C"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      )}
-
-      {coords.map((coord) => (
-        <g key={coord.point.reviewedAt}>
-          <text
-            x={paddingLeft - 6}
-            y={coord.y + 3.5}
-            textAnchor="end"
-            fontSize="9"
-            fill="#9AA5BC"
-            fontFamily="Poppins"
-          >
-            {truncateDrillLabel(coord.point.drillName)}
-          </text>
-          <circle cx={coord.x} cy={coord.y} r="5" fill="#FF6B2C" stroke="#fff" strokeWidth="2" />
-          <text
-            x={coord.x}
-            y={coord.y - 10}
-            textAnchor="middle"
-            fontSize="10"
-            fontWeight="700"
-            fill="#0E1B33"
-            fontFamily="Poppins"
-          >
-            {coord.point.rating}
-          </text>
-        </g>
-      ))}
-    </svg>
+        ))}
+      </svg>
+      <div className="flex items-center justify-between gap-2 px-1 -mt-1 min-w-0">
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-muted2">Reviews</span>
+        <span className="text-[9px] text-muted2 truncate">
+          {points.length === 1
+            ? truncateDrillLabel(points[0]!.drillName, 24)
+            : `Oldest → newest · ${points.length} reviews`}
+        </span>
+      </div>
+    </div>
   );
 }
 
