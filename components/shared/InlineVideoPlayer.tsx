@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { VideoIcon } from "@/components/academy/icons";
 import { formatVideoDuration } from "@/lib/format";
+import { useNearViewport } from "@/lib/hooks/use-near-viewport";
 
 const DEFAULT_POSTER = "linear-gradient(135deg, #0E1B33, #1E335C)";
 const CONTROLS_HIDE_MS = 2500;
@@ -90,6 +91,158 @@ function BufferingSpinner() {
   );
 }
 
+const FEED_POSTER_SEEK_SECONDS = 0.1;
+
+type FeedPosterChromeProps = {
+  tag?: string;
+  durationSeconds?: number | null;
+  ariaLabel: string;
+  onActivate: () => void;
+};
+
+function FeedPosterChrome({ tag, durationSeconds, ariaLabel, onActivate }: FeedPosterChromeProps) {
+  return (
+    <>
+      {tag ? (
+        <span className="absolute top-3 left-3 text-[11px] font-semibold bg-black/45 text-white px-2.5 py-1 rounded-full z-10">
+          {tag}
+        </span>
+      ) : null}
+      <button
+        type="button"
+        onClick={onActivate}
+        className="absolute inset-0 flex items-center justify-center z-[2]"
+        aria-label={ariaLabel}
+      >
+        <PlayFab />
+      </button>
+      {durationSeconds != null && durationSeconds > 0 ? (
+        <span className="absolute bottom-3 right-3 text-[11px] font-semibold bg-black/55 text-white px-2 py-1 rounded-md z-10">
+          {formatVideoDuration(durationSeconds)}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+type FeedVideoPosterProps = {
+  src: string;
+  poster: string;
+  tag?: string;
+  durationSeconds?: number | null;
+  ariaLabel: string;
+  wrapperClass: string;
+  onActivate: () => void;
+};
+
+/** Paused first-frame preview for feed cards — lazy-loaded near viewport. */
+function FeedVideoPoster({
+  src,
+  poster,
+  tag,
+  durationSeconds,
+  ariaLabel,
+  wrapperClass,
+  onActivate,
+}: FeedVideoPosterProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const { ref: containerRef, near } = useNearViewport({ rootMargin: "200px" });
+  const [frameReady, setFrameReady] = useState(false);
+  const [posterFailed, setPosterFailed] = useState(false);
+
+  useEffect(() => {
+    setFrameReady(false);
+    setPosterFailed(false);
+  }, [src]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || posterFailed) return;
+
+    if (near) {
+      if (video.getAttribute("src") !== src) {
+        video.src = src;
+        video.load();
+      }
+      return;
+    }
+
+    video.removeAttribute("src");
+    video.load();
+    setFrameReady(false);
+  }, [near, src, posterFailed]);
+
+  const handleLoadedMetadata = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const target = Math.min(
+      FEED_POSTER_SEEK_SECONDS,
+      Number.isFinite(video.duration) && video.duration > 0 ? video.duration * 0.05 : FEED_POSTER_SEEK_SECONDS
+    );
+    if (video.currentTime < target - 0.01) {
+      try {
+        video.currentTime = target;
+      } catch {
+        setFrameReady(true);
+      }
+    } else {
+      setFrameReady(true);
+    }
+  };
+
+  const handleSeeked = () => setFrameReady(true);
+
+  const handlePosterError = () => {
+    setPosterFailed(true);
+    setFrameReady(false);
+    const video = videoRef.current;
+    if (video) {
+      video.removeAttribute("src");
+      video.load();
+    }
+  };
+
+  if (posterFailed) {
+    return (
+      <div ref={containerRef} className={wrapperClass} style={{ background: poster }}>
+        <FeedPosterChrome
+          tag={tag}
+          durationSeconds={durationSeconds}
+          ariaLabel={ariaLabel}
+          onActivate={onActivate}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className={`${wrapperClass} bg-black`}>
+      {near ? (
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          preload="metadata"
+          onLoadedMetadata={handleLoadedMetadata}
+          onSeeked={handleSeeked}
+          onLoadedData={() => setFrameReady(true)}
+          onError={handlePosterError}
+          className="w-full h-full object-cover"
+        />
+      ) : null}
+
+      {near && !frameReady ? <BufferingSpinner /> : null}
+
+      <FeedPosterChrome
+        tag={tag}
+        durationSeconds={durationSeconds}
+        ariaLabel={ariaLabel}
+        onActivate={onActivate}
+      />
+    </div>
+  );
+}
+
 type VideoSurfaceProps = {
   src: string;
   videoKey?: string;
@@ -125,14 +278,16 @@ function VideoSurface({
   const scrubbingRef = useRef(false);
 
   const isPreview = variant === "preview";
-  const showFullscreen = variant === "detail" || variant === "review";
+  const isFeed = variant === "feed";
+  const showFullscreen = variant !== "preview";
 
-  const [isPaused, setIsPaused] = useState(!isPreview);
+  const [isPaused, setIsPaused] = useState(isPreview ? false : isFeed ? true : false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
   const [duration, setDuration] = useState(durationSeconds ?? 0);
   const [buffering, setBuffering] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(isFeed);
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current) {
@@ -158,6 +313,10 @@ function VideoSurface({
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
+      if (isFeed && video.muted) {
+        video.muted = false;
+        setMuted(false);
+      }
       void video.play();
       setIsPaused(false);
     } else {
@@ -165,7 +324,7 @@ function VideoSurface({
       setIsPaused(true);
     }
     revealControls();
-  }, [revealControls]);
+  }, [isFeed, revealControls]);
 
   const seekTo = useCallback(
     (time: number) => {
@@ -189,36 +348,51 @@ function VideoSurface({
 
   const toggleFullscreen = useCallback(async () => {
     const container = containerRef.current;
+    const video = videoRef.current;
     if (!container) return;
+
+    const webkitVideo = video as HTMLVideoElement & {
+      webkitEnterFullscreen?: () => void;
+    };
+
     try {
       if (document.fullscreenElement) {
         await document.exitFullscreen();
+      } else if (webkitVideo?.webkitEnterFullscreen) {
+        webkitVideo.webkitEnterFullscreen();
       } else {
         await container.requestFullscreen();
       }
     } catch {
-      // Fullscreen may be blocked by browser policy.
+      if (webkitVideo?.webkitEnterFullscreen) {
+        try {
+          webkitVideo.webkitEnterFullscreen();
+        } catch {
+          // Fullscreen may be blocked by browser policy.
+        }
+      }
     }
     revealControls();
   }, [revealControls]);
 
   useEffect(() => {
-    setIsPaused(!isPreview);
+    setIsPaused(isPreview ? false : isFeed ? true : false);
     setCurrentTime(0);
+    setScrubTime(null);
     setDuration(durationSeconds ?? 0);
     setBuffering(false);
     setControlsVisible(true);
-    setMuted(false);
+    setMuted(isFeed);
     clearHideTimer();
-  }, [src, variant, videoKey, isPreview, durationSeconds, clearHideTimer]);
+  }, [src, variant, videoKey, isPreview, isFeed, durationSeconds, clearHideTimer]);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || isFeed) return;
     void video.play().catch(() => {
       setIsPaused(true);
     });
-  }, [src, videoKey]);
+  }, [src, videoKey, isFeed]);
 
   useEffect(() => {
     if (!isPaused && controlsVisible) {
@@ -268,9 +442,33 @@ function VideoSurface({
     togglePlayPause();
   };
 
+  const beginScrub = useCallback(
+    (value: number) => {
+      scrubbingRef.current = true;
+      setScrubTime(value);
+      revealControls();
+    },
+    [revealControls]
+  );
+
+  const updateScrub = useCallback((value: number) => {
+    setScrubTime(value);
+  }, []);
+
+  const endScrub = useCallback(
+    (value: number) => {
+      scrubbingRef.current = false;
+      setScrubTime(null);
+      seekTo(value);
+    },
+    [seekTo]
+  );
+
   const effectiveDuration = duration > 0 ? duration : durationSeconds ?? 0;
   const progressMax = Math.max(effectiveDuration, 1);
-  const progressValue = Math.min(currentTime, progressMax);
+  const progressValue = Math.min(scrubTime ?? currentTime, progressMax);
+  const progressPercent = progressMax > 0 ? (progressValue / progressMax) * 100 : 0;
+  const showCenterControl = isPaused || controlsVisible;
 
   return (
     <div
@@ -310,59 +508,87 @@ function VideoSurface({
       <button
         type="button"
         onClick={handleSurfaceClick}
-        className="absolute inset-0 z-[1] cursor-pointer"
+        className="absolute inset-0 z-[1] cursor-pointer border-0 bg-transparent p-0"
         aria-label={isPaused ? ariaLabel : "Pause video"}
       />
 
-      {isPaused || controlsVisible ? (
-        <div
-          className={`absolute inset-0 flex items-center justify-center z-[2] pointer-events-none transition-opacity duration-200 ${
-            isPaused ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-          } ${controlsVisible ? "opacity-100" : ""}`}
+      {showCenterControl ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            togglePlayPause();
+          }}
+          className="absolute inset-0 z-[4] flex items-center justify-center border-0 bg-transparent p-0 cursor-pointer transition-opacity duration-200"
+          aria-label={isPaused ? ariaLabel : "Pause video"}
         >
-          {isPaused ? (
-            <PlayFab large />
-          ) : (
-            <span className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center min-h-[44px] min-w-[44px]">
-              <PauseIcon className="w-5 h-5 text-white" />
-            </span>
-          )}
-        </div>
+          <span
+            className={`transition-opacity duration-200 ${
+              isPaused ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            } ${controlsVisible ? "opacity-100" : ""}`}
+          >
+            {isPaused ? (
+              <PlayFab large />
+            ) : (
+              <span className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center min-h-[44px] min-w-[44px]">
+                <PauseIcon className="w-5 h-5 text-white" />
+              </span>
+            )}
+          </span>
+        </button>
       ) : null}
 
       <div
-        className={`absolute inset-x-0 bottom-0 z-[3] bg-gradient-to-t from-black/80 via-black/45 to-transparent pt-10 pb-2 px-3 transition-opacity duration-200 ${
-          controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+        className={`absolute inset-x-0 bottom-0 z-[5] bg-gradient-to-t from-black/85 via-black/50 to-transparent pt-8 pb-2 px-3 transition-[opacity,transform] duration-300 ease-out ${
+          controlsVisible
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 translate-y-1 pointer-events-none"
         }`}
         onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
       >
-        <input
-          type="range"
-          min={0}
-          max={progressMax}
-          step={0.1}
-          value={progressValue}
-          aria-label="Seek video"
-          aria-valuemin={0}
-          aria-valuemax={progressMax}
-          aria-valuenow={Math.floor(progressValue)}
-          className="w-full h-1.5 appearance-none bg-white/30 rounded-full cursor-pointer accent-white mb-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-          onPointerDown={() => {
-            scrubbingRef.current = true;
-            revealControls();
-          }}
-          onPointerUp={() => {
-            scrubbingRef.current = false;
-          }}
-          onChange={(event) => {
-            seekTo(Number(event.target.value));
-          }}
-        />
+        <div className="relative mb-2.5 h-1.5 rounded-full bg-white/25 overflow-hidden">
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-white"
+            style={{ width: `${progressPercent}%` }}
+          />
+          <input
+            type="range"
+            min={0}
+            max={progressMax}
+            step={0.05}
+            value={progressValue}
+            aria-label="Seek video"
+            aria-valuemin={0}
+            aria-valuemax={progressMax}
+            aria-valuenow={Math.floor(progressValue)}
+            className="absolute inset-0 w-full h-full appearance-none cursor-pointer bg-transparent opacity-0 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full"
+            onPointerDown={(event) => {
+              beginScrub(Number(event.currentTarget.value));
+            }}
+            onInput={(event) => {
+              updateScrub(Number(event.currentTarget.value));
+            }}
+            onPointerUp={(event) => {
+              endScrub(Number(event.currentTarget.value));
+            }}
+            onPointerCancel={(event) => {
+              endScrub(Number(event.currentTarget.value));
+            }}
+          />
+          <div
+            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-sm pointer-events-none"
+            style={{ left: `calc(${progressPercent}% - 6px)` }}
+          />
+        </div>
 
         <div className="flex items-center gap-1 text-white">
           <button
             type="button"
-            onClick={togglePlayPause}
+            onClick={(event) => {
+              event.stopPropagation();
+              togglePlayPause();
+            }}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
             aria-label={isPaused ? "Play" : "Pause"}
           >
@@ -376,7 +602,7 @@ function VideoSurface({
           </button>
 
           <span className="text-[11px] font-medium tabular-nums min-w-[72px]">
-            {formatVideoDuration(Math.floor(currentTime))}
+            {formatVideoDuration(Math.floor(scrubTime ?? currentTime))}
             <span className="text-white/60"> / </span>
             {formatVideoDuration(effectiveDuration)}
           </span>
@@ -385,7 +611,10 @@ function VideoSurface({
 
           <button
             type="button"
-            onClick={toggleMute}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleMute();
+            }}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
             aria-label={muted ? "Unmute" : "Mute"}
           >
@@ -395,7 +624,10 @@ function VideoSurface({
           {showFullscreen ? (
             <button
               type="button"
-              onClick={() => void toggleFullscreen()}
+              onClick={(event) => {
+                event.stopPropagation();
+                void toggleFullscreen();
+              }}
               className="min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
               aria-label="Fullscreen"
             >
@@ -481,26 +713,28 @@ export function InlineVideoPlayer({
     );
   }
 
+  if (variant === "feed") {
+    return (
+      <FeedVideoPoster
+        src={src}
+        poster={poster}
+        tag={tag}
+        durationSeconds={durationSeconds}
+        ariaLabel={ariaLabel}
+        wrapperClass={wrapperClass}
+        onActivate={() => setActivated(true)}
+      />
+    );
+  }
+
   return (
     <div className={wrapperClass} style={{ background: poster }}>
-      {tag ? (
-        <span className="absolute top-3 left-3 text-[11px] font-semibold bg-black/45 text-white px-2.5 py-1 rounded-full z-10">
-          {tag}
-        </span>
-      ) : null}
-      <button
-        type="button"
-        onClick={() => setActivated(true)}
-        className="absolute inset-0 flex items-center justify-center z-[1]"
-        aria-label={ariaLabel}
-      >
-        <PlayFab />
-      </button>
-      {durationSeconds != null && durationSeconds > 0 ? (
-        <span className="absolute bottom-3 right-3 text-[11px] font-semibold bg-black/55 text-white px-2 py-1 rounded-md z-10">
-          {formatVideoDuration(durationSeconds)}
-        </span>
-      ) : null}
+      <FeedPosterChrome
+        tag={tag}
+        durationSeconds={durationSeconds}
+        ariaLabel={ariaLabel}
+        onActivate={() => setActivated(true)}
+      />
     </div>
   );
 }

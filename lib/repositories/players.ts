@@ -771,6 +771,7 @@ export type PlayerPortalRatingPoint = {
   rating: number;
   reviewedAt: string;
   timeAgo: string;
+  drillName: string;
 };
 
 export type PlayerPortalProfile = {
@@ -785,6 +786,8 @@ export type PlayerPortalProfile = {
   coachName: string | null;
   status: string;
   rating: string | null;
+  usesReviewAverage: boolean;
+  reviewCount: number;
   attendance: string;
   sessionsCount: number;
   drillsDone: number;
@@ -840,6 +843,19 @@ function averageSkillScores(
     .filter((row): row is PlayerPortalSkillScore => row != null);
 }
 
+function formatPortalOverallRating(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function averageReviewRating(
+  rows: { rating: number | null }[]
+): number | null {
+  const ratings = rows.map((row) => row.rating).filter((rating): rating is number => rating != null);
+  if (ratings.length === 0) return null;
+  return ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+}
+
 export async function getPlayerPortalProfile(
   academyId: string,
   playerId: string
@@ -889,6 +905,7 @@ export async function getPlayerPortalProfile(
       .select({
         rating: drillReviews.rating,
         reviewedAt: drillReviews.reviewedAt,
+        drillName: drillSubmissions.drillName,
       })
       .from(drillReviews)
       .innerJoin(drillSubmissions, eq(drillReviews.submissionId, drillSubmissions.id))
@@ -896,6 +913,9 @@ export async function getPlayerPortalProfile(
       .orderBy(desc(drillReviews.reviewedAt))
       .limit(8),
   ]);
+
+  const reviewAverage = averageReviewRating(reviewRows);
+  const ratedReviewCount = reviewRows.filter((row) => row.rating != null).length;
 
   const statusLabel =
     row.player.status === "on_hold"
@@ -915,7 +935,14 @@ export async function getPlayerPortalProfile(
     batchName: row.batchName,
     coachName: row.player.primaryCoachId ? row.coachName : null,
     status: statusLabel,
-    rating: row.player.rating != null ? String(row.player.rating) : null,
+    rating:
+      row.player.rating != null
+        ? String(row.player.rating)
+        : reviewAverage != null
+          ? formatPortalOverallRating(reviewAverage)
+          : null,
+    usesReviewAverage: row.player.rating == null && reviewAverage != null,
+    reviewCount: ratedReviewCount,
     attendance,
     sessionsCount: Number(sessionsRow?.count ?? 0) || 0,
     drillsDone: Number(drillsRow?.count ?? 0) || 0,
@@ -927,6 +954,7 @@ export async function getPlayerPortalProfile(
         rating: point.rating!,
         reviewedAt: point.reviewedAt.toISOString(),
         timeAgo: formatTimeAgo(point.reviewedAt),
+        drillName: point.drillName,
       }))
       .reverse(),
     skillScores: averageSkillScores(reviewRows),

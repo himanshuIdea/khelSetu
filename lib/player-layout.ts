@@ -1,3 +1,5 @@
+import { playerFeedScrollEndClass } from "@/lib/player-nav";
+
 /** Shared spacing and layout classes for `/player/*` mobile screens. */
 export const playerLayout = {
   pageX: "px-4 sm:px-[18px]",
@@ -10,8 +12,8 @@ export const playerLayout = {
   searchShell:
     "flex items-center gap-2.5 min-h-[44px] bg-card border border-line rounded-[11px] px-3.5 py-2.5 text-muted2 min-w-0",
   body: "flex flex-1 flex-col min-h-0 min-w-0 w-full max-w-full overflow-x-clip",
-  scrollBody:
-    "flex flex-1 flex-col min-h-0 min-w-0 w-full max-w-full overflow-x-clip overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] px-4 sm:px-[18px] pb-4 sm:pb-5",
+  scrollBody: `flex flex-1 flex-col min-h-0 min-w-0 w-full max-w-full overflow-x-clip overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] px-4 sm:px-[18px] ${playerFeedScrollEndClass}`,
+  pinnedChrome: "shrink-0 min-w-0 px-4 sm:px-[18px] pb-2",
   centeredPanel: "flex flex-1 flex-col items-center justify-center min-h-0 min-w-0 px-4 sm:px-6 py-6 text-center",
   card: "bg-card border border-line rounded-[18px] min-w-0",
   cardLg: "bg-card border border-line rounded-[20px] min-w-0",

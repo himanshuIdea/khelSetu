@@ -12,6 +12,8 @@ export const playerRoutes: Record<PlayerNavItem, string> = {
 
 export const playerAiFormRoute = `${PLAYER_ROUTE_PREFIX}/ai-form`;
 
+export const playerNotificationsRoute = `${PLAYER_ROUTE_PREFIX}/notifications`;
+
 export function playerDrillDetailRoute(postId: string): string {
   return `${playerRoutes.drills}/${postId}`;
 }

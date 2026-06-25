@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/academy/shared";
 import { playerLayout } from "@/lib/player-layout";
+import { playerTabBarPaddingClass } from "@/lib/player-nav";
 
 type PlayerEmptyStateProps = {
   title: string;
@@ -33,7 +34,9 @@ export function PlayerEmptyState({
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center min-h-[min(320px,50dvh)] min-w-0 px-4 sm:px-[18px] py-8 sm:py-10">
+    <div
+      className={`flex flex-1 flex-col items-center justify-center min-h-[min(320px,50dvh)] min-w-0 px-4 sm:px-[18px] py-8 sm:py-10 ${playerTabBarPaddingClass}`}
+    >
       <EmptyState
         title={title}
         description={description}

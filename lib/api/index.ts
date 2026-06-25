@@ -720,6 +720,12 @@ export const api = {
       unfollow: (academyId: string, playerId: string) =>
         apiDelete(`/player/${academyId}/follows/${playerId}`),
     },
+    notifications: {
+      list: (academyId: string) =>
+        apiGet<{ items: import("@/lib/player-notifications-types").PlayerNotification[] }>(
+          `/player/${academyId}/notifications`
+        ),
+    },
   },
 
   state: {

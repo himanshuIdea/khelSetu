@@ -6,8 +6,8 @@ import { GridIcon } from "@/components/academy/icons";
 import { FilterPills } from "@/components/academy/shared";
 import { PlayerEmptyState } from "@/components/player/PlayerEmptyState";
 import { PlayerFeedPost } from "@/components/player/PlayerFeedPost";
+import { PlayerPinnedChrome } from "@/components/player/PlayerPinnedChrome";
 import { PlayerScrollBody } from "@/components/player/PlayerScrollBody";
-import { playerFeedScrollEndClass } from "@/lib/player-nav";
 import type { AcademyFeedItem } from "@/lib/repositories/academy-feed";
 
 type PlayerFeedProps = {
@@ -51,44 +51,48 @@ export function PlayerFeed({
   }, [highlightPostKey, filtered]);
 
   return (
-    <PlayerScrollBody className={`pt-0 ${playerFeedScrollEndClass}`}>
-      <div className="min-w-0 w-full max-w-full">
-        <FilterPills>
-          <InlineSelect
-            variant="pill"
-            filterPill
-            aria-label="Filter by sport"
-            value={sportId}
-            onChange={setSportId}
-            active={sportId !== "all"}
-            menuMaxHeightClass="max-h-52"
-            className="shrink-0 text-[12.5px] font-medium px-[13px] py-2 min-h-[44px]"
-            options={sportOptions}
-          />
-        </FilterPills>
-      </div>
-
-      {filtered.length === 0 ? (
-        <PlayerEmptyState
-          icon={<GridIcon className="w-5 h-5" />}
-          title="No posts yet"
-          description="Your academy feed will show coach-verified training posts here."
-        />
-      ) : (
-        <div className="min-w-0">
-          {filtered.map((item) => {
-            const key = `${item.type}:${item.sourceId}`;
-            return (
-              <PlayerFeedPost
-                key={key}
-                academyId={academyId}
-                item={item}
-                highlighted={highlightPostKey === key}
-              />
-            );
-          })}
+    <>
+      <PlayerPinnedChrome>
+        <div className="min-w-0 w-full max-w-full">
+          <FilterPills>
+            <InlineSelect
+              variant="pill"
+              filterPill
+              aria-label="Filter by sport"
+              value={sportId}
+              onChange={setSportId}
+              active={sportId !== "all"}
+              menuMaxHeightClass="max-h-52"
+              className="shrink-0 text-[12.5px] font-medium px-[13px] py-2 min-h-[44px]"
+              options={sportOptions}
+            />
+          </FilterPills>
         </div>
-      )}
-    </PlayerScrollBody>
+      </PlayerPinnedChrome>
+
+      <PlayerScrollBody className="pt-0">
+        {filtered.length === 0 ? (
+          <PlayerEmptyState
+            icon={<GridIcon className="w-5 h-5" />}
+            title="No posts yet"
+            description="Your academy feed will show coach-verified training posts here."
+          />
+        ) : (
+          <div className="min-w-0">
+            {filtered.map((item) => {
+              const key = `${item.type}:${item.sourceId}`;
+              return (
+                <PlayerFeedPost
+                  key={key}
+                  academyId={academyId}
+                  item={item}
+                  highlighted={highlightPostKey === key}
+                />
+              );
+            })}
+          </div>
+        )}
+      </PlayerScrollBody>
+    </>
   );
 }

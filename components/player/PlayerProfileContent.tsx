@@ -1,4 +1,6 @@
 import { PortalLogoutButton } from "@/components/auth/PortalLogoutButton";
+import { UpIcon } from "@/components/academy/icons";
+import { Pill } from "@/components/academy/shared";
 import { PlayerBackButton } from "@/components/player/PlayerChrome";
 import { PlayerEmptyState } from "@/components/player/PlayerEmptyState";
 import { PlayerPageHeader } from "@/components/player/PlayerPageHeader";
@@ -33,85 +35,236 @@ function formatStatValue(value: number): string {
   return value > 0 ? String(value) : "—";
 }
 
+function truncateDrillLabel(name: string, maxLength = 10): string {
+  const trimmed = name.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  return `${trimmed.slice(0, maxLength - 1)}…`;
+}
+
+function ratingToChartX(
+  rating: number,
+  paddingLeft: number,
+  chartWidth: number
+): number {
+  const clamped = Math.max(1, Math.min(10, rating));
+  return paddingLeft + ((clamped - 1) / 9) * chartWidth;
+}
+
+function reviewRowCenterY(
+  reviewIndex: number,
+  reviewCount: number,
+  paddingTop: number,
+  rowHeight: number
+): number {
+  const plotHeight = reviewCount * rowHeight;
+  return paddingTop + plotHeight - (reviewIndex + 0.5) * rowHeight;
+}
+
 function RatingTrendChart({ points }: { points: PlayerPortalRatingPoint[] }) {
   if (points.length === 0) return null;
 
   const width = 320;
-  const height = 116;
-  const paddingX = 6;
-  const paddingY = 20;
-  const chartHeight = height - paddingY - 10;
+  const paddingLeft = 72;
+  const paddingRight = 12;
+  const paddingTop = 8;
+  const paddingBottom = 22;
+  const rowHeight = 36;
+  const chartWidth = width - paddingLeft - paddingRight;
+  const plotHeight = points.length * rowHeight;
+  const height = paddingTop + plotHeight + paddingBottom;
+  const xAxisTicks = [1, 4, 7, 10];
+  const baselineY = paddingTop + plotHeight;
 
-  const ratings = points.map((point) => point.rating);
-  const minRating = Math.min(...ratings, 1);
-  const maxRating = Math.max(...ratings, 10);
-  const range = Math.max(maxRating - minRating, 1);
-
-  const coords = points.map((point, index) => {
-    const x =
-      points.length === 1
-        ? width / 2
-        : paddingX + (index / (points.length - 1)) * (width - paddingX * 2);
-    const y = paddingY + chartHeight - ((point.rating - minRating) / range) * chartHeight;
-    return { x, y, point };
-  });
+  const coords = points.map((point, index) => ({
+    x: ratingToChartX(point.rating, paddingLeft, chartWidth),
+    y: reviewRowCenterY(index, points.length, paddingTop, rowHeight),
+    point,
+    reviewNumber: index + 1,
+  }));
 
   const linePath = coords.map((coord, index) => `${index === 0 ? "M" : "L"}${coord.x} ${coord.y}`).join(" ");
-  const areaPath = `${linePath} L${coords[coords.length - 1]!.x} ${height - 10} L${coords[0]!.x} ${height - 10} Z`;
-  const latest = coords[coords.length - 1]!;
+  const areaPath = `${linePath} L${coords[coords.length - 1]!.x} ${baselineY} L${coords[0]!.x} ${baselineY} Z`;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} className="min-w-0">
-      <g stroke="#EDF0F6" strokeWidth="1">
-        <line x1="0" y1="20" x2={width} y2="20" />
-        <line x1="0" y1="58" x2={width} y2="58" />
-        <line x1="0" y1="96" x2={width} y2="96" />
-      </g>
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      width="100%"
+      height={height}
+      className="min-w-0"
+      role="img"
+      aria-label={`Coach rating trend across ${points.length} review${points.length === 1 ? "" : "s"}`}
+    >
+      {xAxisTicks.map((tick) => {
+        const x = ratingToChartX(tick, paddingLeft, chartWidth);
+        return (
+          <g key={tick}>
+            <line x1={x} y1={paddingTop} x2={x} y2={baselineY} stroke="#EDF0F6" strokeWidth="1" />
+            <text
+              x={x}
+              y={height - 6}
+              textAnchor="middle"
+              fontSize="9"
+              fill="#9AA5BC"
+              fontFamily="Poppins"
+            >
+              {tick}
+            </text>
+          </g>
+        );
+      })}
+
+      {coords.map((coord) => (
+        <line
+          key={`row-${coord.point.reviewedAt}`}
+          x1={paddingLeft}
+          y1={coord.y}
+          x2={width - paddingRight}
+          y2={coord.y}
+          stroke="#F4F6FA"
+          strokeWidth="1"
+        />
+      ))}
+
+      <line
+        x1={paddingLeft}
+        y1={baselineY}
+        x2={width - paddingRight}
+        y2={baselineY}
+        stroke="#EDF0F6"
+        strokeWidth="1"
+      />
+
       <defs>
         <linearGradient id="playerRatingGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FF6B2C" stopOpacity="0.25" />
+          <stop offset="0" stopColor="#FF6B2C" stopOpacity="0.18" />
           <stop offset="1" stopColor="#FF6B2C" stopOpacity="0" />
         </linearGradient>
       </defs>
+
       {points.length > 1 && <path d={areaPath} fill="url(#playerRatingGradient)" />}
       {points.length > 1 && (
         <path
           d={linePath}
           fill="none"
           stroke="#FF6B2C"
-          strokeWidth="3"
+          strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
       )}
-      <circle cx={latest.x} cy={latest.y} r="5" fill="#FF6B2C" stroke="#fff" strokeWidth="2" />
+
+      {coords.map((coord) => (
+        <g key={coord.point.reviewedAt}>
+          <text
+            x={paddingLeft - 6}
+            y={coord.y + 3.5}
+            textAnchor="end"
+            fontSize="9"
+            fill="#9AA5BC"
+            fontFamily="Poppins"
+          >
+            {truncateDrillLabel(coord.point.drillName)}
+          </text>
+          <circle cx={coord.x} cy={coord.y} r="5" fill="#FF6B2C" stroke="#fff" strokeWidth="2" />
+          <text
+            x={coord.x}
+            y={coord.y - 10}
+            textAnchor="middle"
+            fontSize="10"
+            fontWeight="700"
+            fill="#0E1B33"
+            fontFamily="Poppins"
+          >
+            {coord.point.rating}
+          </text>
+        </g>
+      ))}
     </svg>
   );
 }
 
-function SkillBreakdown({ scores }: { scores: PlayerPortalSkillScore[] }) {
+function AspectBreakdown({ scores }: { scores: PlayerPortalSkillScore[] }) {
+  return (
+    <div className="flex flex-col gap-2.5 min-w-0">
+      {scores.map((skill) => (
+        <div key={skill.key} className="flex items-center gap-2.5 min-w-0">
+          <span className="text-[11.5px] text-muted w-[72px] shrink-0 truncate">{skill.label}</span>
+          <div className="flex-1 min-w-0 h-2 bg-surface rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${Math.min(100, (skill.score / 10) * 100)}%`,
+                background: SKILL_BAR_COLORS[skill.key],
+              }}
+            />
+          </div>
+          <span className="text-[11.5px] font-semibold text-ink w-7 text-right tabular-nums shrink-0">
+            {skill.score.toFixed(1)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CoachRatingsCard({
+  profile,
+  isPeer,
+}: {
+  profile: PlayerPortalProfile;
+  isPeer: boolean;
+}) {
+  const hasTrend = profile.ratingTrend.length > 0;
+  const hasAspects = profile.skillScores.length > 0;
+  const latest = hasTrend ? profile.ratingTrend[profile.ratingTrend.length - 1]! : null;
+  const previous = hasTrend && profile.ratingTrend.length > 1
+    ? profile.ratingTrend[profile.ratingTrend.length - 2]!
+    : null;
+  const isImproving =
+    latest != null && previous != null && latest.rating > previous.rating;
+
   return (
     <div className={`${playerLayout.card} p-4 min-w-0`}>
-      <div className="text-[13.5px] font-bold text-ink mb-3">Skill breakdown</div>
-      <div className="flex flex-col gap-2.5 min-w-0">
-        {scores.map((skill) => (
-          <div key={skill.key} className="flex items-center gap-2.5 min-w-0">
-            <span className="text-[11.5px] text-muted w-[72px] shrink-0 truncate">{skill.label}</span>
-            <div className="flex-1 min-w-0 h-2 bg-surface rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${Math.min(100, (skill.score / 10) * 100)}%`,
-                  background: SKILL_BAR_COLORS[skill.key],
-                }}
-              />
-            </div>
-            <span className="text-[11.5px] font-semibold text-ink w-7 text-right tabular-nums shrink-0">
-              {skill.score.toFixed(1)}
+      <div className="flex items-center justify-between gap-2 mb-1 min-w-0">
+        <div className="text-[13.5px] font-bold text-ink">Coach rating trend</div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isImproving ? (
+            <Pill variant="green" className="text-[10px]">
+              <UpIcon className="w-2.5 h-2.5" />
+              Improving
+            </Pill>
+          ) : null}
+          {profile.reviewCount > 0 ? (
+            <span className="text-[10px] font-semibold text-[#0E9B72] bg-green-soft px-2 py-0.5 rounded-full">
+              {profile.reviewCount} review{profile.reviewCount === 1 ? "" : "s"}
             </span>
-          </div>
-        ))}
+          ) : null}
+        </div>
       </div>
+
+      {hasTrend ? (
+        <>
+          <div className="text-[11px] text-muted mb-2">
+            {profile.ratingTrend.length === 1
+              ? "Coach score out of 10"
+              : `Review 1 → ${profile.ratingTrend.length} · oldest at bottom`}
+          </div>
+          <RatingTrendChart points={profile.ratingTrend} />
+        </>
+      ) : (
+        <p className="text-[11px] text-muted mb-3">
+          {isPeer
+            ? "Overall coach scores will appear here after drill reviews."
+            : "Your coach review scores will appear here after drill submissions are rated."}
+        </p>
+      )}
+
+      {hasAspects ? (
+        <div className={`${hasTrend ? "mt-4 pt-4 border-t border-line" : ""} min-w-0`}>
+          <div className="text-[13.5px] font-bold text-ink mb-3">Coach aspect breakdown</div>
+          <AspectBreakdown scores={profile.skillScores} />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -125,8 +278,14 @@ export function PlayerProfileContent({ profile, variant = "self" }: PlayerProfil
     { value: formatStatValue(profile.boutsWon), label: "Bouts won" },
   ];
 
-  const latestTrendRating =
-    profile.ratingTrend.length > 0 ? profile.ratingTrend[profile.ratingTrend.length - 1]!.rating : null;
+  const latestReview =
+    profile.ratingTrend.length > 0 ? profile.ratingTrend[profile.ratingTrend.length - 1]! : null;
+
+  const overallSubtitle = profile.usesReviewAverage
+    ? `Avg. from ${profile.reviewCount} coach review${profile.reviewCount === 1 ? "" : "s"}`
+    : profile.rating != null && profile.reviewCount > 0
+      ? `${profile.reviewCount} coach review${profile.reviewCount === 1 ? "" : "s"}`
+      : null;
 
   return (
     <PlayerScreen>
@@ -172,11 +331,16 @@ export function PlayerProfileContent({ profile, variant = "self" }: PlayerProfil
               {profile.rating ?? "—"}
             </div>
             <div className="text-[10.5px] text-[#A9B5D1] uppercase tracking-wide">Overall</div>
-            {latestTrendRating != null && profile.rating == null && (
-              <div className="text-[11px] text-[#34D399] font-semibold mt-1 tabular-nums">
-                Latest review {latestTrendRating}/10
+            {overallSubtitle ? (
+              <div className="text-[11px] text-[#A9B5D1] mt-1 leading-snug max-w-[140px] sm:max-w-none sm:text-right">
+                {overallSubtitle}
               </div>
-            )}
+            ) : null}
+            {latestReview && profile.rating != null ? (
+              <div className="text-[11px] text-[#34D399] font-semibold mt-1 tabular-nums">
+                Latest {latestReview.rating}/10
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -194,44 +358,17 @@ export function PlayerProfileContent({ profile, variant = "self" }: PlayerProfil
           ))}
         </div>
 
-        {profile.ratingTrend.length > 0 ? (
-          <div className={`${playerLayout.card} p-4 min-w-0`}>
-            <div className="flex items-center justify-between gap-2 mb-1 min-w-0">
-              <div className="text-[13.5px] font-bold text-ink">Coach rating trend</div>
-              <span className="text-[10px] font-semibold text-[#0E9B72] bg-green-soft px-2 py-0.5 rounded-full shrink-0">
-                {profile.ratingTrend.length} review{profile.ratingTrend.length === 1 ? "" : "s"}
-              </span>
-            </div>
-            <div className="text-[11px] text-muted mb-2">Recent coach scores</div>
-            <RatingTrendChart points={profile.ratingTrend} />
-            <div className="text-[11px] text-muted2 mt-2 truncate">
-              Latest · {profile.ratingTrend[profile.ratingTrend.length - 1]!.timeAgo}
-            </div>
-          </div>
+        {profile.ratingTrend.length > 0 || profile.skillScores.length > 0 ? (
+          <CoachRatingsCard profile={profile} isPeer={isPeer} />
         ) : (
           <PlayerEmptyState
             variant="inline"
             compact
-            title="No rating history yet"
+            title="No coach ratings yet"
             description={
               isPeer
-                ? "Coach rating trends will appear here after their coach reviews drill submissions."
-                : "Coach rating trends will appear here after your coach reviews your drill submissions."
-            }
-          />
-        )}
-
-        {profile.skillScores.length > 0 ? (
-          <SkillBreakdown scores={profile.skillScores} />
-        ) : (
-          <PlayerEmptyState
-            variant="inline"
-            compact
-            title="No skill scores yet"
-            description={
-              isPeer
-                ? "Skill scores appear after a coach evaluates their drill submissions."
-                : "Technique, speed, and form scores appear after your coach evaluates your drills."
+                ? "Coach review scores and skill breakdowns appear here after their coach reviews drill submissions."
+                : "Coach review scores and skill breakdowns appear here after your coach reviews your drill submissions."
             }
           />
         )}

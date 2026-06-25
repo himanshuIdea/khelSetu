@@ -21,11 +21,19 @@ export function PlayerPageHeader({
   className = "",
 }: PlayerPageHeaderProps) {
   if (children) {
-    return <header className={playerHeaderClassName(className)}>{children}</header>;
+    return (
+      <header
+        className={`${playerHeaderClassName(className)} sticky top-0 z-10 bg-[#F4F6FA]`.trim()}
+      >
+        {children}
+      </header>
+    );
   }
 
   return (
-    <header className={playerHeaderClassName(className)}>
+    <header
+      className={`${playerHeaderClassName(className)} sticky top-0 z-10 bg-[#F4F6FA]`.trim()}
+    >
       <div className={playerLayout.headerRow}>
         {leading}
         {brand ? (

@@ -56,7 +56,7 @@ type PlayerVisibility = {
   batchCoachIds: string[];
 };
 
-async function resolvePlayerVisibility(
+export async function resolvePlayerVisibility(
   academyId: string,
   playerId: string
 ): Promise<(PlayerVisibility & { batchName: string | null; coachName: string | null }) | null> {
@@ -91,7 +91,7 @@ async function resolvePlayerVisibility(
   };
 }
 
-function buildCoachVisibilityCondition(
+export function buildCoachVisibilityCondition(
   primaryCoachId: string | null,
   batchCoachIds: string[]
 ) {

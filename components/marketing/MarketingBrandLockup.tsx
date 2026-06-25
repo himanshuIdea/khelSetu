@@ -20,14 +20,24 @@ function BoltIcon({ className = "w-6 h-6" }: { className?: string }) {
 
 type MarketingBrandLockupProps = {
   size?: "sm" | "lg";
+  /** Drop the default bottom margin (e.g. when placed in a fixed header). */
+  marginless?: boolean;
 };
 
-export function MarketingBrandLockup({ size = "sm" }: MarketingBrandLockupProps) {
+export function MarketingBrandLockup({
+  size = "sm",
+  marginless = false,
+}: MarketingBrandLockupProps) {
   const { brand } = authConfig;
   const isLarge = size === "lg";
+  const marginClass = marginless
+    ? ""
+    : isLarge
+      ? "mb-10 sm:mb-14"
+      : "mb-8 sm:mb-10";
 
   return (
-    <div className={isLarge ? "mb-10 sm:mb-14" : "mb-8 sm:mb-10"}>
+    <div className={marginClass}>
       <div className="flex items-center gap-3">
         <div
           className={`flex items-center justify-center rounded-xl shrink-0 ${
