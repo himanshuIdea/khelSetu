@@ -22,11 +22,14 @@ type MarketingBrandLockupProps = {
   size?: "sm" | "lg";
   /** Drop the default bottom margin (e.g. when placed in a fixed header). */
   marginless?: boolean;
+  /** Icon only — hides wordmark (e.g. fixed header on narrow viewports). */
+  iconOnly?: boolean;
 };
 
 export function MarketingBrandLockup({
   size = "sm",
   marginless = false,
+  iconOnly = false,
 }: MarketingBrandLockupProps) {
   const { brand } = authConfig;
   const isLarge = size === "lg";
@@ -49,7 +52,7 @@ export function MarketingBrandLockup({
         >
           <BoltIcon className={isLarge ? "w-7 h-7" : "w-6 h-6"} />
         </div>
-        <div>
+        <div className={iconOnly ? "hidden sm:block" : undefined}>
           <div
             className={`font-bold tracking-tight text-white ${
               isLarge ? "text-[26px] sm:text-[30px]" : "text-[23px]"
@@ -59,6 +62,12 @@ export function MarketingBrandLockup({
             <span className="text-brand">{brand.accentWord}</span>
           </div>
         </div>
+        {iconOnly ? (
+          <span className="sr-only sm:hidden">
+            {brand.name}
+            {brand.accentWord}
+          </span>
+        ) : null}
       </div>
     </div>
   );

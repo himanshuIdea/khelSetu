@@ -50,15 +50,20 @@ export function useStateLandingLanguage() {
   return ctx;
 }
 
-/** Fixed top-right language toggle — switches landing copy to Hindi. */
-export function MatrubhashaToggle() {
+/** Language toggle — switches landing copy to Hindi. */
+export function MatrubhashaToggle({ compact = false }: { compact?: boolean }) {
   const { locale, t, toggleLocale } = useStateLandingLanguage();
+
+  const shortLabel = locale === "en" ? "हिंदी" : "EN";
+  const fullLabel = locale === "en" ? t.matrubhashaLabel : t.matrubhashaSwitchToEnglish;
 
   return (
     <button
       type="button"
       onClick={toggleLocale}
-      className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/[0.06] px-4 sm:px-5 text-[13px] font-semibold text-white backdrop-blur-sm transition-colors hover:border-white/35 hover:bg-white/10"
+      className={`inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/[0.06] text-[13px] font-semibold text-white backdrop-blur-sm transition-colors hover:border-white/35 hover:bg-white/10 shrink-0 ${
+        compact ? "min-w-11 px-3 sm:px-5" : "px-4 sm:px-5"
+      }`}
       aria-pressed={locale === "hi"}
       aria-label={
         locale === "en"
@@ -66,7 +71,14 @@ export function MatrubhashaToggle() {
           : "Switch page content to English"
       }
     >
-      {locale === "en" ? t.matrubhashaLabel : t.matrubhashaSwitchToEnglish}
+      {compact ? (
+        <>
+          <span className="sm:hidden">{shortLabel}</span>
+          <span className="hidden sm:inline">{fullLabel}</span>
+        </>
+      ) : (
+        fullLabel
+      )}
     </button>
   );
 }
