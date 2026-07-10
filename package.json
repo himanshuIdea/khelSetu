@@ -25,7 +25,9 @@
     "db:refresh-names": "tsx scripts/refresh-academy-names.ts",
     "db:refresh-players": "tsx scripts/refresh-player-rosters.ts",
     "db:refresh-coaches": "tsx scripts/refresh-coach-rosters.ts",
-    "qa:backend": "tsx scripts/backend-qa.ts"
+    "qa:backend": "tsx scripts/backend-qa.ts",
+    "demo:record": "node scripts/run-state-demo-record.mjs",
+    "demo:record:test": "playwright test e2e/state-portal-demo.spec.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1071.0",
@@ -42,6 +44,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^20",

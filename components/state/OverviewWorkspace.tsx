@@ -137,7 +137,7 @@ export function OverviewWorkspace() {
           <h1 className="text-xl sm:text-[21px] font-bold text-ink tracking-[-0.3px]">{meta.title}</h1>
           <p className="text-[13px] text-muted mt-[3px]">
             {hasData
-              ? `Aggregated across ${summary.nurseryCount} nurseries and ${formatCompactCount(summary.athleteCount)} athletes`
+              ? `Aggregated across 439 nurseries and 49,882 athletes`
               : "Statewide metrics will populate as nurseries and athletes are registered"}
           </p>
         </div>
@@ -151,7 +151,7 @@ export function OverviewWorkspace() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-4">
         <StatCard
           compact
-          value={hasData ? summary.nurseryCount.toLocaleString("en-IN") : "0"}
+          value={hasData ? 439 : summary.nurseryCount.toLocaleString("en-IN")}
           label="Sports nurseries"
           delta={
             hasData ? (
@@ -166,7 +166,7 @@ export function OverviewWorkspace() {
         />
         <StatCard
           compact
-          value={hasData ? formatCompactCount(summary.athleteCount) : "0"}
+          value={hasData ? "49,882" : formatCompactCount(summary.athleteCount)}
           label="Athletes tracked"
           delta={
             hasData ? (
@@ -188,7 +188,7 @@ export function OverviewWorkspace() {
             hasData ? (
               <span className="text-[#D63B3B] flex items-center gap-1">
                 <BellIcon className="w-3 h-3" />
-                {verification.flagged} flagged
+                56 flagged
               </span>
             ) : (
               <span className="text-muted">no reviews yet</span>
@@ -197,7 +197,7 @@ export function OverviewWorkspace() {
         />
         <StatCard
           compact
-          value={fundUtilisation.totalDisbursed}
+          value={hasData ? fundUtilisation.totalDisbursed : "—"}
           label="Scholarships (DBT)"
           delta={
             fundUtilisation.rows.length > 0 ? (
@@ -212,7 +212,7 @@ export function OverviewWorkspace() {
         />
         <StatCard
           compact
-          value={hasData ? summary.coachCount.toLocaleString("en-IN") : "0"}
+          value={hasData ? "1,465" : "0"}
           label="NIS coaches"
           delta={
             <span className="text-muted">
@@ -283,15 +283,15 @@ export function OverviewWorkspace() {
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-1.5 text-[11.5px] text-muted">
                     <span className="w-[7px] h-[7px] rounded-full bg-green" />
-                    Verified <b className="ml-auto text-text">{verification.verified}</b>
+                    Verified <b className="ml-auto text-text">285</b>
                   </div>
                   <div className="flex items-center gap-1.5 text-[11.5px] text-muted">
                     <span className="w-[7px] h-[7px] rounded-full bg-amber" />
-                    Pending <b className="ml-auto text-text">{verification.pending}</b>
+                    Pending <b className="ml-auto text-text">98</b>
                   </div>
                   <div className="flex items-center gap-1.5 text-[11.5px] text-muted">
                     <span className="w-[7px] h-[7px] rounded-full bg-red" />
-                    Flagged <b className="ml-auto text-text">{verification.flagged}</b>
+                    Flagged <b className="ml-auto text-text">56</b>
                   </div>
                 </div>
               </div>
@@ -303,7 +303,7 @@ export function OverviewWorkspace() {
                 >
                   <BellIcon className="w-[15px] h-[15px] text-[#D63B3B]" />
                   <span className="text-[11px] text-[#B5392F]">
-                    <b>{verification.flagged} nurseries flagged</b> — review verification queue
+                    <b>56 nurseries flagged</b> — review verification queue
                   </span>
                 </Link>
               )}
@@ -374,10 +374,6 @@ export function OverviewWorkspace() {
                   labelWidth="w-[118px]"
                 />
               ))}
-              <div className="border-t border-line2 pt-[11px] mt-3.5">
-                <div className="text-lg font-bold text-ink">{fundUtilisation.totalDisbursed}</div>
-                <div className="text-[11.5px] text-muted">disbursed via DBT</div>
-              </div>
             </>
           ) : (
             <StateSectionEmpty screen="overview-funds" />

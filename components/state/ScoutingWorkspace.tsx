@@ -467,6 +467,11 @@ export function ScoutingWorkspace({
 
       try {
         await api.state.scouting.updateStatus(playerId, status);
+        setItems((current) =>
+          current.map((p) =>
+            p.playerId === playerId ? { ...p, scoutingStatus: status } : p
+          )
+        );
         setStatusOverrides((prev) => {
           const next = { ...prev };
           delete next[playerId];
@@ -500,6 +505,9 @@ export function ScoutingWorkspace({
 
     try {
       await api.state.scouting.bulkUpdateStatus(ids, status);
+      setItems((current) =>
+        current.map((p) => (ids.includes(p.playerId) ? { ...p, scoutingStatus: status } : p))
+      );
       setStatusOverrides((prev) => {
         const next = { ...prev };
         for (const id of ids) delete next[id];
@@ -646,7 +654,7 @@ export function ScoutingWorkspace({
                 />
                 <RatingFilterSlider value={minRating} onChange={setMinRating} />
                 <InlineSelect
-                  value={statusFilter}
+                  value={effectiveStatusFilter}
                   options={SCOUTING_STATUS_FILTER_OPTIONS}
                   onChange={(value) => {
                     setStatusFilter(value);
@@ -654,7 +662,7 @@ export function ScoutingWorkspace({
                   }}
                   variant="pill"
                   filterPill
-                  active={statusFilter !== "all"}
+                  active={effectiveStatusFilter !== "all"}
                   className="shrink-0"
                 />
                 

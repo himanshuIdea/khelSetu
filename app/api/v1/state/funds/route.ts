@@ -4,7 +4,7 @@ import {
   assertStateAdminAccess,
   handleStateRouteError,
 } from "@/app/api/v1/state/nurseries/_auth";
-import { getStateFundsDashboard } from "@/lib/repositories/state-funds";
+import { STATE_DEMO_FUNDS_DASHBOARD } from "@/lib/state-demo-funds";
 
 export const runtime = "nodejs";
 
@@ -15,7 +15,8 @@ export async function GET() {
     const auth = await assertStateAdminAccess();
     if ("error" in auth) return auth.error;
 
-    const dashboard = await getStateFundsDashboard();
+    // TODO(demo): remove when live funds dashboard is ready for recordings
+    const dashboard = STATE_DEMO_FUNDS_DASHBOARD;
     return NextResponse.json({ dashboard });
   } catch (error) {
     return handleStateRouteError(error);

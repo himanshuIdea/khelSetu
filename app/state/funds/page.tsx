@@ -1,9 +1,10 @@
 import { StatePageBody } from "@/components/state/StatePageBody";
 import { FundsWorkspace } from "@/components/state/funds/FundsWorkspace";
-import { getStateFundsDashboard } from "@/lib/repositories/state-funds";
+import { STATE_DEMO_FUNDS_DASHBOARD } from "@/lib/state-demo-funds";
 
 export default async function FundsPage() {
-  const dashboard = await getStateFundsDashboard();
+  // TODO(demo): remove when live funds dashboard is ready for recordings
+  const dashboard = STATE_DEMO_FUNDS_DASHBOARD;
 
   return (
     <StatePageBody>

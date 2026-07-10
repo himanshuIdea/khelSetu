@@ -54,7 +54,7 @@ export function useStateLandingLanguage() {
 export function MatrubhashaToggle({ compact = false }: { compact?: boolean }) {
   const { locale, t, toggleLocale } = useStateLandingLanguage();
 
-  const shortLabel = locale === "en" ? "हिंदी" : "EN";
+  const shortLabel = locale === "en" ? "मातृभाषा" : "EN";
   const fullLabel = locale === "en" ? t.matrubhashaLabel : t.matrubhashaSwitchToEnglish;
 
   return (

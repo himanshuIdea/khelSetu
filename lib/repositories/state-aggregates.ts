@@ -1,7 +1,8 @@
 import { cache } from "react";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { formatCompactCount, formatPaise } from "@/lib/format";
+import { formatCompactCount, formatStateFundAmount } from "@/lib/format";
+import { STATE_DEMO_FUND_UTILISATION } from "@/lib/state-demo-funds";
 import type {
   DistrictSportBar,
   SportLegendItem,
@@ -260,6 +261,9 @@ async function fetchPlayerOverviewBundle() {
 
 /** One round-trip: active FY schemes + paid disbursement totals. */
 async function fetchFundUtilisationSummaryFast(): Promise<StateFundUtilisationSummary> {
+  // TODO(demo): remove when live fund rollup is ready for recordings
+  return STATE_DEMO_FUND_UTILISATION;
+
   const rows = await db.execute<FundSchemeRow>(sql`
     SELECT
       s.name,
@@ -295,7 +299,7 @@ async function fetchFundUtilisationSummaryFast(): Promise<StateFundUtilisationSu
 
   return {
     rows: fundRows,
-    totalDisbursed: formatPaise(totalPaise),
+    totalDisbursed: formatStateFundAmount(totalPaise),
   };
 }
 

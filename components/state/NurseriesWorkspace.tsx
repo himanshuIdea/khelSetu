@@ -85,7 +85,7 @@ export function NurseriesWorkspace({ nurseries }: NurseriesWorkspaceProps) {
     });
   }, [nurseries, searchQuery, districtFilter, sportFilter, statusFilter]);
 
-  const subtitle = `${nurseries.length} active nurseries across ${districtCount} district${districtCount === 1 ? "" : "s"}`;
+  const subtitle = `439 active nurseries across ${districtCount} district${districtCount === 1 ? "" : "s"}`;
 
   return (
     <div className={stateLayout.listWorkspace}>

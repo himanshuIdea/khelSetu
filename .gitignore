@@ -12,6 +12,11 @@
 
 # testing
 /coverage
+/e2e/results/
+/e2e/report/
+/e2e/.auth/
+/e2e/demo/*.webm
+/e2e/demo/downloads/
 
 # next.js
 /.next/

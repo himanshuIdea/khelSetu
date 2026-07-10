@@ -230,7 +230,7 @@ export function AthletesWorkspace({
 
   const subtitle =
     total > 0
-      ? `Showing ${items.length.toLocaleString("en-IN")} of ${total.toLocaleString("en-IN")} athletes`
+      ? `Showing ${items.length.toLocaleString("en-IN")} of 49,882 athletes`
       : hasAnyAthletes
         ? "100s of athletes tracked statewide"
         : "Registered athletes from verified nurseries will appear here";

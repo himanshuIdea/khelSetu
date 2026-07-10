@@ -1,13 +1,14 @@
 import { StatePageBody } from "@/components/state/StatePageBody";
 import { ScoutingWorkspace } from "@/components/state/ScoutingWorkspace";
-import { getStateScoutingDashboard } from "@/lib/repositories/state-scouting";
+import { STATE_DEMO_SCOUTING_DASHBOARD } from "@/lib/state-demo-scouting";
 
 export const dynamic = "force-dynamic";
 
 const DEFAULT_MIN_RATING = 8;
 
 export default async function ScoutingPage() {
-  const dashboard = await getStateScoutingDashboard();
+  // TODO(demo): remove when live scouting dashboard is ready for recordings
+  const dashboard = STATE_DEMO_SCOUTING_DASHBOARD;
 
   return (
     <StatePageBody variant="list">
